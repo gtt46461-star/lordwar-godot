@@ -264,11 +264,19 @@ jobs:
         working-directory: project
         run: |
           set -euo pipefail
-          LORDWAR_SMOKE_TEST=1 timeout 60s "$HOME/bin/godot" --headless --path . --verbose 2>&1 | tee Evidence/CI_RUNTIME_SMOKE.log
+          set +e
+          LORDWAR_SMOKE_TEST=1 timeout 15s "$HOME/bin/godot" --headless --path . --verbose 2>&1 | tee Evidence/CI_RUNTIME_SMOKE.log
+          SMOKE_RC=${PIPESTATUS[0]}
+          set -e
+          if [ "$SMOKE_RC" != "0" ] && [ "$SMOKE_RC" != "124" ]; then
+            echo "Unexpected smoke-test process exit: $SMOKE_RC"
+            exit "$SMOKE_RC"
+          fi
           if grep -F "LORDWAR_STARTUP_FATAL" Evidence/CI_RUNTIME_SMOKE.log; then
             echo "Startup fatal marker detected"
             exit 1
           fi
+          grep -F "LORDWAR_MENU_READY" Evidence/CI_RUNTIME_SMOKE.log
           grep -F "LORDWAR_GAME_READY" Evidence/CI_RUNTIME_SMOKE.log
 
       - name: Switch Android export to Vulkan Mobile renderer
