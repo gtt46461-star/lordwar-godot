@@ -228,6 +228,18 @@ jobs:
           test -s LordWar.sln
           grep -F "LordWar.csproj" LordWar.sln
 
+      - name: Create required Godot C# solution
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          rm -f LordWar.sln LordWar.slnx
+          dotnet new sln -n LordWar --format sln
+          dotnet sln LordWar.sln add LordWar.csproj
+          test -s LordWar.sln
+          grep -F "LordWar.csproj" LordWar.sln
+          echo "GODOT_CSHARP_SOLUTION=PASS"
+
       - name: Restore and build C#
         shell: bash
         working-directory: project
@@ -411,6 +423,7 @@ jobs:
             project/Evidence/CI_*.png
             project/Evidence/CI_BUILD_SUMMARY.txt
             project/Scripts/Godot/LordWarApp.cs
+            project/LordWar.sln
             project/LordWar.sln
             project/LordWar.sln
             project/project.godot
