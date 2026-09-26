@@ -44,6 +44,14 @@ jobs:
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
           grep -F "LORDWAR_STARTUP_OK" project/Scripts/Godot/LordWarApp.cs
 
+      - name: Set R32.1 crash-fix Android version
+        shell: bash
+        working-directory: project
+        run: |
+          sed -i 's/version\/code=90032/version\/code=90033/' export_presets.cfg
+          sed -i 's/version\/name="[^"]*"/version\/name="0.9.0-dev.20260926-r32.1-crashfix"/' export_presets.cfg
+          grep -E 'version/(code|name)' export_presets.cfg
+
       - name: Verify full runtime art payload
         shell: bash
         working-directory: project
@@ -147,12 +155,19 @@ jobs:
           test -f "$TARGET/android_release.apk"
           echo "$GODOT_TEMPLATE_DIR" > "$TARGET/version.txt"
 
-      - name: Create CI debug keystore
+      - name: Restore persistent debug signing key
+        id: signing_cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/lordwar-ci-debug.keystore
+          key: lordwar-debug-signing-v1
+
+      - name: Create persistent debug signing key if missing
+        if: steps.signing_cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.android"
-          rm -f "$HOME/.android/lordwar-ci-debug.keystore"
           keytool -genkeypair -v \
             -keystore "$HOME/.android/lordwar-ci-debug.keystore" \
             -storepass android \
@@ -160,6 +175,11 @@ jobs:
             -keypass android \
             -dname "CN=LordWar CI,O=LordWar,C=CN" \
             -keyalg RSA -keysize 2048 -validity 10000
+
+      - name: Configure persistent debug signing
+        shell: bash
+        run: |
+          test -s "$HOME/.android/lordwar-ci-debug.keystore"
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$HOME/.android/lordwar-ci-debug.keystore" >> "$GITHUB_ENV"
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> "$GITHUB_ENV"
