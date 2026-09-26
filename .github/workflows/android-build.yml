@@ -51,8 +51,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90108/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc9"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90109/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc10"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
           sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=0/' project.godot
@@ -301,10 +301,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-RC9-debug.apk" \
+            "Builds/Android/LordWar-RC10-debug.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-RC9-debug.apk
-          sha256sum Builds/Android/LordWar-RC9-debug.apk | tee Builds/Android/LordWar-RC9-debug.apk.sha256
+          test -s Builds/Android/LordWar-RC10-debug.apk
+          sha256sum Builds/Android/LordWar-RC10-debug.apk | tee Builds/Android/LordWar-RC10-debug.apk.sha256
           ls -lh Builds/Android/
 
       - name: Install Pillow for screenshot validation
@@ -319,7 +319,7 @@ jobs:
           mkdir -p Evidence
           sudo chmod 666 /dev/kvm 2>/dev/null || true
           echo "no" | avdmanager create avd -n LordWarApi35 -k "system-images;android-35;google_apis;x86_64" --force
-          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
+          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
           adb wait-for-device
           BOOT_OK=0
           for i in $(seq 1 120); do
@@ -330,6 +330,11 @@ jobs:
             sleep 2
           done
           test "$BOOT_OK" = "1"
+          {
+            echo "ro.hardware.egl=$(adb shell getprop ro.hardware.egl | tr -d '\r')"
+            echo "ro.hardware.vulkan=$(adb shell getprop ro.hardware.vulkan | tr -d '\r')"
+            echo "ro.opengles.version=$(adb shell getprop ro.opengles.version | tr -d '\r')"
+          } | tee Evidence/CI_ANDROID_GPU_PROPERTIES.txt
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
@@ -337,8 +342,9 @@ jobs:
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb shell input keyevent 82 || true
           sleep 2
-          adb install -r Builds/Android/LordWar-RC9-debug.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-RC9-debug.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb uninstall com.lordwar.game >/dev/null 2>&1 || true
+          adb install --no-incremental -r Builds/Android/LordWar-RC10-debug.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-RC10-debug.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -c
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
@@ -377,7 +383,7 @@ jobs:
           GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
-          PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
@@ -426,10 +432,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-RC9.apk" \
+            "Builds/Android/LordWar-1.0.0-RC10.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-RC9.apk
-          sha256sum Builds/Android/LordWar-1.0.0-RC9.apk | tee Builds/Android/LordWar-1.0.0-RC9.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0-RC10.apk
+          sha256sum Builds/Android/LordWar-1.0.0-RC10.apk | tee Builds/Android/LordWar-1.0.0-RC10.apk.sha256
 
       - name: Android emulator RC release smoke test
         shell: bash
@@ -437,14 +443,27 @@ jobs:
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install Builds/Android/LordWar-1.0.0-RC9.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb uninstall com.lordwar.game >/dev/null 2>&1 || true
+          adb install --no-incremental -r Builds/Android/LordWar-1.0.0-RC10.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
           adb shell wm density 160 || true
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb logcat -c
-          adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
+          RELEASE_ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
+          echo "resolved_activity=$RELEASE_ACTIVITY" | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
+          test -n "$RELEASE_ACTIVITY"
+          if echo "$RELEASE_ACTIVITY" | grep -qi "No activity"; then exit 1; fi
+          adb shell am start -W -n "$RELEASE_ACTIVITY" | tee -a Evidence/CI_ANDROID_RELEASE_LAUNCH.log
+          RELEASE_START_PID=""
+          for i in $(seq 1 20); do
+            RELEASE_START_PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+            if [ -n "$RELEASE_START_PID" ]; then break; fi
+            sleep 1
+          done
+          echo "start_pid=$RELEASE_START_PID" | tee -a Evidence/CI_ANDROID_RELEASE_LAUNCH.log
+          test -n "$RELEASE_START_PID"
           sleep 30
           adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png
           read W H < <(python3 - <<'PY'
@@ -468,7 +487,7 @@ jobs:
           GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
-          RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
@@ -507,9 +526,9 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-RC9-debug.apk ]; then
+            if [ -f Builds/Android/LordWar-RC10-debug.apk ]; then
               echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-RC9-debug.apk
+              sha256sum Builds/Android/LordWar-RC10-debug.apk
             else
               echo "apk_present=no"
             fi
