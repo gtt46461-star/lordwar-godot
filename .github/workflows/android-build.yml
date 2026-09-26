@@ -341,11 +341,19 @@ jobs:
           adb logcat -c || true
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
-          sleep 4
           MENU_READY_DEBUG=0
-          if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_DEBUG=1; fi
+          for i in $(seq 1 30); do
+            PID_MENU="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+            if [ -z "$PID_MENU" ]; then break; fi
+            if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_DEBUG=1; break; fi
+            sleep 2
+          done
           echo "menu_ready_debug=$MENU_READY_DEBUG" | tee Evidence/CI_ANDROID_MENU_STATUS.txt
-          test "$MENU_READY_DEBUG" = "1"
+          if [ "$MENU_READY_DEBUG" != "1" ]; then
+            adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
+            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR|Godot Engine|LORDWAR_" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 250 || true
+            exit 1
+          fi
           STARTUP_OK=0
           for i in $(seq 1 90); do
             PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
@@ -393,11 +401,19 @@ jobs:
           adb logcat -c || true
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
-          sleep 4
           MENU_READY_RELEASE=0
-          if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_RELEASE=1; fi
+          for i in $(seq 1 30); do
+            PID_MENU="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+            if [ -z "$PID_MENU" ]; then break; fi
+            if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_RELEASE=1; break; fi
+            sleep 2
+          done
           echo "menu_ready_release=$MENU_READY_RELEASE" | tee Evidence/CI_ANDROID_RELEASE_MENU_STATUS.txt
-          test "$MENU_READY_RELEASE" = "1"
+          if [ "$MENU_READY_RELEASE" != "1" ]; then
+            adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
+            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR|Godot Engine|LORDWAR_" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 250 || true
+            exit 1
+          fi
           STARTUP_OK=0
           for i in $(seq 1 90); do
             PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
