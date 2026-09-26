@@ -388,6 +388,13 @@ jobs:
           sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
           adb exec-out run-as com.lordwar.game cat files/lordwar_ci_game.png > Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png || true
+          echo "Waiting for four debug runtime heartbeats..."
+          for i in $(seq 1 30); do
+            adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
+            HEARTBEATS=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+            if [ "$HEARTBEATS" -ge 4 ]; then break; fi
+            sleep 2
+          done
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
