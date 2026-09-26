@@ -48,8 +48,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i 's/version\/code=90032/version\/code=90034/' export_presets.cfg
-          sed -i 's/version\/name="[^"]*"/version\/name="0.9.0-dev.20260926-r32.2-async-crashfix"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90100/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc1"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
 
