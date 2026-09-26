@@ -379,6 +379,12 @@ jobs:
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          adb shell ps -A | grep -F "com.lordwar.game" > Evidence/CI_ANDROID_PROCESS_LIST.txt || true
+          adb shell dumpsys activity exit-info com.lordwar.game > Evidence/CI_ANDROID_EXIT_INFO.txt 2>&1 || true
+          adb logcat -b crash -d -v threadtime > Evidence/CI_ANDROID_CRASH_BUFFER.log 2>&1 || true
+          adb logcat -b all -d -v threadtime > Evidence/CI_ANDROID_ALL_BUFFERS.log 2>&1 || true
+          adb shell dumpsys dropbox --print data_app_native_crash > Evidence/CI_ANDROID_DROPBOX_NATIVE_CRASH.txt 2>&1 || true
+          adb shell dumpsys dropbox --print data_app_crash > Evidence/CI_ANDROID_DROPBOX_APP_CRASH.txt 2>&1 || true
           MENU_OK=$(grep -c "LORDWAR_MAIN_MENU_VISIBLE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
