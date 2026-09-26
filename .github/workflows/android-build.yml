@@ -1,4 +1,4 @@
-name: LordWar Android RC Build
+name: LordWar Android Playable Gate
 
 on:
   workflow_dispatch:
