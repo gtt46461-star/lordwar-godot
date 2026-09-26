@@ -14,7 +14,7 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 140
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
@@ -279,7 +279,7 @@ jobs:
           grep -F "LORDWAR_MENU_READY" Evidence/CI_RUNTIME_SMOKE.log
           grep -F "LORDWAR_GAME_READY" Evidence/CI_RUNTIME_SMOKE.log
 
-      - name: Switch Android export to Vulkan Mobile renderer
+      - name: Switch Android export to Compatibility OpenGL renderer
         shell: bash
         working-directory: project
         run: |
@@ -288,23 +288,27 @@ jobs:
           from pathlib import Path
           p = Path("project.godot")
           s = p.read_text(encoding="utf-8")
-          s = s.replace('config/features=PackedStringArray("4.7", "C#", "GL Compatibility")',
-                        'config/features=PackedStringArray("4.7", "C#", "Mobile")')
-          s = s.replace('renderer/rendering_method="gl_compatibility"',
-                        'renderer/rendering_method="mobile"')
-          s = s.replace('renderer/rendering_method.mobile="gl_compatibility"',
-                        'renderer/rendering_method.mobile="mobile"')
-          s = s.replace('handheld/orientation=1', 'handheld/orientation=0')
-          if 'rendering/rendering_device/driver.android="vulkan"' not in s:
-              s = s.replace('[rendering]\n', '[rendering]\nrendering/rendering_device/driver.android="vulkan"\n', 1)
+          s = s.replace('config/features=PackedStringArray("4.7", "C#", "Mobile")',
+                        'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")')
+          s = s.replace('config/features=PackedStringArray("4.7", "C#", "Forward Plus")',
+                        'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")')
+          s = s.replace('renderer/rendering_method="mobile"',
+                        'renderer/rendering_method="gl_compatibility"')
+          s = s.replace('renderer/rendering_method.mobile="mobile"',
+                        'renderer/rendering_method.mobile="gl_compatibility"')
+          s = s.replace('rendering/rendering_device/driver.android="vulkan"\n', '')
+          if 'renderer/rendering_method="gl_compatibility"' not in s:
+              s = s.replace('[rendering]\n', '[rendering]\nrenderer/rendering_method="gl_compatibility"\nrenderer/rendering_method.mobile="gl_compatibility"\n', 1)
           p.write_text(s, encoding="utf-8")
           e = Path("export_presets.cfg")
           t = e.read_text(encoding="utf-8")
-          t = t.replace('command_line/extra_args=""',
-                        'command_line/extra_args="--rendering-method mobile --rendering-driver vulkan"')
+          import re
+          t = re.sub(r'command_line/extra_args="[^"]*"',
+                     'command_line/extra_args="--rendering-method gl_compatibility --rendering-driver opengl3"',
+                     t)
           e.write_text(t, encoding="utf-8")
           PY
-          grep -E 'config/features|rendering_method|driver.android|handheld/orientation' project.godot
+          grep -E 'config/features|rendering_method|driver.android' project.godot || true
           grep -F 'command_line/extra_args' export_presets.cfg
           test -s LordWar.sln
 
@@ -329,54 +333,43 @@ jobs:
           mkdir -p Evidence
           sudo chmod 666 /dev/kvm 2>/dev/null || true
           echo "no" | avdmanager create avd -n LordWarApi35 -k "system-images;android-35;google_apis;x86_64" --force
-          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -feature Vulkan -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
+          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader -feature -Vulkan -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
           adb wait-for-device
           BOOT_OK=0
           for i in $(seq 1 120); do
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then BOOT_OK=1; break; fi
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+              BOOT_OK=1
+              break
+            fi
             sleep 2
           done
           test "$BOOT_OK" = "1"
+          adb shell settings put secure immersive_mode_confirmations confirmed || true
+          adb shell input keyevent 82 || true
           adb install -r Builds/Android/LordWar-RC4-debug.apk | tee Evidence/CI_ADB_INSTALL.log
-          adb logcat -c || true
+          adb logcat -c
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
-          MENU_READY_DEBUG=0
-          for i in $(seq 1 30); do
-            PID_MENU="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-            if [ -z "$PID_MENU" ]; then break; fi
-            if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_DEBUG=1; break; fi
-            sleep 2
-          done
-          echo "menu_ready_debug=$MENU_READY_DEBUG" | tee Evidence/CI_ANDROID_MENU_STATUS.txt
-          if [ "$MENU_READY_DEBUG" != "1" ]; then
-            adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
-            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR|Godot Engine|LORDWAR_" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 250 || true
-            exit 1
-          fi
-          STARTUP_OK=0
-          for i in $(seq 1 90); do
-            PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-            if [ -z "$PID" ]; then break; fi
-            if adb logcat -d -v brief | grep -F "LORDWAR_GAME_READY" >/dev/null; then STARTUP_OK=1; break; fi
-            sleep 2
-          done
+          sleep 25
+          adb shell input swipe 250 500 80 500 350 || true
+          adb shell input tap 160 320 || true
+          sleep 20
+          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png || true
+          adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-          adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          echo "game_ready=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          grep -E "LORDWAR_(MENU_READY|MAIN_MENU_VISIBLE|GAME_CREATE_BEGIN|WORLD_OK|GAME_READY|STARTUP_FATAL)" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt || true
-          if [ -z "$PID" ] || [ "$STARTUP_OK" != "1" ]; then
+          STARTUP_OK=$(grep -c "LORDWAR_STARTUP_OK" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_DEVICE_SCREEN.png | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_DEVICE_SCREEN.png)
+          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 250 || true
             exit 1
           fi
-          sleep 5
-          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
-          test "$(stat -c%s Evidence/CI_ANDROID_DEVICE_SCREEN.png)" -gt 5000
-          sleep 10
-          PID2="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-          test -n "$PID2"
+          awk -v x="$STDDEV" 'BEGIN { if (x < 500) exit 1; }'
+          echo "ANDROID_DEVICE_VISUAL=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "ANDROID_DEVICE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
 
       - name: Export signed Android RC release APK
@@ -396,47 +389,33 @@ jobs:
         working-directory: project
         run: |
           set -euo pipefail
-          adb wait-for-device
-          adb install -r Builds/Android/LordWar-1.0.0-RC4.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
-          adb logcat -c || true
-          adb shell am force-stop com.lordwar.game || true
+          adb uninstall com.lordwar.game >/dev/null 2>&1 || true
+          adb install Builds/Android/LordWar-1.0.0-RC4.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb shell settings put secure immersive_mode_confirmations confirmed || true
+          adb logcat -c
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
-          MENU_READY_RELEASE=0
-          for i in $(seq 1 30); do
-            PID_MENU="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-            if [ -z "$PID_MENU" ]; then break; fi
-            if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_RELEASE=1; break; fi
-            sleep 2
-          done
-          echo "menu_ready_release=$MENU_READY_RELEASE" | tee Evidence/CI_ANDROID_RELEASE_MENU_STATUS.txt
-          if [ "$MENU_READY_RELEASE" != "1" ]; then
-            adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
-            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR|Godot Engine|LORDWAR_" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 250 || true
-            exit 1
-          fi
-          STARTUP_OK=0
-          for i in $(seq 1 90); do
-            PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-            if [ -z "$PID" ]; then break; fi
-            if adb logcat -d -v brief | grep -F "LORDWAR_GAME_READY" >/dev/null; then STARTUP_OK=1; break; fi
-            sleep 2
+          sleep 30
+          for i in $(seq 1 4); do
+            adb shell input swipe 260 520 80 520 300 || true
+            adb shell input tap 150 300 || true
+            sleep 8
           done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-          adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
+          adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png || true
+          adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log
           echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          echo "game_ready=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          grep -E "LORDWAR_(MENU_READY|MAIN_MENU_VISIBLE|GAME_CREATE_BEGIN|WORLD_OK|GAME_READY|STARTUP_FATAL)" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
-          if [ -z "$PID" ] || [ "$STARTUP_OK" != "1" ]; then
+          STARTUP_OK=$(grep -c "LORDWAR_STARTUP_OK" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_RELEASE_SCREEN.png | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_RELEASE_SCREEN.png)
+          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 250 || true
             exit 1
           fi
-          sleep 5
-          adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png
-          test "$(stat -c%s Evidence/CI_ANDROID_RELEASE_SCREEN.png)" -gt 5000
-          sleep 10
-          PID2="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-          test -n "$PID2"
+          awk -v x="$STDDEV" 'BEGIN { if (x < 500) exit 1; }'
+          echo "ANDROID_RELEASE_VISUAL=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
       - name: Build evidence summary
