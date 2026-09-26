@@ -63,9 +63,9 @@ namespace LordWar.GodotRuntime {
             AddButton(timeRow, "保存", SaveGame); AddButton(timeRow, "读取", LoadGame);
 
             var tabs1 = new HFlowContainer(); main.AddChild(tabs1);
-            AddTab(tabs1, "总览", 0); AddTab(tabs1, "城市", 1); AddTab(tabs1, "军事", 2); AddTab(tabs1, "人事", 3);
+            AddTab(tabs1, "总览", 0); AddTab(tabs1, "城市规划", 1); AddTab(tabs1, "军事", 2); AddTab(tabs1, "人事任命", 3);
             var tabs2 = new HFlowContainer(); main.AddChild(tabs2);
-            AddTab(tabs2, "外交", 4); AddTab(tabs2, "政策", 5); AddTab(tabs2, "战争", 6); AddTab(tabs2, "战报", 7); AddButton(tabs2, "主菜单", ReturnMenu);
+            AddTab(tabs2, "外交", 4); AddTab(tabs2, "政策", 5); AddTab(tabs2, "战争战役", 6); AddTab(tabs2, "战报", 7); AddButton(tabs2, "主菜单", ReturnMenu);
 
             _actionBox = new VBoxContainer(); _actionBox.AddThemeConstantOverride("separation", 5); main.AddChild(_actionBox);
             BuildActions();
