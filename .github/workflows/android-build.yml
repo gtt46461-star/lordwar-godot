@@ -37,6 +37,13 @@ jobs:
           tar -xzf _buildsrc/lordwar-r32.tar.gz -C project
           echo "Reconstructed source files: $(find project -type f | wc -l)"
 
+      - name: Apply Android startup crash fix overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
+          grep -F "LORDWAR_STARTUP_OK" project/Scripts/Godot/LordWarApp.cs
+
       - name: Verify full runtime art payload
         shell: bash
         working-directory: project
@@ -191,6 +198,18 @@ jobs:
         run: |
           "$HOME/bin/godot" --headless --editor --quit --path . --verbose 2>&1 | tee Evidence/CI_GODOT_IMPORT.log
 
+      - name: Headless runtime startup smoke test
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          timeout 30s "$HOME/bin/godot" --headless --path . --quit-after 240 --verbose 2>&1 | tee Evidence/CI_RUNTIME_SMOKE.log
+          if grep -F "LORDWAR_STARTUP_FATAL" Evidence/CI_RUNTIME_SMOKE.log; then
+            echo "Startup fatal marker detected"
+            exit 1
+          fi
+          grep -F "LORDWAR_STARTUP_OK" Evidence/CI_RUNTIME_SMOKE.log
+
       - name: Export Android debug APK
         shell: bash
         working-directory: project
@@ -236,4 +255,6 @@ jobs:
             project/Builds/Android/*.sha256
             project/Evidence/CI_*.log
             project/Evidence/CI_BUILD_SUMMARY.txt
+            project/Scripts/Godot/LordWarApp.cs
+            bootstrap/overrides/LordWarApp.cs
             _buildsrc/lordwar-r32.tar.gz
