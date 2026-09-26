@@ -42,6 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
+          cp bootstrap/overrides/LordWarHud.cs project/Scripts/Godot/LordWarHud.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
           grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
@@ -50,8 +51,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90105/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc6"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90106/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc7"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           sed -i 's/"GL Compatibility"/"Mobile"/g' project.godot
           sed -i 's/renderer\/rendering_method="gl_compatibility"/renderer\/rendering_method="mobile"/g' project.godot
@@ -330,10 +331,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-RC6-debug.apk" \
+            "Builds/Android/LordWar-RC7-debug.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-RC6-debug.apk
-          sha256sum Builds/Android/LordWar-RC6-debug.apk | tee Builds/Android/LordWar-RC6-debug.apk.sha256
+          test -s Builds/Android/LordWar-RC7-debug.apk
+          sha256sum Builds/Android/LordWar-RC7-debug.apk | tee Builds/Android/LordWar-RC7-debug.apk.sha256
           ls -lh Builds/Android/
 
       - name: Install Pillow for screenshot validation
@@ -366,7 +367,7 @@ jobs:
           sleep 3
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb shell input keyevent 82 || true
-          adb install -r Builds/Android/LordWar-RC6-debug.apk | tee Evidence/CI_ADB_INSTALL.log
+          adb install -r Builds/Android/LordWar-RC7-debug.apk | tee Evidence/CI_ADB_INSTALL.log
           adb logcat -c
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
@@ -424,10 +425,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-RC6.apk" \
+            "Builds/Android/LordWar-1.0.0-RC7.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-RC6.apk
-          sha256sum Builds/Android/LordWar-1.0.0-RC6.apk | tee Builds/Android/LordWar-1.0.0-RC6.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0-RC7.apk
+          sha256sum Builds/Android/LordWar-1.0.0-RC7.apk | tee Builds/Android/LordWar-1.0.0-RC7.apk.sha256
 
       - name: Android emulator RC release smoke test
         shell: bash
@@ -435,7 +436,7 @@ jobs:
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install Builds/Android/LordWar-1.0.0-RC6.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install Builds/Android/LordWar-1.0.0-RC7.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
@@ -491,9 +492,9 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-RC6-debug.apk ]; then
+            if [ -f Builds/Android/LordWar-RC7-debug.apk ]; then
               echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-RC6-debug.apk
+              sha256sum Builds/Android/LordWar-RC7-debug.apk
             else
               echo "apk_present=no"
             fi
