@@ -42,6 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
+          cp bootstrap/overrides/WorldView.cs project/Scripts/Godot/WorldView.cs
           cp bootstrap/overrides/LordWarHud.cs project/Scripts/Godot/LordWarHud.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
           cat bootstrap/overrides/commander_skills_addendum.csv >> project/Data/LordWarData/commander_skills_v8.csv
