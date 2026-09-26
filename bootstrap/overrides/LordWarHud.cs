@@ -3,17 +3,19 @@ using System.Text;
 using System.Collections.Generic;
 using Godot;
 using LordWar.AI;
+using LordWar.Data;
 using LordWar.Simulation;
 
 namespace LordWar.GodotRuntime {
-    /// <summary>Godot Control-based Chinese HUD baseline replacing Unity IMGUI.</summary>
+    /// <summary>
+    /// Mobile-first playable strategy HUD. Exposes the actual simulation systems instead of a diagnostics-only panel.
+    /// </summary>
     public sealed partial class LordWarHud : CanvasLayer {
         LordWarApp _app;
         Label _summary;
         RichTextLabel _details;
         Label _status;
-        PanelContainer _detailPanel;
-        bool _detailsVisible = true;
+        VBoxContainer _actionBox;
         double _refreshClock;
         int _page;
 
@@ -21,220 +23,159 @@ namespace LordWar.GodotRuntime {
             _app = app;
             BuildUi();
             Refresh();
+            GD.Print("LORDWAR_HUD_READY");
         }
 
         public override void _Process(double delta) {
             _refreshClock += delta;
-            if (_refreshClock >= .25) { _refreshClock = 0; Refresh(); }
+            if (_refreshClock >= .35) { _refreshClock = 0; Refresh(); }
         }
 
         void BuildUi() {
-            var root = new Control {
-                Name = "HUD根节点",
-                AnchorLeft = 0f, AnchorTop = 0f, AnchorRight = 1f, AnchorBottom = 1f,
-                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0,
-                MouseFilter = Control.MouseFilterEnum.Ignore
+            var root = new PanelContainer {
+                AnchorLeft = .01f, AnchorTop = .015f, AnchorRight = .56f, AnchorBottom = .985f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
             };
             AddChild(root);
 
-            var topPanel = new PanelContainer {
-                AnchorLeft = 0.01f, AnchorTop = 0.015f, AnchorRight = 0.99f, AnchorBottom = 0.34f,
-                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
-            };
-            root.AddChild(topPanel);
             var margin = new MarginContainer();
-            margin.AddThemeConstantOverride("margin_left", 12); margin.AddThemeConstantOverride("margin_right", 12);
-            margin.AddThemeConstantOverride("margin_top", 8); margin.AddThemeConstantOverride("margin_bottom", 8);
-            topPanel.AddChild(margin);
-            var v = new VBoxContainer();
-            v.AddThemeConstantOverride("separation", 6);
-            margin.AddChild(v);
+            margin.AddThemeConstantOverride("margin_left", 16); margin.AddThemeConstantOverride("margin_right", 16);
+            margin.AddThemeConstantOverride("margin_top", 12); margin.AddThemeConstantOverride("margin_bottom", 12);
+            root.AddChild(margin);
 
-            var title = new Label { Text = "领主战争｜战争与城市经营", HorizontalAlignment = HorizontalAlignment.Center };
-            title.AddThemeFontSizeOverride("font_size", 20); v.AddChild(title);
+            var main = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
+            main.AddThemeConstantOverride("separation", 8);
+            margin.AddChild(main);
+
+            var title = new Label { Text = "领主战争 1.0｜战略指挥台", HorizontalAlignment = HorizontalAlignment.Center };
+            title.AddThemeFontSizeOverride("font_size", 24); main.AddChild(title);
+
             _summary = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-            _summary.AddThemeFontSizeOverride("font_size", 15); v.AddChild(_summary);
+            _summary.AddThemeFontSizeOverride("font_size", 16); main.AddChild(_summary);
 
-            var row1 = new HFlowContainer(); row1.AddThemeConstantOverride("h_separation", 5); row1.AddThemeConstantOverride("v_separation", 5); v.AddChild(row1);
-            AddButton(row1, "推进一日", () => { if (_app.World != null) { _app.World.AdvanceDay(); SetStatus("时间推进"); } });
-            AddButton(row1, "暂停/继续", () => { if (_app.World != null) _app.World.Paused = !_app.World.Paused; });
-            AddButton(row1, "×1", () => SetSpeed(1)); AddButton(row1, "×2", () => SetSpeed(2)); AddButton(row1, "×4", () => SetSpeed(4));
-            AddButton(row1, "聚焦都城", FocusCapital);
-            AddButton(row1, "主菜单", () => _app.ReturnToMainMenu());
-            AddButton(row1, "隐藏/显示详情", ToggleDetails);
+            var timeRow = new HFlowContainer(); main.AddChild(timeRow);
+            AddButton(timeRow, "暂停/继续", TogglePause);
+            AddButton(timeRow, "×1", () => SetSpeed(1)); AddButton(timeRow, "×2", () => SetSpeed(2)); AddButton(timeRow, "×4", () => SetSpeed(4));
+            AddButton(timeRow, "推进一日", AdvanceDay);
+            AddButton(timeRow, "保存", SaveGame); AddButton(timeRow, "读取", LoadGame);
 
-            var row2 = new HFlowContainer(); row2.AddThemeConstantOverride("h_separation", 5); row2.AddThemeConstantOverride("v_separation", 5); v.AddChild(row2);
-            AddButton(row2, "保存游戏", () => { string m; GodotSaveService.Save(_app.World, out m); SetStatus(m); });
-            AddButton(row2, "读取存档", () => { string m; bool ok = GodotSaveService.Load(_app.World, out m); if (ok) _app.RebindViews(); SetStatus(m); });
-            AddButton(row2, "总览", () => { _page=0; Refresh(); });
-            AddButton(row2, "人事任命", () => { _page=1; Refresh(); });
-            AddButton(row2, "城市规划", () => { _page=2; Refresh(); });
-            AddButton(row2, "战争战役", () => { _page=3; Refresh(); });
+            var tabs1 = new HFlowContainer(); main.AddChild(tabs1);
+            AddTab(tabs1, "总览", 0); AddTab(tabs1, "城市", 1); AddTab(tabs1, "军事", 2); AddTab(tabs1, "人事", 3);
+            var tabs2 = new HFlowContainer(); main.AddChild(tabs2);
+            AddTab(tabs2, "外交", 4); AddTab(tabs2, "战争", 5); AddTab(tabs2, "战报", 6); AddButton(tabs2, "主菜单", ReturnMenu);
 
-            var row3 = new HFlowContainer(); row3.AddThemeConstantOverride("h_separation", 5); row3.AddThemeConstantOverride("v_separation", 5); v.AddChild(row3);
-            AddButton(row3, "提名最强官员", NominateTopOfficial);
-            AddButton(row3, "提名最强将军", NominateTopGeneral);
-            AddButton(row3, "批准首项", ApproveFirstProposal);
-            AddButton(row3, "拒绝首项", RejectFirstProposal);
-            AddButton(row3, "指派战役官员", AssignBestWarOfficial);
+            _actionBox = new VBoxContainer(); _actionBox.AddThemeConstantOverride("separation", 5); main.AddChild(_actionBox);
+            BuildActions();
 
-            var row4 = new HFlowContainer(); row4.AddThemeConstantOverride("h_separation", 5); row4.AddThemeConstantOverride("v_separation", 5); v.AddChild(row4);
-            AddButton(row4, "建住宅", () => QuickBuild(BuildingKind.House, 120, 55));
-            AddButton(row4, "建田地", () => QuickBuild(BuildingKind.Farm, 150, 70));
-            AddButton(row4, "建伐木场", () => QuickBuild(BuildingKind.Lumberyard, 150, 70));
-            AddButton(row4, "建仓库", () => QuickBuild(BuildingKind.Warehouse, 180, 75));
-            AddButton(row4, "建市集", () => QuickBuild(BuildingKind.Market, 180, 70));
-            AddButton(row4, "建军营", () => QuickBuild(BuildingKind.Barracks, 260, 90));
-            AddButton(row4, "扩建城墙", () => QuickBuild(BuildingKind.Wall, 420, 120));
+            _status = new Label { Text = "选择操作。所有建造/任命仍走申请与批准链。", AutowrapMode = TextServer.AutowrapMode.WordSmart };
+            _status.AddThemeFontSizeOverride("font_size", 15); main.AddChild(_status);
 
-            var row5 = new HFlowContainer(); row5.AddThemeConstantOverride("h_separation", 5); row5.AddThemeConstantOverride("v_separation", 5); v.AddChild(row5);
-            AddButton(row5, "宣战出征", DeclareWarAndMarch);
-            AddButton(row5, "征募特殊兵", RecruitFirstSpecial);
-            AddButton(row5, "安抚占领", () => ResolveFirstOccupation(OccupationPolicy.Conciliate));
-            AddButton(row5, "有限掠夺", () => ResolveFirstOccupation(OccupationPolicy.LimitedPlunder));
-
-            _status = new Label { Text = "软克制、兵种协同、官员战役规划已接入", AutowrapMode = TextServer.AutowrapMode.WordSmart };
-            _status.AddThemeFontSizeOverride("font_size", 14); v.AddChild(_status);
-
-            _detailPanel = new PanelContainer {
-                AnchorLeft = 0.01f, AnchorTop = 0.355f, AnchorRight = 0.56f, AnchorBottom = 0.985f,
-                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
-            };
-            root.AddChild(_detailPanel);
-            _details = new RichTextLabel {
-                BbcodeEnabled = false,
-                FitContent = false,
-                ScrollActive = true,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart
-            };
+            _details = new RichTextLabel { BbcodeEnabled = false, FitContent = false, ScrollActive = true, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
             _details.AddThemeFontSizeOverride("normal_font_size", 15);
-            _detailPanel.AddChild(_details);
-            GD.Print("LORDWAR_HUD_READY");
-        }
-
-        void ToggleDetails() {
-            _detailsVisible = !_detailsVisible;
-            if (_detailPanel != null) _detailPanel.Visible = _detailsVisible;
+            main.AddChild(_details);
         }
 
         void AddButton(Container parent, string text, Action action) {
-            var b = new Button { Text = text, CustomMinimumSize = new Vector2(116, 42), SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin };
-            b.Pressed += action;
-            parent.AddChild(b);
+            var b = new Button { Text = text, CustomMinimumSize = new Vector2(104, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            b.AddThemeFontSizeOverride("font_size", 15); b.Pressed += action; parent.AddChild(b);
+        }
+        void AddTab(Container parent,string text,int page){AddButton(parent,text,()=>{_page=page;BuildActions();Refresh();});}
+
+        void BuildActions(){
+            if(_actionBox==null)return;
+            foreach(Node n in _actionBox.GetChildren())n.QueueFree();
+            if(_page==1)BuildCityActions();
+            else if(_page==2)BuildMilitaryActions();
+            else if(_page==3)BuildPersonnelActions();
+            else if(_page==4)BuildDiplomacyActions();
+            else if(_page==5)BuildWarActions();
+            else if(_page==6)BuildReportActions();
+            else BuildOverviewActions();
         }
 
-        void SetSpeed(float speed) { if (_app.World != null) { _app.World.TimeScale = speed; SetStatus("速度 ×" + speed.ToString("0.#")); } }
-        void SetStatus(string text) { if (_status != null) _status.Text = text ?? ""; }
-        void QuickBuild(BuildingKind kind, int cost, int seconds) {
-            GameWorld w = _app == null ? null : _app.World;
-            City city = PlayerCapital();
-            if (w == null || city == null) { SetStatus("暂无可用都城"); return; }
-            List<Person> officials = w.RankedServingOfficials(w.PlayerKingdomId);
-            Person official = officials.Count > 0 ? officials[0] : null;
-            if (official == null) {
-                List<Person> candidates = w.RankedOfficialCandidates(city);
-                if (candidates.Count > 0) official = candidates[0];
-            }
-            if (official == null) { SetStatus("没有可主持工程的官员"); return; }
-            Proposal p = w.SubmitConstructionProposal(city, official, kind, "修建" + ChineseText.Building(kind), seconds, cost);
-            if (p == null) { SetStatus("工程申请未能提交：" + ChineseText.Building(kind)); return; }
-            bool ok = w.ApproveProposal(p.Id);
-            SetStatus(ok ? "已开工：" + ChineseText.Building(kind) : "资源/条件不足：" + ChineseText.Building(kind));
-            _page = 2; Refresh();
+        void BuildOverviewActions(){var r=new HFlowContainer();_actionBox.AddChild(r);AddButton(r,"聚焦都城",FocusCapital);AddButton(r,"批准首项",ApproveFirstProposal);AddButton(r,"拒绝首项",RejectFirstProposal);}
+        void BuildCityActions(){
+            var r1=new HFlowContainer();_actionBox.AddChild(r1);AddButton(r1,"住宅区",()=>Zone(ZoneKind.Residential));AddButton(r1,"商业区",()=>Zone(ZoneKind.Commercial));AddButton(r1,"工坊区",()=>Zone(ZoneKind.Workshop));AddButton(r1,"农牧区",()=>Zone(ZoneKind.Agriculture));AddButton(r1,"军政区",()=>Zone(ZoneKind.Military));
+            var r2=new HFlowContainer();_actionBox.AddChild(r2);AddButton(r2,"建田地",()=>QueueBuilding(BuildingKind.Farm));AddButton(r2,"伐木场",()=>QueueBuilding(BuildingKind.Lumberyard));AddButton(r2,"建仓库",()=>QueueBuilding(BuildingKind.Warehouse));AddButton(r2,"建市集",()=>QueueBuilding(BuildingKind.Market));
+            var r3=new HFlowContainer();_actionBox.AddChild(r3);AddButton(r3,"建住宅",()=>QueueBuilding(BuildingKind.House));AddButton(r3,"建楼房",()=>QueueBuilding(BuildingKind.Apartment));AddButton(r3,"建磨坊",()=>QueueBuilding(BuildingKind.Mill));AddButton(r3,"建军营",()=>QueueBuilding(BuildingKind.Barracks));AddButton(r3,"扩城墙",()=>QueueBuilding(BuildingKind.Wall));
+            var r4=new HFlowContainer();_actionBox.AddChild(r4);AddButton(r4,"包子铺",()=>QueueBuilding(BuildingKind.BunShop));AddButton(r4,"面包坊",()=>QueueBuilding(BuildingKind.Bakery));AddButton(r4,"铁匠铺",()=>QueueBuilding(BuildingKind.Smithy));AddButton(r4,"军械库",()=>QueueBuilding(BuildingKind.Armory));AddButton(r4,"训练场",()=>QueueBuilding(BuildingKind.TrainingGround));
+        }
+        void BuildMilitaryActions(){
+            var r1=new HFlowContainer();_actionBox.AddChild(r1);AddButton(r1,"征募基础兵",RecruitBasic);AddButton(r1,"招募特殊兵",RecruitSpecial);AddButton(r1,"全军驻守",HoldAllArmies);AddButton(r1,"有限追击",()=>SetPursuit(PursuitMode.Limited));AddButton(r1,"停止追击",()=>SetPursuit(PursuitMode.Stop));
+        }
+        void BuildPersonnelActions(){var r=new HFlowContainer();_actionBox.AddChild(r);AddButton(r,"提名最强官员",NominateTopOfficial);AddButton(r,"提名最强将军",NominateTopGeneral);AddButton(r,"批准任命",ApproveFirstProposal);AddButton(r,"拒绝申请",RejectFirstProposal);}
+        void BuildDiplomacyActions(){var r=new HFlowContainer();_actionBox.AddChild(r);AddButton(r,"尝试通商",TryTrade);AddButton(r,"互不侵犯",TryNonAggression);AddButton(r,"尝试结盟",TryAlliance);AddButton(r,"宣战并进军",DeclareNearestWar);}
+        void BuildWarActions(){
+            var r1=new HFlowContainer();_actionBox.AddChild(r1);AddButton(r1,"指派最佳战役官",AssignBestWarOfficial);AddButton(r1,"均衡",()=>SetWarFocus(WarAdministrationFocus.Balanced));AddButton(r1,"守城",()=>SetWarFocus(WarAdministrationFocus.Defense));AddButton(r1,"野战",()=>SetWarFocus(WarAdministrationFocus.FieldBattle));
+            var r2=new HFlowContainer();_actionBox.AddChild(r2);AddButton(r2,"攻城",()=>SetWarFocus(WarAdministrationFocus.Siege));AddButton(r2,"拦截",()=>SetWarFocus(WarAdministrationFocus.Interception));AddButton(r2,"安抚占领",()=>ResolveOccupation(OccupationPolicy.Conciliate));AddButton(r2,"有限征发",()=>ResolveOccupation(OccupationPolicy.LimitedPlunder));
+        }
+        void BuildReportActions(){var r=new HFlowContainer();_actionBox.AddChild(r);AddButton(r,"聚焦都城",FocusCapital);AddButton(r,"推进一日",AdvanceDay);}
+
+        GameWorld W(){return _app==null?null:_app.World;}
+        Kingdom PlayerKingdom(){GameWorld w=W();Kingdom k;if(w==null||string.IsNullOrEmpty(w.PlayerKingdomId)||!w.Kingdoms.TryGetValue(w.PlayerKingdomId,out k))return null;return k;}
+        City PlayerCapital(){GameWorld w=W();Kingdom k=PlayerKingdom();City c;if(w==null||k==null||!w.Cities.TryGetValue(k.CapitalCityId,out c))return null;return c;}
+        Army FirstPlayerArmy(){GameWorld w=W();if(w==null)return null;foreach(Army a in w.Armies.Values)if(a!=null&&a.KingdomId==w.PlayerKingdomId)return a;return null;}
+        Kingdom FirstOtherKingdom(bool requireWar){GameWorld w=W();if(w==null)return null;foreach(Kingdom k in w.Kingdoms.Values){if(k==null||k.Id==w.PlayerKingdomId||k.Status==KingdomStatus.Eliminated)continue;if(requireWar&&w.Diplomacy.Get(w.PlayerKingdomId,k.Id).State!=DiplomacyState.War)continue;return k;}return null;}
+
+        void SetStatus(string text){if(_status!=null)_status.Text=text??"";}
+        void TogglePause(){GameWorld w=W();if(w!=null){w.Paused=!w.Paused;SetStatus(w.Paused?"已暂停":"继续运行");}}
+        void SetSpeed(float speed){GameWorld w=W();if(w!=null){w.TimeScale=speed;SetStatus("速度 ×"+speed.ToString("0.#"));}}
+        void AdvanceDay(){GameWorld w=W();if(w!=null){w.AdvanceDay();SetStatus("已推进一日");Refresh();}}
+        void SaveGame(){GameWorld w=W();if(w==null)return;string m;GodotSaveService.Save(w,out m);SetStatus(m);}
+        void LoadGame(){GameWorld w=W();if(w==null)return;string m;bool ok=GodotSaveService.Load(w,out m);if(ok)_app.RebindViews();SetStatus(m);Refresh();}
+        void ReturnMenu(){if(_app!=null)_app.ReturnToMainMenu();}
+        void FocusCapital(){City c=PlayerCapital();if(c!=null&&_app.Camera!=null)_app.Camera.FocusWorldPoint(c.X,c.Y);}
+
+        void Zone(ZoneKind kind){GameWorld w=W();if(w==null)return;CityZone z=w.DesignatePlayerZone(kind);SetStatus(z==null?"无法规划该地块":"已规划："+z.Name);Refresh();}
+        void QueueBuilding(BuildingKind kind){
+            GameWorld w=W();City c=PlayerCapital();Kingdom k=PlayerKingdom();if(w==null||c==null||k==null){SetStatus("暂无可建设都城");return;}
+            List<Person> officials=w.RankedServingOfficials(k.Id);if(officials.Count==0){SetStatus("需要先任命至少一名正式官员");return;}
+            int seconds=70,cost=160;switch(kind){case BuildingKind.Wall:seconds=130;cost=420;break;case BuildingKind.Barracks:seconds=95;cost=260;break;case BuildingKind.Warehouse:case BuildingKind.Mill:seconds=80;cost=190;break;case BuildingKind.Market:seconds=75;cost=180;break;case BuildingKind.Farm:case BuildingKind.Lumberyard:seconds=65;cost=140;break;case BuildingKind.Apartment:seconds=90;cost=200;break;case BuildingKind.BunShop:case BuildingKind.Bakery:seconds=65;cost=150;break;case BuildingKind.Smithy:seconds=80;cost=190;break;case BuildingKind.Armory:case BuildingKind.TrainingGround:seconds=90;cost=230;break;}
+            Proposal p=w.SubmitConstructionProposal(c,officials[0],kind,"修建"+ChineseText.Building(kind),seconds,cost);
+            SetStatus(p==null?"官员能力不足或申请无法提交":"已提交申请："+p.Title+"，请批准后施工");Refresh();
         }
 
-        void DeclareWarAndMarch() {
-            GameWorld w = _app == null ? null : _app.World;
-            if (w == null) return;
-            bool ok = w.DeclareWarAndMarch();
-            SetStatus(ok ? "已向最近敌国宣战并命令首支军队出征" : "当前无法宣战：检查军队、粮草或外交状态");
-            _page = 3; Refresh();
+        void RecruitBasic(){
+            GameWorld w=W();Army a=FirstPlayerArmy();City c=PlayerCapital();Kingdom k=PlayerKingdom();if(w==null||a==null||c==null||k==null){SetStatus("需要都城和现役军队");return;}
+            if(a.Finance.Gold<100&&k.Treasury>0){int grant=Math.Min(180,k.Treasury);k.Treasury-=grant;a.Finance.Gold+=grant;}
+            UnitDef u=null;foreach(UnitDef x in w.Data.Units.Values){u=x;break;}if(u==null){SetStatus("没有基础兵种数据");return;}
+            int n=w.Military.Recruit(a,c,u.Id,10,Math.Max(1,u.RecruitCost));SetStatus(n>0?"征募 "+u.Name+" × "+n:"人口/军资/马匹不足");Refresh();
+        }
+        void RecruitSpecial(){
+            GameWorld w=W();Army a=FirstPlayerArmy();if(w==null||a==null){SetStatus("没有可用军队");return;}
+            string last="暂无符合条件的特殊兵种";foreach(SpecialUnitDef s in w.Data.SpecialUnits.Values){string reason;if(w.TryRecruitSpecial(a.Id,s.Id,out reason)){SetStatus("已招募特殊兵："+s.Name);Refresh();return;}if(!string.IsNullOrEmpty(reason))last=s.Name+"："+reason;}SetStatus(last);
+        }
+        void HoldAllArmies(){GameWorld w=W();if(w==null)return;int n=0;foreach(Army a in w.Armies.Values)if(a.KingdomId==w.PlayerKingdomId){a.Order=ArmyOrder.Hold;n++;}SetStatus("已令 "+n+" 支军队驻守");}
+        void SetPursuit(PursuitMode mode){GameWorld w=W();if(w==null)return;foreach(Army a in w.Armies.Values)if(a.KingdomId==w.PlayerKingdomId)a.PursuitMode=mode;SetStatus(mode==PursuitMode.Stop?"全军停止追击":"全军采用有限追击");}
+
+        void NominateTopOfficial(){GameWorld w=W();City c=PlayerCapital();if(w==null||c==null){SetStatus("暂无可用都城");return;}List<Person> list=w.RankedOfficialCandidates(c);if(list.Count==0){SetStatus("当前没有可提名官员候选");return;}string reason;w.SubmitPlayerAppointment(list[0].Id,"official",out reason);SetStatus(reason);Refresh();}
+        void NominateTopGeneral(){GameWorld w=W();City c=PlayerCapital();if(w==null||c==null){SetStatus("暂无可用都城");return;}List<Person> list=w.RankedGeneralCandidates(c);if(list.Count==0){SetStatus("当前没有可提名将军候选");return;}string reason;w.SubmitPlayerAppointment(list[0].Id,"general",out reason);SetStatus(reason);Refresh();}
+        void ApproveFirstProposal(){GameWorld w=W();if(w==null)return;Proposal p=w.FirstPlayerPendingProposal();if(p==null){SetStatus("当前没有待批申请");return;}bool ok=w.ApproveProposal(p.Id);SetStatus(ok?"已批准："+p.Title:"批准失败/条件不足："+p.Title);Refresh();}
+        void RejectFirstProposal(){GameWorld w=W();if(w==null)return;Proposal p=w.FirstPlayerPendingProposal();if(p==null){SetStatus("当前没有待批申请");return;}bool ok=w.RejectProposal(p.Id);SetStatus(ok?"已拒绝："+p.Title:"拒绝失败："+p.Title);Refresh();}
+
+        void TryTrade(){GameWorld w=W();Kingdom o=FirstOtherKingdom(false);if(w==null||o==null)return;bool ok=w.Diplomacy.Trade(w.PlayerKingdomId,o.Id);SetStatus(ok?"已与"+o.Name+"建立通商":"通商条件尚未满足");Refresh();}
+        void TryNonAggression(){GameWorld w=W();Kingdom o=FirstOtherKingdom(false);if(w==null||o==null)return;bool ok=w.Diplomacy.NonAggression(w.PlayerKingdomId,o.Id,w.Day,45);SetStatus(ok?"已与"+o.Name+"签订互不侵犯":"互不侵犯条件尚未满足");Refresh();}
+        void TryAlliance(){GameWorld w=W();Kingdom o=FirstOtherKingdom(false);if(w==null||o==null)return;bool ok=w.Diplomacy.Alliance(w.PlayerKingdomId,o.Id);SetStatus(ok?"已与"+o.Name+"结盟":"结盟条件尚未满足");Refresh();}
+        void DeclareNearestWar(){GameWorld w=W();if(w==null)return;bool ok=w.DeclareWarAndMarch();if(ok){string reason;w.AssignBestAvailableWarOfficial(out reason);SetStatus("宣战并集结进军。"+reason);}else SetStatus("当前无法宣战/进军：可能无军队、粮草不足或受条约限制");Refresh();}
+        void AssignBestWarOfficial(){GameWorld w=W();if(w==null)return;string reason;bool ok=w.AssignBestAvailableWarOfficial(out reason);SetStatus((ok?"已指派：":"未调整：")+reason);Refresh();}
+        void SetWarFocus(WarAdministrationFocus focus){GameWorld w=W();Kingdom e=FirstOtherKingdom(true);if(w==null||e==null){SetStatus("当前没有正式战争");return;}string reason;bool ok=w.SetWarOfficialFocus(e.Id,focus,out reason);SetStatus(ok?"战务重点已调整为 "+ChineseText.WarFocus(focus):reason);Refresh();}
+        void ResolveOccupation(OccupationPolicy policy){GameWorld w=W();if(w==null)return;foreach(City c in w.Cities.Values)if(c.KingdomId==w.PlayerKingdomId&&c.Occupation==OccupationPolicy.Pending){bool ok=w.ResolveOccupation(c.Id,policy);SetStatus(ok?"已处理占领城市："+c.Name:"占领处理失败");Refresh();return;}SetStatus("当前没有待处理占领城市");}
+
+        void Refresh(){
+            GameWorld w=W();if(w==null||_summary==null||_details==null||w.Weather==null)return;
+            Kingdom player=PlayerKingdom();City capital=PlayerCapital();
+            _summary.Text="第 "+w.Day+" 日｜"+ChineseText.Season(w.Weather.Season)+"｜"+ChineseText.Weather(w.Weather.Weather)+"｜"+(w.Paused?"暂停":"运行")+" ×"+w.TimeScale.ToString("0.#")+"\n国家 "+w.Kingdoms.Count+"｜城市 "+w.Cities.Count+"｜人口 "+w.People.Count+"｜待批 "+w.PlayerPendingProposalCount;
+            var sb=new StringBuilder();
+            if(_page==1)BuildCity(sb,w,capital);else if(_page==2)BuildMilitary(sb,w,player,capital);else if(_page==3)BuildPersonnel(sb,w,player,capital);else if(_page==4)BuildDiplomacy(sb,w,player);else if(_page==5)BuildWar(sb,w,player);else if(_page==6)BuildReports(sb,w);else BuildOverview(sb,w,player,capital);
+            _details.Text=sb.ToString();
         }
 
-        void RecruitFirstSpecial() {
-            GameWorld w = _app == null ? null : _app.World;
-            if (w == null) return;
-            Army army = null;
-            foreach (Army a in w.Armies.Values) if (a.KingdomId == w.PlayerKingdomId) { army = a; break; }
-            if (army == null) { SetStatus("没有可用军队"); return; }
-            foreach (var kv in w.Data.SpecialUnits) {
-                string reason;
-                if (w.TryRecruitSpecial(army.Id, kv.Key, out reason)) {
-                    SetStatus("已征募特殊兵：" + kv.Value.Name + " → " + army.Name);
-                    _page = 3; Refresh(); return;
-                }
-            }
-            SetStatus("当前没有满足建筑/装备/将军条件的特殊兵种");
-        }
-
-        void ResolveFirstOccupation(OccupationPolicy policy) {
-            GameWorld w = _app == null ? null : _app.World;
-            if (w == null) return;
-            foreach (City c in w.Cities.Values) {
-                if (c.KingdomId == w.PlayerKingdomId && c.Occupation == OccupationPolicy.Pending) {
-                    bool ok = w.ResolveOccupation(c.Id, policy);
-                    SetStatus(ok ? "已处理占领城市：" + c.Name : "占领处理失败");
-                    _page = 3; Refresh(); return;
-                }
-            }
-            SetStatus("当前没有待处理的占领城市");
-        }
-
-        City PlayerCapital(){if(_app==null||_app.World==null)return null;Kingdom k;if(!_app.World.Kingdoms.TryGetValue(_app.World.PlayerKingdomId,out k))return null;City c;return _app.World.Cities.TryGetValue(k.CapitalCityId,out c)?c:null;}
-        void NominateTopOfficial(){GameWorld w=_app==null?null:_app.World;City c=PlayerCapital();if(w==null||c==null){SetStatus("暂无可用都城");return;}List<Person> list=w.RankedOfficialCandidates(c);if(list.Count==0){SetStatus("当前没有可提名官员候选");return;}string reason;w.SubmitPlayerAppointment(list[0].Id,"official",out reason);SetStatus(reason);_page=1;Refresh();}
-        void NominateTopGeneral(){GameWorld w=_app==null?null:_app.World;City c=PlayerCapital();if(w==null||c==null){SetStatus("暂无可用都城");return;}List<Person> list=w.RankedGeneralCandidates(c);if(list.Count==0){SetStatus("当前没有可提名将军候选");return;}string reason;w.SubmitPlayerAppointment(list[0].Id,"general",out reason);SetStatus(reason);_page=1;Refresh();}
-        void ApproveFirstProposal(){GameWorld w=_app==null?null:_app.World;if(w==null)return;Proposal p=w.FirstPlayerPendingProposal();if(p==null){SetStatus("当前没有待批申请");return;}bool ok=w.ApproveProposal(p.Id);SetStatus(ok?"已批准："+p.Title:"批准失败/条件尚未满足："+p.Title);Refresh();}
-        void RejectFirstProposal(){GameWorld w=_app==null?null:_app.World;if(w==null)return;Proposal p=w.FirstPlayerPendingProposal();if(p==null){SetStatus("当前没有待批申请");return;}bool ok=w.RejectProposal(p.Id);SetStatus(ok?"已拒绝："+p.Title:"拒绝失败："+p.Title);Refresh();}
-        void AssignBestWarOfficial(){GameWorld w=_app==null?null:_app.World;if(w==null)return;string reason;bool ok=w.AssignBestAvailableWarOfficial(out reason);SetStatus((ok?"已完成：":"未调整：")+reason);_page=3;Refresh();}
-
-        void FocusCapital() {
-            if (_app.World == null) return;
-            Kingdom k; if (!_app.World.Kingdoms.TryGetValue(_app.World.PlayerKingdomId, out k)) return;
-            City c; if (!_app.World.Cities.TryGetValue(k.CapitalCityId, out c)) return;
-            _app.Camera.FocusWorldPoint(c.X, c.Y);
-        }
-
-        void Refresh() {
-            GameWorld w = _app == null ? null : _app.World;
-            if (w == null || _summary == null || _details == null || w.Weather == null) return;
-            Kingdom player = null; City capital = null;
-            if (!string.IsNullOrEmpty(w.PlayerKingdomId)) w.Kingdoms.TryGetValue(w.PlayerKingdomId, out player);
-            if (player != null) w.Cities.TryGetValue(player.CapitalCityId, out capital);
-
-            _summary.Text = "第 " + w.Day + " 日｜" + ChineseText.Season(w.Weather.Season) + "｜" + ChineseText.Weather(w.Weather.Weather)
-                + "｜" + (w.IsNightTime ? "夜间" : "白昼") + "｜速度 ×" + w.TimeScale.ToString("0.#")
-                + "\n国家 " + w.Kingdoms.Count + "｜城市 " + w.Cities.Count + "｜人口 " + w.People.Count + "｜待批申请 " + w.PlayerPendingProposalCount;
-
-            var sb = new StringBuilder();
-            if(_page==1)BuildPersonnel(sb,w,player,capital);
-            else if(_page==2)BuildCity(sb,w,player,capital);
-            else if(_page==3)BuildWar(sb,w,player);
-            else BuildOverview(sb,w,player,capital);
-            _details.Text = sb.ToString();
-        }
-
-
-        void BuildOverview(StringBuilder sb,GameWorld w,Kingdom player,City capital){
-            if(player!=null)sb.AppendLine("【玩家国家】"+player.Name+"　国库 "+player.Treasury+"　军队 "+player.ArmyIds.Count+"　国势 "+ChineseText.KingdomStatusText(player.Status));
-            if(capital!=null)sb.AppendLine("【都城】"+capital.Name+"　粮 "+capital.Food+"　木 "+capital.Wood+"　石 "+capital.Stone+"　铁 "+capital.Iron+"　马 "+capital.Horses);
-            sb.AppendLine();sb.AppendLine("【玩家军队】");int shown=0;foreach(Army a in w.Armies.Values){if(a.KingdomId!=w.PlayerKingdomId)continue;Person g=null;w.People.TryGetValue(a.GeneralId,out g);sb.AppendLine("• "+a.Name+"｜主将 "+(g==null?"无":g.Name)+"｜兵力 "+w.Military.SoldierCount(a)+"｜军令 "+ChineseText.ArmyOrderText(a.Order)+"｜士气 "+Math.Round(a.Morale)+"｜粮 "+a.FoodDays.ToString("0.0")+"日");if(++shown>=12)break;}
-            sb.AppendLine();sb.AppendLine("【最近世界事件】");int start=Math.Max(0,w.Events.Count-12);for(int i=w.Events.Count-1;i>=start;i--){WorldEvent ev=w.Events[i];if(ev==null)continue;sb.AppendLine("第"+ev.Day+"日｜"+ev.Category+"｜"+ev.Title+"｜"+ev.Detail);}
-        }
-
-        void BuildPersonnel(StringBuilder sb,GameWorld w,Kingdom player,City capital){
-            if(player==null){sb.AppendLine("尚无玩家国家");return;}sb.AppendLine("【官员列表｜智慧优先，强者在前】");List<Person> officials=w.RankedServingOfficials(player.Id);for(int i=0;i<Math.Min(12,officials.Count);i++){Person p=officials[i];sb.AppendLine((i+1)+". "+p.Name+"｜智"+p.Stats.Intelligence+" 统"+p.Stats.Command+" 组"+p.Stats.Organization+" 后"+p.Stats.Logistics+" 行"+p.Stats.Administration+"｜战役评分 "+Math.Round(w.OfficialCandidateScore(p)));}
-            sb.AppendLine();sb.AppendLine("【将军列表｜武力第一、统帅第二】");List<Person> generals=w.RankedServingGenerals(player.Id);for(int i=0;i<Math.Min(12,generals.Count);i++){Person p=generals[i];sb.AppendLine((i+1)+". "+p.Name+"｜武"+p.Stats.Martial+" 统"+p.Stats.Command+" 军"+p.Stats.Military+"｜生命 "+p.Stats.Life+"/"+p.Stats.MaxLife+"｜战场评分 "+Math.Round(w.GeneralCandidateScore(p)));}
-            if(capital!=null){sb.AppendLine();sb.AppendLine("【都城官员候选】");List<Person> oc=w.RankedOfficialCandidates(capital);for(int i=0;i<Math.Min(6,oc.Count);i++)sb.AppendLine((i+1)+". "+oc[i].Name+"｜智"+oc[i].Stats.Intelligence+" 统"+oc[i].Stats.Command+"｜"+Math.Round(w.OfficialCandidateScore(oc[i])));sb.AppendLine("【都城将军候选】");List<Person> gc=w.RankedGeneralCandidates(capital);for(int i=0;i<Math.Min(6,gc.Count);i++)sb.AppendLine((i+1)+". "+gc[i].Name+"｜武"+gc[i].Stats.Martial+" 统"+gc[i].Stats.Command+"｜"+Math.Round(w.GeneralCandidateScore(gc[i])));}
-            sb.AppendLine();sb.AppendLine("说明：官员和将军分榜、不混排。官员管战役规划，将军管战场执行；单项优势都有限，不会因为少一个顶级人才就快速崩盘。");
-        }
-
-        void BuildCity(StringBuilder sb,GameWorld w,Kingdom player,City capital){
-            if(capital==null){sb.AppendLine("暂无都城");return;}sb.AppendLine("【"+capital.Name+" 城市规划】");sb.AppendLine("人口容量 "+capital.PopulationCapacity+"｜市场岗位 "+capital.MarketJobs+"｜农务 "+capital.FarmJobs+"｜伐木 "+capital.LoggingJobs+"｜工坊 "+capital.WorkshopJobs+"｜建造 "+capital.BuildJobs);int wall=0,gate=0,tower=0;var counts=new Dictionary<BuildingKind,int>();foreach(string id in capital.BuildingIds){Building b;if(!w.Buildings.TryGetValue(id,out b)||b==null||b.Ruined)continue;counts[b.Kind]=counts.ContainsKey(b.Kind)?counts[b.Kind]+1:1;if(b.Kind==BuildingKind.Wall)wall++;else if(b.Kind==BuildingKind.Gate)gate++;else if(b.Kind==BuildingKind.Tower)tower++;}sb.AppendLine("外郭半径 "+capital.FortificationRadius+"｜城墙段 "+wall+"｜城门 "+gate+"｜塔楼 "+tower);sb.AppendLine();sb.AppendLine("【建筑】");foreach(var kv in counts)sb.AppendLine("• "+ChineseText.Building(kv.Key)+" × "+kv.Value);sb.AppendLine();sb.AppendLine("【地块分区】");foreach(CityZone z in capital.Zones)if(z!=null)sb.AppendLine("• "+z.Name+"｜中心("+z.CenterX+","+z.CenterY+")｜半径"+z.Radius+"｜建筑"+z.BuildingCount);sb.AppendLine();sb.AppendLine("规划原则：农田/伐木在外围，仓库接生产区，住宅靠商业，工坊避开密集住宅，军营训练场靠近城门；小城2门、中城3门、大城4门。");
-        }
-
-        void BuildWar(StringBuilder sb,GameWorld w,Kingdom player){
-            if(player==null){sb.AppendLine("暂无玩家国家");return;}sb.AppendLine("【战争与战役规划】");bool any=false;foreach(Kingdom enemy in w.Kingdoms.Values){if(enemy.Id==player.Id)continue;var rel=w.Diplomacy.Get(player.Id,enemy.Id);if(rel.State!=DiplomacyState.War)continue;any=true;var wa=w.WarAdministrationFor(player.Id,enemy.Id);if(wa==null){sb.AppendLine("• 对 "+enemy.Name+"｜未指派战役官员｜只损失轻微协调优势，不会直接判输");continue;}Person o=null;w.People.TryGetValue(wa.OfficialId,out o);var pf=w.WarAdministration.Profile(wa);sb.AppendLine("• 对 "+enemy.Name+"｜战役官员 "+(o==null?"失效":o.Name)+"｜重点 "+ChineseText.WarFocus(wa.Focus));if(o!=null)sb.AppendLine("  智"+o.Stats.Intelligence+" 统"+o.Stats.Command+" 组"+o.Stats.Organization+" 后"+o.Stats.Logistics+"｜协调"+pf.Coordination.ToString("0.00")+" 野战"+pf.FieldBattle.ToString("0.00")+" 攻城"+pf.Siege.ToString("0.00")+" 后勤"+pf.Logistics.ToString("0.00"));sb.AppendLine("  最近战务："+wa.LastAction);}
-            if(!any)sb.AppendLine("当前没有正式战争。AI会继续根据兵力、补给、城防和外交态势评估开战。");sb.AppendLine();sb.AppendLine("【战斗设计】枪克骑、骑扰远程、远程压重装都是软克制；枪+弓、步+骑、侦察+远射有小幅协同。普通士兵通常需多轮有效命中才失能，单场模拟上限约160秒。");
-        }
+        void BuildOverview(StringBuilder sb,GameWorld w,Kingdom p,City c){if(p!=null)sb.AppendLine("【国家】"+p.Name+"｜国库 "+p.Treasury+"｜威望 "+p.Prestige+"｜军队 "+p.ArmyIds.Count);if(c!=null)sb.AppendLine("【都城】"+c.Name+"｜粮 "+c.Food+" 木 "+c.Wood+" 石 "+c.Stone+" 铁 "+c.Iron+" 马 "+c.Horses);sb.AppendLine();sb.AppendLine("【当前目标】发展城市 → 任命人才 → 扩军备战 → 宣战/防御 → 占领与治理。所有系统持续在同一个世界时间线上运行。");}
+        void BuildCity(StringBuilder sb,GameWorld w,City c){if(c==null){sb.AppendLine("暂无都城");return;}sb.AppendLine("【"+c.Name+" 城市】人口容量 "+c.PopulationCapacity+"｜农务 "+c.FarmJobs+"｜伐木 "+c.LoggingJobs+"｜工坊 "+c.WorkshopJobs+"｜市场 "+c.MarketJobs);var counts=new Dictionary<BuildingKind,int>();int wall=0,gate=0,tower=0;foreach(string id in c.BuildingIds){Building b;if(!w.Buildings.TryGetValue(id,out b)||b==null||b.Ruined)continue;counts[b.Kind]=counts.ContainsKey(b.Kind)?counts[b.Kind]+1:1;if(b.Kind==BuildingKind.Wall)wall++;else if(b.Kind==BuildingKind.Gate)gate++;else if(b.Kind==BuildingKind.Tower)tower++;}sb.AppendLine("外郭半径 "+c.FortificationRadius+"｜墙 "+wall+"｜门 "+gate+"｜塔 "+tower);foreach(var kv in counts)sb.AppendLine("• "+ChineseText.Building(kv.Key)+" × "+kv.Value);sb.AppendLine("\n【地块】");foreach(CityZone z in c.Zones)if(z!=null)sb.AppendLine("• "+z.Name+"｜半径"+z.Radius+"｜建筑"+z.BuildingCount);}
+        void BuildMilitary(StringBuilder sb,GameWorld w,Kingdom p,City c){sb.AppendLine("【军队】");foreach(Army a in w.Armies.Values){if(a.KingdomId!=w.PlayerKingdomId)continue;Person g=null;w.People.TryGetValue(a.GeneralId,out g);sb.AppendLine("• "+a.Name+"｜主将 "+(g==null?"无":g.Name)+"｜兵力 "+w.Military.SoldierCount(a)+"｜士气 "+Math.Round(a.Morale)+"｜疲劳 "+Math.Round(a.Fatigue)+"｜粮 "+a.FoodDays.ToString("0.0")+"日｜军令 "+ChineseText.ArmyOrderText(a.Order));foreach(Squad sq in a.Squads)sb.AppendLine("  - "+sq.Name+" × "+sq.SoldierIds.Count+"｜阵型 "+sq.FormationName+"｜凝聚 "+Math.Round(sq.Cohesion));}}
+        void BuildPersonnel(StringBuilder sb,GameWorld w,Kingdom p,City c){if(p==null)return;sb.AppendLine("【官员｜智慧与统帅/组织决定战役规划，但单项加成有上限】");var os=w.RankedServingOfficials(p.Id);for(int i=0;i<Math.Min(10,os.Count);i++){Person x=os[i];sb.AppendLine((i+1)+". "+x.Name+"｜智"+x.Stats.Intelligence+" 统"+x.Stats.Command+" 组"+x.Stats.Organization+" 后"+x.Stats.Logistics+"｜评分"+Math.Round(w.OfficialCandidateScore(x)));}sb.AppendLine("\n【将军｜武力第一、统帅第二】");var gs=w.RankedServingGenerals(p.Id);for(int i=0;i<Math.Min(10,gs.Count);i++){Person x=gs[i];sb.AppendLine((i+1)+". "+x.Name+"｜武"+x.Stats.Martial+" 统"+x.Stats.Command+" 生命"+x.Stats.Life+"/"+x.Stats.MaxLife+"｜评分"+Math.Round(w.GeneralCandidateScore(x)));}}
+        void BuildDiplomacy(StringBuilder sb,GameWorld w,Kingdom p){if(p==null)return;sb.AppendLine("【外交】");foreach(Kingdom k in w.Kingdoms.Values){if(k.Id==p.Id)continue;DiplomacyRelation r=w.Diplomacy.Get(p.Id,k.Id);sb.AppendLine("• "+k.Name+"｜"+r.State+"｜关系 "+r.Opinion+(r.TruceUntilDay>w.Day?"｜停战至"+r.TruceUntilDay+"日":""));}}
+        void BuildWar(StringBuilder sb,GameWorld w,Kingdom p){if(p==null)return;sb.AppendLine("【战争与战役】");bool any=false;foreach(Kingdom e in w.Kingdoms.Values){if(e.Id==p.Id||w.Diplomacy.Get(p.Id,e.Id).State!=DiplomacyState.War)continue;any=true;WarAdministration wa=w.WarAdministrationFor(p.Id,e.Id);sb.AppendLine("• 对 "+e.Name+"｜"+(wa==null?"未指派战役官员":"重点 "+ChineseText.WarFocus(wa.Focus)+"｜"+wa.LastAction));}if(!any)sb.AppendLine("当前无正式战争。可从外交页宣战并集结最近军队。");sb.AppendLine("\n【进行中战斗】");var seen=new HashSet<string>();foreach(Army a in w.Armies.Values){BattleSession b=w.ActiveBattleForArmy(a.Id);if(b==null||!seen.Add(b.Id))continue;sb.AppendLine("• "+b.LocationName+"｜"+b.ElapsedSeconds+"/"+b.MaxSeconds+"秒｜"+b.Report.LastActionText);}}
+        void BuildReports(StringBuilder sb,GameWorld w){sb.AppendLine("【最近战报/世界事件】");int start=Math.Max(0,w.Events.Count-30);for(int i=w.Events.Count-1;i>=start;i--){WorldEvent e=w.Events[i];if(e!=null)sb.AppendLine("第"+e.Day+"日｜"+e.Category+"｜"+e.Title+"｜"+e.Detail);}}
     }
 }
