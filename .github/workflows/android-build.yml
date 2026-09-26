@@ -444,7 +444,7 @@ jobs:
           UNUSED_SCENE_SHADER_UNIFORM=$(grep -c "SceneShaderGLES3: Program linking failed" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           EFFECTIVE_PRESENT_ERRORS=$PRESENT_ERRORS
           if [ "$UNUSED_SCENE_SHADER_UNIFORM" -gt 0 ] && [ "$UNUSED_SCENE_SHADER_UNIFORM" = "$KNOWN_SWIFTSHADER_UNIFORM" ]; then
-            EFFECTIVE_PRESENT_ERRORS=$(grep -E "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | grep -v "SceneShaderGLES3: Program linking failed" | grep -v "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)" | grep -v "shader failed to compile, unable to bind shader" | wc -l | tr -d ' ')
+            EFFECTIVE_PRESENT_ERRORS=$(grep -E "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | grep -v "SceneShaderGLES3: Program linking failed" | grep -v "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)" | grep -v "shader failed to compile, unable to bind shader" | wc -l | tr -d ' ' || true)
           fi
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
