@@ -78,6 +78,21 @@ namespace LordWar.GodotRuntime {
             AddButton(row3, "拒绝首项", RejectFirstProposal);
             AddButton(row3, "指派战役官员", AssignBestWarOfficial);
 
+            var row4 = new HFlowContainer(); row4.AddThemeConstantOverride("h_separation", 5); row4.AddThemeConstantOverride("v_separation", 5); v.AddChild(row4);
+            AddButton(row4, "建住宅", () => QuickBuild(BuildingKind.House, 120, 55));
+            AddButton(row4, "建田地", () => QuickBuild(BuildingKind.Farm, 150, 70));
+            AddButton(row4, "建伐木场", () => QuickBuild(BuildingKind.Lumberyard, 150, 70));
+            AddButton(row4, "建仓库", () => QuickBuild(BuildingKind.Warehouse, 180, 75));
+            AddButton(row4, "建市集", () => QuickBuild(BuildingKind.Market, 180, 70));
+            AddButton(row4, "建军营", () => QuickBuild(BuildingKind.Barracks, 260, 90));
+            AddButton(row4, "扩建城墙", () => QuickBuild(BuildingKind.Wall, 420, 120));
+
+            var row5 = new HFlowContainer(); row5.AddThemeConstantOverride("h_separation", 5); row5.AddThemeConstantOverride("v_separation", 5); v.AddChild(row5);
+            AddButton(row5, "宣战出征", DeclareWarAndMarch);
+            AddButton(row5, "征募特殊兵", RecruitFirstSpecial);
+            AddButton(row5, "安抚占领", () => ResolveFirstOccupation(OccupationPolicy.Conciliate));
+            AddButton(row5, "有限掠夺", () => ResolveFirstOccupation(OccupationPolicy.LimitedPlunder));
+
             _status = new Label { Text = "软克制、兵种协同、官员战役规划已接入", AutowrapMode = TextServer.AutowrapMode.WordSmart };
             _status.AddThemeFontSizeOverride("font_size", 14); v.AddChild(_status);
 
@@ -110,6 +125,61 @@ namespace LordWar.GodotRuntime {
 
         void SetSpeed(float speed) { if (_app.World != null) { _app.World.TimeScale = speed; SetStatus("速度 ×" + speed.ToString("0.#")); } }
         void SetStatus(string text) { if (_status != null) _status.Text = text ?? ""; }
+        void QuickBuild(BuildingKind kind, int cost, int seconds) {
+            GameWorld w = _app == null ? null : _app.World;
+            City city = PlayerCapital();
+            if (w == null || city == null) { SetStatus("暂无可用都城"); return; }
+            List<Person> officials = w.RankedServingOfficials(w.PlayerKingdomId);
+            Person official = officials.Count > 0 ? officials[0] : null;
+            if (official == null) {
+                List<Person> candidates = w.RankedOfficialCandidates(city);
+                if (candidates.Count > 0) official = candidates[0];
+            }
+            if (official == null) { SetStatus("没有可主持工程的官员"); return; }
+            Proposal p = w.SubmitConstructionProposal(city, official, kind, "修建" + ChineseText.Building(kind), seconds, cost);
+            if (p == null) { SetStatus("工程申请未能提交：" + ChineseText.Building(kind)); return; }
+            bool ok = w.ApproveProposal(p.Id);
+            SetStatus(ok ? "已开工：" + ChineseText.Building(kind) : "资源/条件不足：" + ChineseText.Building(kind));
+            _page = 2; Refresh();
+        }
+
+        void DeclareWarAndMarch() {
+            GameWorld w = _app == null ? null : _app.World;
+            if (w == null) return;
+            bool ok = w.DeclareWarAndMarch();
+            SetStatus(ok ? "已向最近敌国宣战并命令首支军队出征" : "当前无法宣战：检查军队、粮草或外交状态");
+            _page = 3; Refresh();
+        }
+
+        void RecruitFirstSpecial() {
+            GameWorld w = _app == null ? null : _app.World;
+            if (w == null) return;
+            Army army = null;
+            foreach (Army a in w.Armies.Values) if (a.KingdomId == w.PlayerKingdomId) { army = a; break; }
+            if (army == null) { SetStatus("没有可用军队"); return; }
+            foreach (var kv in w.Data.SpecialUnits) {
+                string reason;
+                if (w.TryRecruitSpecial(army.Id, kv.Key, out reason)) {
+                    SetStatus("已征募特殊兵：" + kv.Value.Name + " → " + army.Name);
+                    _page = 3; Refresh(); return;
+                }
+            }
+            SetStatus("当前没有满足建筑/装备/将军条件的特殊兵种");
+        }
+
+        void ResolveFirstOccupation(OccupationPolicy policy) {
+            GameWorld w = _app == null ? null : _app.World;
+            if (w == null) return;
+            foreach (City c in w.Cities.Values) {
+                if (c.KingdomId == w.PlayerKingdomId && c.Occupation == OccupationPolicy.Pending) {
+                    bool ok = w.ResolveOccupation(c.Id, policy);
+                    SetStatus(ok ? "已处理占领城市：" + c.Name : "占领处理失败");
+                    _page = 3; Refresh(); return;
+                }
+            }
+            SetStatus("当前没有待处理的占领城市");
+        }
+
         City PlayerCapital(){if(_app==null||_app.World==null)return null;Kingdom k;if(!_app.World.Kingdoms.TryGetValue(_app.World.PlayerKingdomId,out k))return null;City c;return _app.World.Cities.TryGetValue(k.CapitalCityId,out c)?c:null;}
         void NominateTopOfficial(){GameWorld w=_app==null?null:_app.World;City c=PlayerCapital();if(w==null||c==null){SetStatus("暂无可用都城");return;}List<Person> list=w.RankedOfficialCandidates(c);if(list.Count==0){SetStatus("当前没有可提名官员候选");return;}string reason;w.SubmitPlayerAppointment(list[0].Id,"official",out reason);SetStatus(reason);_page=1;Refresh();}
         void NominateTopGeneral(){GameWorld w=_app==null?null:_app.World;City c=PlayerCapital();if(w==null||c==null){SetStatus("暂无可用都城");return;}List<Person> list=w.RankedGeneralCandidates(c);if(list.Count==0){SetStatus("当前没有可提名将军候选");return;}string reason;w.SubmitPlayerAppointment(list[0].Id,"general",out reason);SetStatus(reason);_page=1;Refresh();}
