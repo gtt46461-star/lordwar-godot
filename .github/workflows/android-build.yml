@@ -1,9 +1,9 @@
-name: LordWar 1.0.0 Playable Release Gate
+name: LordWar 1.0.1 Playable Release Gate
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, "fix/android-gray-screen-vulkan" ]
     paths:
       - "bootstrap/**"
       - ".github/workflows/android-build.yml"
@@ -47,12 +47,12 @@ jobs:
           grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
 
-      - name: Set Android 1.0.0 version and universal architectures
+      - name: Set Android 1.0.1 version and universal architectures
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90111/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90112/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
           sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=0/' project.godot
@@ -274,7 +274,7 @@ jobs:
           grep -F "LORDWAR_MENU_READY" Evidence/CI_RUNTIME_SMOKE.log
           grep -F "LORDWAR_GAME_READY" Evidence/CI_RUNTIME_SMOKE.log
 
-      - name: Switch Android export to Compatibility OpenGL ES 3
+      - name: Use Vulkan Mobile renderer for Android
         shell: bash
         working-directory: project
         run: |
@@ -285,27 +285,22 @@ jobs:
           p=Path("project.godot")
           s=p.read_text(encoding="utf-8")
           s=re.sub(r'config/features=PackedStringArray\([^\n]*\)',
-                   'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")', s)
+                   'config/features=PackedStringArray("4.7", "C#")', s)
           s=re.sub(r'renderer/rendering_method="[^"]*"',
-                   'renderer/rendering_method="gl_compatibility"', s)
+                   'renderer/rendering_method="mobile"', s)
           s=re.sub(r'renderer/rendering_method.mobile="[^"]*"',
-                   'renderer/rendering_method.mobile="gl_compatibility"', s)
-          if 'rendering/gl_compatibility/driver.android=' in s:
-              s=re.sub(r'rendering/gl_compatibility/driver.android="[^"]*"',
-                       'rendering/gl_compatibility/driver.android="opengl3"', s)
-          else:
-              s=s.replace('[rendering]\n','[rendering]\nrendering/gl_compatibility/driver.android="opengl3"\n',1)
+                   'renderer/rendering_method.mobile="mobile"', s)
+          s=re.sub(r'^rendering/gl_compatibility/driver.android="[^"]*"\n', '', s, flags=re.M)
           p.write_text(s,encoding="utf-8")
           e=Path("export_presets.cfg")
           t=e.read_text(encoding="utf-8")
           t=re.sub(r'command_line/extra_args="[^"]*"',
-                   'command_line/extra_args="--rendering-method gl_compatibility --rendering-driver opengl3"',t)
+                   'command_line/extra_args="--rendering-method mobile --rendering-driver vulkan"',t)
           e.write_text(t,encoding="utf-8")
           PY
-          grep -E 'config/features|rendering_method|gl_compatibility/driver.android|handheld/orientation|stretch/aspect' project.godot
+          grep -E 'config/features|rendering_method|handheld/orientation|stretch/aspect' project.godot
           grep -F 'command_line/extra_args' export_presets.cfg
           test -s LordWar.sln
-
       - name: Export Android debug APK
         shell: bash
         working-directory: project
@@ -313,10 +308,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-device-validated.apk" \
+            "Builds/Android/LordWar-1.0.1-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-device-validated.apk
-          sha256sum Builds/Android/LordWar-1.0.0-device-validated.apk | tee Builds/Android/LordWar-1.0.0-device-validated.apk.sha256
+          test -s Builds/Android/LordWar-1.0.1-device-validated.apk
+          sha256sum Builds/Android/LordWar-1.0.1-device-validated.apk | tee Builds/Android/LordWar-1.0.1-device-validated.apk.sha256
           ls -lh Builds/Android/
 
       - name: Install Pillow for screenshot validation
@@ -355,8 +350,8 @@ jobs:
           adb shell input keyevent 82 || true
           sleep 2
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-1.0.0-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-1.0.0-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb install --no-incremental -r Builds/Android/LordWar-1.0.1-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-1.0.1-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -c
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
@@ -412,10 +407,6 @@ jobs:
           SWIFTSHADER=$(grep -c "SwiftShader" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           KNOWN_SWIFTSHADER_UNIFORM=$(grep -Ec "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           EFFECTIVE_PRESENT_ERRORS=$PRESENT_ERRORS
-          if [ "$SWIFTSHADER" -gt 0 ] && [ "$KNOWN_SWIFTSHADER_UNIFORM" -gt 0 ] && [ "$FATALS" -eq 0 ]; then
-            EFFECTIVE_PRESENT_ERRORS=0
-            echo "emulator_visual_gate=WAIVED_KNOWN_SWIFTSHADER_UNIFORM_LIMIT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          fi
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
@@ -449,6 +440,10 @@ jobs:
           else
             echo "visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           fi
+          if ! python3 -c "import sys; sys.exit(0 if max(float('$SCREEN_STD'), float('$GAME_STD')) > 2.0 else 1)"; then
+            echo "ANDROID_DEVICE_VISUAL=FAIL uniform/blank Android capture" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+            exit 1
+          fi
           if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$EFFECTIVE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             exit 1
@@ -457,26 +452,26 @@ jobs:
           echo "ANDROID_DEVICE_RUNTIME=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "ANDROID_DEVICE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
 
-      - name: Export signed Android 1.0.0 release APK
+      - name: Export signed Android 1.0.1 release APK
         shell: bash
         working-directory: project
         run: |
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0.apk" \
+            "Builds/Android/LordWar-1.0.1.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0.apk
-          sha256sum Builds/Android/LordWar-1.0.0.apk | tee Builds/Android/LordWar-1.0.0.apk.sha256
+          test -s Builds/Android/LordWar-1.0.1.apk
+          sha256sum Builds/Android/LordWar-1.0.1.apk | tee Builds/Android/LordWar-1.0.1.apk.sha256
 
-      - name: Android emulator 1.0.0 release smoke test
+      - name: Android emulator 1.0.1 release smoke test
         shell: bash
         working-directory: project
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-1.0.0.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install --no-incremental -r Builds/Android/LordWar-1.0.1.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
@@ -530,10 +525,6 @@ jobs:
           RELEASE_SWIFTSHADER=$(grep -c "SwiftShader" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_KNOWN_SWIFTSHADER_UNIFORM=$(grep -Ec "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_EFFECTIVE_PRESENT_ERRORS=$RELEASE_PRESENT_ERRORS
-          if [ "$RELEASE_SWIFTSHADER" -gt 0 ] && [ "$RELEASE_KNOWN_SWIFTSHADER_UNIFORM" -gt 0 ] && [ "$FATALS" -eq 0 ]; then
-            RELEASE_EFFECTIVE_PRESENT_ERRORS=0
-            echo "emulator_visual_gate=WAIVED_KNOWN_SWIFTSHADER_UNIFORM_LIMIT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          fi
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
@@ -556,6 +547,10 @@ jobs:
           else
             echo "release_visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           fi
+          if ! python3 -c "import sys; sys.exit(0 if float('$RELEASE_STD') > 2.0 else 1)"; then
+            echo "ANDROID_RELEASE_VISUAL=FAIL uniform/blank Android capture" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+            exit 1
+          fi
           if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$RELEASE_EFFECTIVE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
             exit 1
@@ -568,10 +563,10 @@ jobs:
         working-directory: project
         run: |
           set -euo pipefail
-          rm -f ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz
-          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz .
-          test -s ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz
-          sha256sum ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
+          rm -f ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz
+          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz .
+          test -s ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz
+          sha256sum ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
 
       - name: Build evidence summary
         if: always()
@@ -584,15 +579,15 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-1.0.0-device-validated.apk ]; then
+            if [ -f Builds/Android/LordWar-1.0.1-device-validated.apk ]; then
               echo "debug_apk_present=yes"
-              sha256sum Builds/Android/LordWar-1.0.0-device-validated.apk
+              sha256sum Builds/Android/LordWar-1.0.1-device-validated.apk
             else
               echo "debug_apk_present=no"
             fi
-            if [ -f Builds/Android/LordWar-1.0.0.apk ]; then
+            if [ -f Builds/Android/LordWar-1.0.1.apk ]; then
               echo "release_apk_present=yes"
-              sha256sum Builds/Android/LordWar-1.0.0.apk
+              sha256sum Builds/Android/LordWar-1.0.1.apk
             else
               echo "release_apk_present=no"
             fi
@@ -620,5 +615,5 @@ jobs:
             bootstrap/overrides/WorldGenerator.cs
             project/Scripts/LordWar/World/WorldGenerator.cs
             _buildsrc/lordwar-r32.tar.gz
-            _buildsrc/LordWar-1.0.0-FinalSource.tar.gz
+            _buildsrc/LordWar-1.0.1-FinalSource.tar.gz
             bootstrap/overrides/BuildInfo.cs
