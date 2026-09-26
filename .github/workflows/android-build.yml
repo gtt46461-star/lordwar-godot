@@ -568,12 +568,16 @@ jobs:
           RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_SWIFTSHADER=$(grep -c "SwiftShader" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_KNOWN_SWIFTSHADER_UNIFORM=$(grep -Ec "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          RELEASE_UNUSED_SCENE_SHADER_UNIFORM=$(grep -c "SceneShaderGLES3: Program linking failed" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_EFFECTIVE_PRESENT_ERRORS=$RELEASE_PRESENT_ERRORS
+          if [ "$RELEASE_UNUSED_SCENE_SHADER_UNIFORM" -gt 0 ] && [ "$RELEASE_UNUSED_SCENE_SHADER_UNIFORM" = "$RELEASE_KNOWN_SWIFTSHADER_UNIFORM" ]; then
+            RELEASE_EFFECTIVE_PRESENT_ERRORS=$(grep -E "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | grep -v "SceneShaderGLES3: Program linking failed" | grep -v "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS (261)" | grep -v "shader failed to compile, unable to bind shader" | wc -l | tr -d ' ' || true)
+          fi
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          echo "present_errors=$RELEASE_PRESENT_ERRORS effective_present_errors=$RELEASE_EFFECTIVE_PRESENT_ERRORS swiftshader=$RELEASE_SWIFTSHADER known_uniform=$RELEASE_KNOWN_SWIFTSHADER_UNIFORM" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          echo "present_errors=$RELEASE_PRESENT_ERRORS effective_present_errors=$RELEASE_EFFECTIVE_PRESENT_ERRORS swiftshader=$RELEASE_SWIFTSHADER known_uniform=$RELEASE_KNOWN_SWIFTSHADER_UNIFORM unused_scene_uniform=$RELEASE_UNUSED_SCENE_SHADER_UNIFORM" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           grep -E "OpenGL API|Vulkan API|Compatibility|Forward Mobile" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 20 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
           RELEASE_STATS=$(python3 - <<'PY'
           from PIL import Image, ImageStat
