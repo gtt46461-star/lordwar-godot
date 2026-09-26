@@ -11,7 +11,7 @@
 - 使用 .NET 8 的 C# 编译器编译纯游戏核心，并实际运行生成世界、推进一天、存档校验和恢复：`CORE_SMOKE_PASS skills=360 units=156 map=160x120 kingdoms=4 cities=4 people=220 day=1`。
 - 使用公开的 `NeoModLoader_mobile.dll` 2.0 与 AndroidModLoader 仓库提供的 WorldBox/Unity 程序集，对全部模组 C# 源码完成编译。程序集目标版本不同，编译器发出 `CS1701` 版本匹配警告；设备端加载尚待验证。
 - 新增底部原生标签和按钮后再次用同一组 Android NML 参考程序集编译通过；游戏运行时的按钮显示和触摸响应仍待设备验证。
-- `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流只保存在本地仓库分支的根目录。
+- `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流位于仓库分支的 `.github/workflows/`。
 
 ## 为什么不是 APK
 
