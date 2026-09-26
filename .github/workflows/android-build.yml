@@ -364,56 +364,72 @@ jobs:
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
           adb shell wm density 160 || true
-          sleep 3
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb shell input keyevent 82 || true
+          sleep 2
           adb install -r Builds/Android/LordWar-RC7-debug.apk | tee Evidence/CI_ADB_INSTALL.log
           adb logcat -c
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
           sleep 25
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png
-          python3 - <<'PY' | tee Evidence/CI_ANDROID_SCREEN_SIZE.txt
+          read W H < <(python3 - <<'PY'
           from PIL import Image
           im=Image.open("Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png")
-          print(f"screenshot={im.width}x{im.height}")
+          print(im.width, im.height)
           PY
+          )
+          echo "screenshot=${W}x${H}" | tee Evidence/CI_ANDROID_SCREEN_SIZE.txt
           test "$W" -gt "$H"
           adb shell input swipe $((W*75/100)) $((H*60/100)) $((W*25/100)) $((H*60/100)) 350 || true
           adb shell input tap $((W*50/100)) $((H*50/100)) || true
           sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
           adb exec-out run-as com.lordwar.game cat files/lordwar_ci_game.png > Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png || true
-          adb wait-for-device
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
           MENU_OK=$(grep -c "LORDWAR_MAIN_MENU_VISIBLE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
-          PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
-          echo "fatal_markers=$FATALS"
+          echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "present_errors=$PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_DEVICE_SCREEN.png | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_DEVICE_SCREEN.png)
           test -s Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png
-          identify -format 'game_mean=%[mean] game_stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          GAME_STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png)
+          SCREEN_STATS=$(python3 - <<'PY'
+          from PIL import Image, ImageStat
+          im=Image.open("Evidence/CI_ANDROID_DEVICE_SCREEN.png").convert("RGB")
+          st=ImageStat.Stat(im)
+          print(f"{sum(st.mean)/3.0:.6f} {(sum(x*x for x in st.stddev)/3.0)**0.5:.6f}")
+          PY
+          )
+          GAME_STATS=$(python3 - <<'PY'
+          from PIL import Image, ImageStat
+          im=Image.open("Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png").convert("RGB")
+          st=ImageStat.Stat(im)
+          print(f"{sum(st.mean)/3.0:.6f} {(sum(x*x for x in st.stddev)/3.0)**0.5:.6f}")
+          PY
+          )
+          SCREEN_MEAN=$(echo "$SCREEN_STATS" | awk '{print $1}')
+          SCREEN_STD=$(echo "$SCREEN_STATS" | awk '{print $2}')
+          GAME_MEAN=$(echo "$GAME_STATS" | awk '{print $1}')
+          GAME_STD=$(echo "$GAME_STATS" | awk '{print $2}')
+          echo "screen_mean=$SCREEN_MEAN screen_stddev=$SCREEN_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "game_mean=$GAME_MEAN game_stddev=$GAME_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          python3 - <<PY
+          screen_std=float("$SCREEN_STD")
+          game_std=float("$GAME_STD")
+          assert screen_std > 2.0, f"device screenshot too uniform/black: {screen_std}"
+          assert game_std > 2.0, f"in-app gameplay capture too uniform/black: {game_std}"
+          PY
           if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 2 ] || [ "$FATALS" -gt 0 ] || [ "$PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             exit 1
           fi
-          awk -v x="$STDDEV" 'BEGIN { if (x < 500) exit 1; }'
-          awk -v x="$GAME_STDDEV" 'BEGIN { if (x < 500) exit 1; }'
-          python3 - <<PY
-          std=float("$STDDEV")
-          assert std > 2.0, f"gameplay frame too uniform/black: stddev={std}"
-          print("ANDROID_GAMEPLAY_VISUAL_THRESHOLD=PASS", std)
-          PY
           echo "ANDROID_GAMEPLAY_CAPTURE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "ANDROID_DEVICE_VISUAL=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "ANDROID_DEVICE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
@@ -441,14 +457,17 @@ jobs:
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
           adb shell wm density 160 || true
-          sleep 2
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb logcat -c
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
           sleep 30
           adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png
-          W=$(identify -format '%w' Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png)
-          H=$(identify -format '%h' Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png)
+          read W H < <(python3 - <<'PY'
+          from PIL import Image
+          im=Image.open("Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png")
+          print(im.width, im.height)
+          PY
+          )
           echo "screenshot=${W}x${H}" | tee Evidence/CI_ANDROID_RELEASE_SCREEN_SIZE.txt
           test "$W" -gt "$H"
           for i in $(seq 1 4); do
@@ -458,26 +477,36 @@ jobs:
           done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png || true
-          adb wait-for-device
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
           echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
           MENU_OK=$(grep -c "LORDWAR_MAIN_MENU_VISIBLE" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
-          RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
-          echo "fatal_markers=$FATALS"
+          echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "present_errors=$RELEASE_PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_RELEASE_SCREEN.png | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_RELEASE_SCREEN.png)
+          RELEASE_STATS=$(python3 - <<'PY'
+          from PIL import Image, ImageStat
+          im=Image.open("Evidence/CI_ANDROID_RELEASE_SCREEN.png").convert("RGB")
+          st=ImageStat.Stat(im)
+          print(f"{sum(st.mean)/3.0:.6f} {(sum(x*x for x in st.stddev)/3.0)**0.5:.6f}")
+          PY
+          )
+          RELEASE_MEAN=$(echo "$RELEASE_STATS" | awk '{print $1}')
+          RELEASE_STD=$(echo "$RELEASE_STATS" | awk '{print $2}')
+          echo "release_mean=$RELEASE_MEAN release_stddev=$RELEASE_STD" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          python3 - <<PY
+          std=float("$RELEASE_STD")
+          assert std > 2.0, f"release screenshot too uniform/black: {std}"
+          PY
           if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$RELEASE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
             exit 1
           fi
-          awk -v x="$STDDEV" 'BEGIN { if (x < 500) exit 1; }'
           echo "ANDROID_RELEASE_VISUAL=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
