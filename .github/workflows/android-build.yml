@@ -20,7 +20,7 @@ jobs:
       DOTNET_NOLOGO: "1"
       GODOT_VERSION: "4.7.2"
       GODOT_TEMPLATE_DIR: "4.7.2.stable"
-      EXPECTED_SOURCE_SHA256: "86844f4a7ebb119832d5f32d7188b89c253f8f3ad9a667f2ac9c5ca0a2c7cc64"
+      EXPECTED_SOURCE_SHA256: "712ae15fc44a39b9610e4b4adca8328b7139feca31972cded04f93e73e494b1d"
 
     steps:
       - name: Checkout bootstrap
