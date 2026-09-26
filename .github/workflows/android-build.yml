@@ -42,7 +42,9 @@ jobs:
         run: |
           set -euo pipefail
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
+          cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
           grep -F "LORDWAR_STARTUP_OK" project/Scripts/Godot/LordWarApp.cs
+          grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
 
       - name: Set Android RC version and universal architectures
         shell: bash
@@ -447,4 +449,6 @@ jobs:
             project/LordWar.sln
             project/project.godot
             bootstrap/overrides/LordWarApp.cs
+            bootstrap/overrides/WorldGenerator.cs
+            project/Scripts/LordWar/World/WorldGenerator.cs
             _buildsrc/lordwar-r32.tar.gz
