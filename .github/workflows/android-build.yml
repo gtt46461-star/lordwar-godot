@@ -48,8 +48,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i 's/version\/code=90032/version\/code=90033/' export_presets.cfg
-          sed -i 's/version\/name="[^"]*"/version\/name="0.9.0-dev.20260926-r32.1-crashfix"/' export_presets.cfg
+          sed -i 's/version\/code=90032/version\/code=90034/' export_presets.cfg
+          sed -i 's/version\/name="[^"]*"/version\/name="0.9.0-dev.20260926-r32.2-async-crashfix"/' export_presets.cfg
           grep -E 'version/(code|name)' export_presets.cfg
 
       - name: Verify full runtime art payload
@@ -223,7 +223,7 @@ jobs:
         working-directory: project
         run: |
           set -euo pipefail
-          timeout 30s "$HOME/bin/godot" --headless --path . --quit-after 240 --verbose 2>&1 | tee Evidence/CI_RUNTIME_SMOKE.log
+          LORDWAR_SMOKE_TEST=1 timeout 60s "$HOME/bin/godot" --headless --path . --verbose 2>&1 | tee Evidence/CI_RUNTIME_SMOKE.log
           if grep -F "LORDWAR_STARTUP_FATAL" Evidence/CI_RUNTIME_SMOKE.log; then
             echo "Startup fatal marker detected"
             exit 1

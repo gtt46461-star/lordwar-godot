@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using Godot;
 using LordWar.AI;
 using LordWar.Data;
@@ -6,7 +8,8 @@ using LordWar.Simulation;
 
 namespace LordWar.GodotRuntime {
     /// <summary>
-    /// Android-safe staged startup. Startup exceptions are displayed instead of terminating the app.
+    /// Android-safe staged startup. Heavy pure-C# world generation runs off the main thread;
+    /// startup failures are rendered in-app instead of terminating the process.
     /// </summary>
     public sealed partial class LordWarApp : Node {
         public GameWorld World { get; private set; }
@@ -14,25 +17,35 @@ namespace LordWar.GodotRuntime {
         public WorldCameraController Camera { get; private set; }
         public LordWarHud Hud { get; private set; }
         public GodotSpriteAssetLibrary Art { get; private set; }
+
         GameDataCatalog _data;
         CanvasLayer _startupLayer;
         Label _startupLabel;
-        bool _booting;
+        Task<GameWorld> _worldTask;
+        bool _bootStarted;
         bool _bootComplete;
         int _startupFrames;
+        readonly Stopwatch _startupWatch = new Stopwatch();
 
         public override void _Ready() {
             Engine.MaxFps = 60;
             BuildStartupScreen();
+            _startupWatch.Start();
             GD.Print("LORDWAR_STARTUP_PHASE=READY");
         }
 
         public override void _Process(double delta) {
-            if (!_bootComplete && !_booting) {
+            if (!_bootStarted) {
                 _startupFrames++;
-                if (_startupFrames >= 2) BootstrapRuntime();
+                if (_startupFrames >= 2) BeginBootstrap();
                 return;
             }
+
+            if (!_bootComplete && _worldTask != null && _worldTask.IsCompleted) {
+                CompleteBootstrap();
+                return;
+            }
+
             if (_bootComplete && World != null) World.Tick((float)delta);
         }
 
@@ -42,7 +55,7 @@ namespace LordWar.GodotRuntime {
             var panel = new PanelContainer { Position = new Vector2(20, 20), Size = new Vector2(700, 180) };
             _startupLayer.AddChild(panel);
             _startupLabel = new Label {
-                Text = "领主战争正在初始化……\n正在载入数据并生成世界",
+                Text = "领主战争正在初始化……\n正在载入战争数据库",
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart
@@ -51,36 +64,73 @@ namespace LordWar.GodotRuntime {
             panel.AddChild(_startupLabel);
         }
 
-        void BootstrapRuntime() {
-            _booting = true;
+        void BeginBootstrap() {
+            _bootStarted = true;
             try {
-                if (_startupLabel != null) _startupLabel.Text = "领主战争正在初始化……\n正在建立地图、国家与城市";
                 GD.Print("LORDWAR_STARTUP_PHASE=BOOTSTRAP_BEGIN");
+                if (_startupLabel != null) _startupLabel.Text = "领主战争正在初始化……\n正在载入兵种、将军、官员与城市资料";
 
+                _data = new GameDataCatalog();
+                _data.LoadAll(new GodotDataProvider());
+                GD.Print("LORDWAR_STARTUP_PHASE=DATA_OK skills=" + _data.Skills.Count + " units=" + _data.Units.Count + " specials=" + _data.SpecialUnits.Count);
+
+                int seed = NewSeed();
+                const int width = 160;
+                const int height = 120;
+                const int kingdoms = 4;
+                GD.Print("LORDWAR_STARTUP_PHASE=CREATE_WORLD_ASYNC " + width + "x" + height + " kingdoms=" + kingdoms);
+                if (_startupLabel != null) _startupLabel.Text = "领主战争正在初始化……\n正在后台生成 160×120 世界与四国势力";
+
+                GameDataCatalog data = _data;
+                _worldTask = Task.Run(() => {
+                    var world = new GameWorld(seed, data, AiDifficulty.Hard);
+                    world.CreateNewWorld(width, height, kingdoms);
+                    return world;
+                });
+            } catch (Exception ex) {
+                ShowStartupFailure(ex);
+            }
+        }
+
+        void CompleteBootstrap() {
+            Task<GameWorld> task = _worldTask;
+            _worldTask = null;
+            if (task == null) return;
+
+            try {
+                if (task.IsCanceled) throw new InvalidOperationException("世界生成任务被取消");
+                if (task.IsFaulted) throw task.Exception?.GetBaseException() ?? new InvalidOperationException("世界生成失败");
+
+                World = task.Result;
+                GD.Print("LORDWAR_STARTUP_PHASE=WORLD_OK cities=" + World.Cities.Count + " people=" + World.People.Count);
+
+                Art = new GodotSpriteAssetLibrary();
                 View = new WorldView { Name = "世界渲染" }; AddChild(View);
                 Camera = new WorldCameraController { Name = "世界相机" }; AddChild(Camera);
                 Hud = new LordWarHud { Name = "中文HUD" }; AddChild(Hud);
-                Art = new GodotSpriteAssetLibrary();
-
-                CreateFreshWorld(0, 96, 96, 2, AiDifficulty.Hard);
+                RebindViews();
                 Hud.Bind(this);
 
-                if (_startupLayer != null) {
+                if (_startupLayer != null && GodotObject.IsInstanceValid(_startupLayer)) {
                     _startupLayer.QueueFree();
                     _startupLayer = null;
                     _startupLabel = null;
                 }
+
+                _startupWatch.Stop();
                 _bootComplete = true;
-                GD.Print("LORDWAR_STARTUP_OK map=96x96 kingdoms=2");
+                GD.Print("LORDWAR_STARTUP_OK map=" + World.Map.Width + "x" + World.Map.Height + " kingdoms=" + World.Kingdoms.Count + " ms=" + _startupWatch.ElapsedMilliseconds);
+
+                if (System.Environment.GetEnvironmentVariable("LORDWAR_SMOKE_TEST") == "1") {
+                    GetTree().Quit(0);
+                }
             } catch (Exception ex) {
-                _bootComplete = false;
                 ShowStartupFailure(ex);
-            } finally {
-                _booting = false;
             }
         }
 
         void ShowStartupFailure(Exception ex) {
+            _startupWatch.Stop();
             string detail = ex == null ? "未知启动异常" : ex.ToString();
             GD.PushError("LORDWAR_STARTUP_FATAL\n" + detail);
             try {
@@ -103,15 +153,11 @@ namespace LordWar.GodotRuntime {
             int seed = requestedSeed == 0 ? NewSeed() : requestedSeed;
 
             if (_data == null) {
-                GD.Print("LORDWAR_STARTUP_PHASE=LOAD_DATA");
                 _data = new GameDataCatalog();
                 _data.LoadAll(new GodotDataProvider());
-                GD.Print("LORDWAR_STARTUP_PHASE=DATA_OK skills=" + _data.Skills.Count + " units=" + _data.Units.Count + " specials=" + _data.SpecialUnits.Count);
             }
-            GD.Print("LORDWAR_STARTUP_PHASE=CREATE_WORLD " + width + "x" + height + " kingdoms=" + kingdoms);
             World = new GameWorld(seed, _data, difficulty);
             World.CreateNewWorld(width, height, kingdoms);
-            GD.Print("LORDWAR_STARTUP_PHASE=WORLD_OK cities=" + World.Cities.Count + " people=" + World.People.Count);
             RebindViews();
         }
 
