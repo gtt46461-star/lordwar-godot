@@ -1,4 +1,4 @@
-name: LordWar 1.0.1 Playable Release Gate
+name: LordWar 1.0.2 Playable Release Gate
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
           tar -xzf _buildsrc/lordwar-r32.tar.gz -C project
           echo "Reconstructed source files: $(find project -type f | wc -l)"
 
-      - name: Apply Android startup crash fix overlay
+      - name: Apply Android runtime and land reachability overlay
         shell: bash
         run: |
           set -euo pipefail
@@ -45,6 +45,9 @@ jobs:
           cp bootstrap/overrides/WorldView.cs project/Scripts/Godot/WorldView.cs
           cp bootstrap/overrides/LordWarHud.cs project/Scripts/Godot/LordWarHud.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
+          cp bootstrap/overrides/WorldMap.cs project/Scripts/LordWar/World/WorldMap.cs
+          cp bootstrap/overrides/GameWorld.cs project/Scripts/LordWar/Simulation/GameWorld.cs
+          cp bootstrap/overrides/BuildInfo.cs project/Scripts/LordWar/Core/BuildInfo.cs
           cp bootstrap/overrides/patch_gles_shader_uniform_limit.py project/Tools/patch_gles_shader_uniform_limit.py
           cat bootstrap/overrides/commander_skills_addendum.csv >> project/Data/LordWarData/commander_skills_v8.csv
           python3 - <<'PY'
@@ -62,13 +65,15 @@ jobs:
           test "$(python3 -c 'import csv; print(sum(1 for _ in csv.reader(open("project/Data/LordWarData/commander_skills_v8.csv",encoding="utf-8-sig")))-1)')" = 60
           grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
+          grep -F "CanMarchBetween" project/Scripts/LordWar/World/WorldMap.cs
+          grep -F "NearestReachableEnemyCity" project/Scripts/LordWar/Simulation/GameWorld.cs
 
-      - name: Set Android 1.0.1 version and universal architectures
+      - name: Set Android 1.0.2 version and universal architectures
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90112/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90113/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.2"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
           sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=0/' project.godot
@@ -264,6 +269,29 @@ jobs:
           dotnet build LordWar.sln -c Debug --no-restore 2>&1 | tee Evidence/CI_DOTNET_BUILD.log
           echo "GODOT_CSHARP_SOLUTION_BUILD=PASS"
 
+      - name: Exercise land reachability against built game assembly
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          dotnet new console -n ReachabilitySmoke -o ../_buildsrc/reachability-smoke --framework net8.0 --no-restore
+          dotnet add ../_buildsrc/reachability-smoke/ReachabilitySmoke.csproj reference "$PWD/LordWar.csproj"
+          cat > ../_buildsrc/reachability-smoke/Program.cs <<'CS'
+          using System;
+          using LordWar;
+          using LordWar.World;
+          var map = new WorldMap(5, 3, 17);
+          foreach (WorldTile tile in map.Tiles) tile.Terrain = TerrainKind.Grass;
+          for (int y = 0; y < map.Height; y++) map.Get(2, y).Terrain = TerrainKind.Lake;
+          if (map.CanMarchBetween(1, 1, 3, 1)) throw new Exception("Army crossed a lake barrier");
+          if (!map.CanMarchBetween(0, 0, 1, 2)) throw new Exception("Connected land was blocked");
+          map.Get(2, 1).Terrain = TerrainKind.River;
+          if (!map.CanMarchBetween(1, 1, 3, 1)) throw new Exception("Opening a land corridor did not reconnect armies");
+          if (map.CanMarchBetween(-1, 0, 3, 1)) throw new Exception("Out-of-map origin was accepted");
+          Console.WriteLine("LAND_REACHABILITY=PASS");
+          CS
+          dotnet run --project ../_buildsrc/reachability-smoke/ReachabilitySmoke.csproj -c Debug 2>&1 | tee Evidence/CI_LAND_REACHABILITY.log
+
       - name: Import Godot project
         shell: bash
         working-directory: project
@@ -338,15 +366,15 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-1.0.1-device-validated.apk" \
+            "Builds/Android/LordWar-1.0.2-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.1-device-validated.apk
-          LORDWAR_APK="$PWD/Builds/Android/LordWar-1.0.1-device-validated.apk" python3 Tools/patch_gles_shader_uniform_limit.py
-          "$ANDROID_HOME/build-tools/35.0.1/zipalign" -f 4 Builds/Android/LordWar-1.0.1-device-validated.apk Builds/Android/LordWar-1.0.1-aligned.apk
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" sign --ks "$HOME/.android/lordwar-ci-debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out Builds/Android/LordWar-1.0.1-device-validated-signed.apk Builds/Android/LordWar-1.0.1-aligned.apk
-          mv Builds/Android/LordWar-1.0.1-device-validated-signed.apk Builds/Android/LordWar-1.0.1-device-validated.apk
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify Builds/Android/LordWar-1.0.1-device-validated.apk
-          sha256sum Builds/Android/LordWar-1.0.1-device-validated.apk | tee Builds/Android/LordWar-1.0.1-device-validated.apk.sha256
+          test -s Builds/Android/LordWar-1.0.2-device-validated.apk
+          LORDWAR_APK="$PWD/Builds/Android/LordWar-1.0.2-device-validated.apk" python3 Tools/patch_gles_shader_uniform_limit.py
+          "$ANDROID_HOME/build-tools/35.0.1/zipalign" -f 4 Builds/Android/LordWar-1.0.2-device-validated.apk Builds/Android/LordWar-1.0.2-aligned.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" sign --ks "$HOME/.android/lordwar-ci-debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out Builds/Android/LordWar-1.0.2-device-validated-signed.apk Builds/Android/LordWar-1.0.2-aligned.apk
+          mv Builds/Android/LordWar-1.0.2-device-validated-signed.apk Builds/Android/LordWar-1.0.2-device-validated.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify Builds/Android/LordWar-1.0.2-device-validated.apk
+          sha256sum Builds/Android/LordWar-1.0.2-device-validated.apk | tee Builds/Android/LordWar-1.0.2-device-validated.apk.sha256
           ls -lh Builds/Android/
 
       - name: Install Pillow for screenshot validation
@@ -385,8 +413,8 @@ jobs:
           adb shell input keyevent 82 || true
           sleep 2
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-1.0.1-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-1.0.1-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb install --no-incremental -r Builds/Android/LordWar-1.0.2-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-1.0.2-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -c
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
@@ -491,31 +519,31 @@ jobs:
           echo "ANDROID_DEVICE_RUNTIME=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "ANDROID_DEVICE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
 
-      - name: Export signed Android 1.0.1 release APK
+      - name: Export signed Android 1.0.2 release APK
         shell: bash
         working-directory: project
         run: |
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.1.apk" \
+            "Builds/Android/LordWar-1.0.2.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.1.apk
-          LORDWAR_APK="$PWD/Builds/Android/LordWar-1.0.1.apk" python3 Tools/patch_gles_shader_uniform_limit.py
-          "$ANDROID_HOME/build-tools/35.0.1/zipalign" -f 4 Builds/Android/LordWar-1.0.1.apk Builds/Android/LordWar-1.0.1-aligned.apk
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" sign --ks "$HOME/.android/lordwar-ci-debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out Builds/Android/LordWar-1.0.1-signed.apk Builds/Android/LordWar-1.0.1-aligned.apk
-          mv Builds/Android/LordWar-1.0.1-signed.apk Builds/Android/LordWar-1.0.1.apk
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify Builds/Android/LordWar-1.0.1.apk
-          sha256sum Builds/Android/LordWar-1.0.1.apk | tee Builds/Android/LordWar-1.0.1.apk.sha256
+          test -s Builds/Android/LordWar-1.0.2.apk
+          LORDWAR_APK="$PWD/Builds/Android/LordWar-1.0.2.apk" python3 Tools/patch_gles_shader_uniform_limit.py
+          "$ANDROID_HOME/build-tools/35.0.1/zipalign" -f 4 Builds/Android/LordWar-1.0.2.apk Builds/Android/LordWar-1.0.2-aligned.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" sign --ks "$HOME/.android/lordwar-ci-debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out Builds/Android/LordWar-1.0.2-signed.apk Builds/Android/LordWar-1.0.2-aligned.apk
+          mv Builds/Android/LordWar-1.0.2-signed.apk Builds/Android/LordWar-1.0.2.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify Builds/Android/LordWar-1.0.2.apk
+          sha256sum Builds/Android/LordWar-1.0.2.apk | tee Builds/Android/LordWar-1.0.2.apk.sha256
 
-      - name: Android emulator 1.0.1 release smoke test
+      - name: Android emulator 1.0.2 release smoke test
         shell: bash
         working-directory: project
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-1.0.1.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install --no-incremental -r Builds/Android/LordWar-1.0.2.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
@@ -611,10 +639,10 @@ jobs:
         working-directory: project
         run: |
           set -euo pipefail
-          rm -f ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz
-          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz .
-          test -s ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz
-          sha256sum ../_buildsrc/LordWar-1.0.1-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
+          rm -f ../_buildsrc/LordWar-1.0.2-FinalSource.tar.gz
+          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-1.0.2-FinalSource.tar.gz .
+          test -s ../_buildsrc/LordWar-1.0.2-FinalSource.tar.gz
+          sha256sum ../_buildsrc/LordWar-1.0.2-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
 
       - name: Build evidence summary
         if: always()
@@ -627,15 +655,15 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-1.0.1-device-validated.apk ]; then
+            if [ -f Builds/Android/LordWar-1.0.2-device-validated.apk ]; then
               echo "debug_apk_present=yes"
-              sha256sum Builds/Android/LordWar-1.0.1-device-validated.apk
+              sha256sum Builds/Android/LordWar-1.0.2-device-validated.apk
             else
               echo "debug_apk_present=no"
             fi
-            if [ -f Builds/Android/LordWar-1.0.1.apk ]; then
+            if [ -f Builds/Android/LordWar-1.0.2.apk ]; then
               echo "release_apk_present=yes"
-              sha256sum Builds/Android/LordWar-1.0.1.apk
+              sha256sum Builds/Android/LordWar-1.0.2.apk
             else
               echo "release_apk_present=no"
             fi
@@ -661,7 +689,11 @@ jobs:
             project/project.godot
             bootstrap/overrides/LordWarApp.cs
             bootstrap/overrides/WorldGenerator.cs
+            bootstrap/overrides/WorldMap.cs
+            bootstrap/overrides/GameWorld.cs
             project/Scripts/LordWar/World/WorldGenerator.cs
+            project/Scripts/LordWar/World/WorldMap.cs
+            project/Scripts/LordWar/Simulation/GameWorld.cs
             _buildsrc/lordwar-r32.tar.gz
-            _buildsrc/LordWar-1.0.1-FinalSource.tar.gz
+            _buildsrc/LordWar-1.0.2-FinalSource.tar.gz
             bootstrap/overrides/BuildInfo.cs
