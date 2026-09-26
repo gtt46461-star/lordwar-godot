@@ -1,0 +1,14 @@
+name: Runner Probe
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "bootstrap/runner-probe-trigger.txt"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe hosted runner
+        run: echo RUNNER_OK
