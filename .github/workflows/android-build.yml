@@ -51,7 +51,7 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90110/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90111/' export_presets.cfg
           sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
@@ -61,7 +61,19 @@ jobs:
           else
             sed -i '/stretch\/mode="canvas_items"/a stretch/aspect="expand"' project.godot
           fi
-          grep -E 'handheld/orientation|stretch/(mode|aspect)' project.godot
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("project.godot")
+          s=p.read_text(encoding="utf-8")
+          icon='application/config/icon="res://Art/LordWarArt/人物_动作/iconKingdom__833687149ec4b6b4f925b35b2059cc70__1.png"'
+          if 'application/config/icon=' in s:
+              import re
+              s=re.sub(r'application/config/icon="[^"]*"', icon, s)
+          else:
+              s=s.replace('[application]\n','[application]\n'+icon+'\n',1)
+          p.write_text(s,encoding="utf-8")
+          PY
+          grep -E 'handheld/orientation|stretch/(mode|aspect)|application/config/icon' project.godot
 
       - name: Verify full runtime art payload
         shell: bash
@@ -537,6 +549,16 @@ jobs:
           echo "ANDROID_RELEASE_RUNTIME=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
+      - name: Archive exact final source used by release
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          rm -f ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz
+          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz .
+          test -s ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz
+          sha256sum ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
+
       - name: Build evidence summary
         if: always()
         shell: bash
@@ -584,3 +606,5 @@ jobs:
             bootstrap/overrides/WorldGenerator.cs
             project/Scripts/LordWar/World/WorldGenerator.cs
             _buildsrc/lordwar-r32.tar.gz
+            _buildsrc/LordWar-1.0.0-FinalSource.tar.gz
+            bootstrap/overrides/BuildInfo.cs
