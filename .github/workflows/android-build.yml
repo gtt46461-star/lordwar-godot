@@ -51,7 +51,7 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90106/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90107/' export_presets.cfg
           sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc8"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
@@ -270,36 +270,27 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-          p = Path("project.godot")
-          s = p.read_text(encoding="utf-8")
-          s = re.sub(r'config/features=PackedStringArray\([^\n]*\)',
-                     'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")', s)
-          if 'renderer/rendering_method=' in s:
-              s = re.sub(r'renderer/rendering_method="[^"]*"',
-                         'renderer/rendering_method="gl_compatibility"', s)
-          else:
-              s = s.replace('[rendering]\n', '[rendering]\nrenderer/rendering_method="gl_compatibility"\n', 1)
-          if 'renderer/rendering_method.mobile=' in s:
-              s = re.sub(r'renderer/rendering_method.mobile="[^"]*"',
-                         'renderer/rendering_method.mobile="gl_compatibility"', s)
-          else:
-              s = s.replace('[rendering]\n', '[rendering]\nrenderer/rendering_method.mobile="gl_compatibility"\n', 1)
-          s = re.sub(r'^rendering/rendering_device/driver.android="[^"]*"\n?', '', s, flags=re.M)
-          s = re.sub(r'^rendering/rendering_device/fallback_to_opengl3=(true|false)\n?', '', s, flags=re.M)
+          p=Path("project.godot")
+          s=p.read_text(encoding="utf-8")
+          s=re.sub(r'config/features=PackedStringArray\([^\n]*\)',
+                   'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")', s)
+          s=re.sub(r'renderer/rendering_method="[^"]*"',
+                   'renderer/rendering_method="gl_compatibility"', s)
+          s=re.sub(r'renderer/rendering_method.mobile="[^"]*"',
+                   'renderer/rendering_method.mobile="gl_compatibility"', s)
           if 'rendering/gl_compatibility/driver.android=' in s:
-              s = re.sub(r'rendering/gl_compatibility/driver.android="[^"]*"',
-                         'rendering/gl_compatibility/driver.android="opengl3"', s)
+              s=re.sub(r'rendering/gl_compatibility/driver.android="[^"]*"',
+                       'rendering/gl_compatibility/driver.android="opengl3"', s)
           else:
-              s = s.replace('[rendering]\n', '[rendering]\nrendering/gl_compatibility/driver.android="opengl3"\n', 1)
-          p.write_text(s, encoding="utf-8")
-
-          e = Path("export_presets.cfg")
-          t = e.read_text(encoding="utf-8")
-          t = re.sub(r'command_line/extra_args="[^"]*"',
-                     'command_line/extra_args=""', t)
-          e.write_text(t, encoding="utf-8")
+              s=s.replace('[rendering]\n','[rendering]\nrendering/gl_compatibility/driver.android="opengl3"\n',1)
+          p.write_text(s,encoding="utf-8")
+          e=Path("export_presets.cfg")
+          t=e.read_text(encoding="utf-8")
+          t=re.sub(r'command_line/extra_args="[^"]*"',
+                   'command_line/extra_args="--rendering-method gl_compatibility --rendering-driver opengl3"',t)
+          e.write_text(t,encoding="utf-8")
           PY
-          grep -E 'config/features|renderer/rendering_method|gl_compatibility/driver.android|handheld/orientation|stretch/aspect' project.godot
+          grep -E 'config/features|rendering_method|gl_compatibility/driver.android|handheld/orientation|stretch/aspect' project.godot
           grep -F 'command_line/extra_args' export_presets.cfg
           test -s LordWar.sln
 
