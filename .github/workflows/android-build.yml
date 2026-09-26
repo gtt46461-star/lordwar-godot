@@ -118,6 +118,8 @@ jobs:
           chmod +x "$GODOT_BIN"
           ln -sf "$GODOT_BIN" "$HOME/bin/godot"
           echo "$HOME/bin" >> "$GITHUB_PATH"
+          ls -lah "$HOME/bin/godot"
+          "$HOME/bin/godot" --version
 
       - name: Install matching Godot .NET export templates
         shell: bash
@@ -161,7 +163,7 @@ jobs:
         shell: bash
         run: |
           dotnet --info
-          godot --version
+          "$HOME/bin/godot" --version
           java -version
           sdkmanager --version
           adb --version
@@ -189,7 +191,7 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          godot --headless --editor --quit --path . --verbose 2>&1 | tee Evidence/CI_GODOT_IMPORT.log
+          "$HOME/bin/godot" --headless --editor --quit --path . --verbose 2>&1 | tee Evidence/CI_GODOT_IMPORT.log
 
       - name: Export Android debug APK
         shell: bash
