@@ -4,6 +4,9 @@ on:
   push:
     branches: [construction/worldbox-android-mod]
     paths: [WorldBoxMod/**, .github/workflows/worldbox-android-mod.yml]
+  pull_request:
+    branches: [main]
+    paths: [WorldBoxMod/**, .github/workflows/worldbox-android-mod.yml]
 jobs:
   check:
     runs-on: ubuntu-latest
