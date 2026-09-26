@@ -45,6 +45,7 @@ jobs:
           cp bootstrap/overrides/WorldView.cs project/Scripts/Godot/WorldView.cs
           cp bootstrap/overrides/LordWarHud.cs project/Scripts/Godot/LordWarHud.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
+          cp bootstrap/overrides/patch_gles_shader_uniform_limit.py project/Tools/patch_gles_shader_uniform_limit.py
           cat bootstrap/overrides/commander_skills_addendum.csv >> project/Data/LordWarData/commander_skills_v8.csv
           python3 - <<'PY'
           from pathlib import Path
@@ -335,6 +336,11 @@ jobs:
             "Builds/Android/LordWar-1.0.1-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
           test -s Builds/Android/LordWar-1.0.1-device-validated.apk
+          LORDWAR_APK="$PWD/Builds/Android/LordWar-1.0.1-device-validated.apk" python3 Tools/patch_gles_shader_uniform_limit.py
+          "$ANDROID_HOME/build-tools/35.0.1/zipalign" -f 4 Builds/Android/LordWar-1.0.1-device-validated.apk Builds/Android/LordWar-1.0.1-aligned.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" sign --ks "$HOME/.android/lordwar-ci-debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out Builds/Android/LordWar-1.0.1-device-validated-signed.apk Builds/Android/LordWar-1.0.1-aligned.apk
+          mv Builds/Android/LordWar-1.0.1-device-validated-signed.apk Builds/Android/LordWar-1.0.1-device-validated.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify Builds/Android/LordWar-1.0.1-device-validated.apk
           sha256sum Builds/Android/LordWar-1.0.1-device-validated.apk | tee Builds/Android/LordWar-1.0.1-device-validated.apk.sha256
           ls -lh Builds/Android/
 
@@ -486,6 +492,11 @@ jobs:
             "Builds/Android/LordWar-1.0.1.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
           test -s Builds/Android/LordWar-1.0.1.apk
+          LORDWAR_APK="$PWD/Builds/Android/LordWar-1.0.1.apk" python3 Tools/patch_gles_shader_uniform_limit.py
+          "$ANDROID_HOME/build-tools/35.0.1/zipalign" -f 4 Builds/Android/LordWar-1.0.1.apk Builds/Android/LordWar-1.0.1-aligned.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" sign --ks "$HOME/.android/lordwar-ci-debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out Builds/Android/LordWar-1.0.1-signed.apk Builds/Android/LordWar-1.0.1-aligned.apk
+          mv Builds/Android/LordWar-1.0.1-signed.apk Builds/Android/LordWar-1.0.1.apk
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify Builds/Android/LordWar-1.0.1.apk
           sha256sum Builds/Android/LordWar-1.0.1.apk | tee Builds/Android/LordWar-1.0.1.apk.sha256
 
       - name: Android emulator 1.0.1 release smoke test
