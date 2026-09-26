@@ -1,0 +1,1 @@
+trigger LordWar R32 Android build
