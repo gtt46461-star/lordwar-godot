@@ -44,6 +44,20 @@ jobs:
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
           cp bootstrap/overrides/LordWarHud.cs project/Scripts/Godot/LordWarHud.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
+          cat bootstrap/overrides/commander_skills_addendum.csv >> project/Data/LordWarData/commander_skills_v8.csv
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("project/Tools/r32_verify.py")
+          t=p.read_text(encoding="utf-8").replace("skills_48", "skills_60").replace("commander_skills_v8.csv')==48", "commander_skills_v8.csv')==60")
+          p.write_text(t,encoding="utf-8")
+          p=Path("project/README_CN.md")
+          t=p.read_text(encoding="utf-8").replace("48条统帅技能", "60条统帅技能")
+          p.write_text(t,encoding="utf-8")
+          p=Path("project/Docs/R32_战争核心设计说明.md")
+          t=p.read_text(encoding="utf-8").replace("48条统帅技能", "60条统帅技能").replace("16个战术方向", "20个战术方向")
+          p.write_text(t,encoding="utf-8")
+          PY
+          test "$(python3 -c 'import csv; print(sum(1 for _ in csv.reader(open("project/Data/LordWarData/commander_skills_v8.csv",encoding="utf-8-sig")))-1)')" = 60
           grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
 
