@@ -20,7 +20,7 @@ jobs:
       DOTNET_NOLOGO: "1"
       GODOT_VERSION: "4.7.2"
       GODOT_TEMPLATE_DIR: "4.7.2.stable.mono"
-      EXPECTED_SOURCE_SHA256: "712ae15fc44a39b9610e4b4adca8328b7139feca31972cded04f93e73e494b1d"
+      EXPECTED_SOURCE_SHA256: "3e39e440b0c21b8606d3e533c0300f9aa398ab60b089a9546a7deaba876d58b2"
 
     steps:
       - name: Checkout bootstrap
@@ -37,23 +37,11 @@ jobs:
           tar -xzf _buildsrc/lordwar-r32.tar.gz -C project
           echo "Reconstructed source files: $(find project -type f | wc -l)"
 
-      - name: Prepare Android texture import compatibility
+      - name: Verify Android texture import setting
         shell: bash
         working-directory: project
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("project.godot")
-          s = p.read_text(encoding="utf-8")
-          key = "textures/vram_compression/import_etc2_astc=true"
-          if key not in s:
-              marker = "[rendering]\\n"
-              if marker in s:
-                  s = s.replace(marker, marker + key + "\\n", 1)
-              else:
-                  s += "\\n[rendering]\\n" + key + "\\n"
-              p.write_text(s, encoding="utf-8")
-          PY
+          grep -F "textures/vram_compression/import_etc2_astc=true" project.godot
 
       - name: Setup .NET 8 and 9
         uses: actions/setup-dotnet@v4
@@ -187,7 +175,7 @@ jobs:
         working-directory: project
         run: |
           dotnet restore LordWar.csproj 2>&1 | tee Evidence/CI_DOTNET_RESTORE.log
-          dotnet build LordWar.csproj -c Release --no-restore 2>&1 | tee Evidence/CI_DOTNET_BUILD.log
+          dotnet build LordWar.csproj -c Debug --no-restore 2>&1 | tee Evidence/CI_DOTNET_BUILD.log
 
       - name: Import Godot project
         shell: bash
