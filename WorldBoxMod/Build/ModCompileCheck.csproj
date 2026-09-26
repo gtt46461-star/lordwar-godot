@@ -12,6 +12,7 @@
     <Reference Include="Assembly-CSharp"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll</HintPath></Reference>
     <Reference Include="Il2CppInterop.Runtime"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2CppInterop.Runtime.dll</HintPath></Reference>
     <Reference Include="Il2Cppmscorlib"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2Cppmscorlib.dll</HintPath></Reference>
+    <Reference Include="Il2CppSystem.Core"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2CppSystem.Core.dll</HintPath></Reference>
     <Reference Include="UnityEngine.CoreModule"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.CoreModule.dll</HintPath></Reference>
     <Reference Include="UnityEngine.IMGUIModule"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.IMGUIModule.dll</HintPath></Reference>
   </ItemGroup>
