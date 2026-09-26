@@ -1,4 +1,4 @@
-name: LordWar Android Playable Gate
+name: LordWar 1.0.0 Playable Release Gate
 
 on:
   workflow_dispatch:
@@ -301,10 +301,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-RC10-debug.apk" \
+            "Builds/Android/LordWar-1.0.0-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-RC10-debug.apk
-          sha256sum Builds/Android/LordWar-RC10-debug.apk | tee Builds/Android/LordWar-RC10-debug.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0-device-validated.apk
+          sha256sum Builds/Android/LordWar-1.0.0-device-validated.apk | tee Builds/Android/LordWar-1.0.0-device-validated.apk.sha256
           ls -lh Builds/Android/
 
       - name: Install Pillow for screenshot validation
@@ -343,8 +343,8 @@ jobs:
           adb shell input keyevent 82 || true
           sleep 2
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-RC10-debug.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-RC10-debug.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb install --no-incremental -r Builds/Android/LordWar-1.0.0-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-1.0.0-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -c
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
@@ -411,7 +411,7 @@ jobs:
           GAME_STD=$(echo "$GAME_STATS" | awk '{print $2}')
           echo "screen_mean=$SCREEN_MEAN screen_stddev=$SCREEN_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_mean=$GAME_MEAN game_stddev=$GAME_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          echo "headless_visual_gate=non_authoritative" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "headless_visual_capture_is_evidence_only=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           if python3 - <<PY
 screen_std=float("$SCREEN_STD")
 game_std=float("$GAME_STD")
@@ -420,9 +420,9 @@ PY
           then
             echo "visual_capture_has_variance=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           else
-            echo "visual_capture_has_variance=no (allowed on -no-window SwiftShader)" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+            echo "visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           fi
-          if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 2 ] || [ "$FATALS" -gt 0 ] || [ "$PRESENT_ERRORS" -gt 0 ]; then
+          if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             exit 1
           fi
@@ -437,10 +437,10 @@ PY
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-RC10.apk" \
+            "Builds/Android/LordWar-1.0.0.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-RC10.apk
-          sha256sum Builds/Android/LordWar-1.0.0-RC10.apk | tee Builds/Android/LordWar-1.0.0-RC10.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0.apk
+          sha256sum Builds/Android/LordWar-1.0.0.apk | tee Builds/Android/LordWar-1.0.0.apk.sha256
 
       - name: Android emulator 1.0.0 release smoke test
         shell: bash
@@ -449,7 +449,7 @@ PY
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-1.0.0-RC10.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install --no-incremental -r Builds/Android/LordWar-1.0.0.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
@@ -509,7 +509,7 @@ PY
           RELEASE_MEAN=$(echo "$RELEASE_STATS" | awk '{print $1}')
           RELEASE_STD=$(echo "$RELEASE_STATS" | awk '{print $2}')
           echo "release_mean=$RELEASE_MEAN release_stddev=$RELEASE_STD" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          echo "release_headless_visual_gate=non_authoritative" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          echo "release_headless_visual_capture_is_evidence_only=yes" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           if python3 - <<PY
 std=float("$RELEASE_STD")
 raise SystemExit(0 if std > 2.0 else 1)
@@ -517,7 +517,7 @@ PY
           then
             echo "release_visual_capture_has_variance=yes" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           else
-            echo "release_visual_capture_has_variance=no (allowed on -no-window SwiftShader)" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+            echo "release_visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           fi
           if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$RELEASE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
@@ -537,11 +537,17 @@ PY
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-RC10-debug.apk ]; then
-              echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-RC10-debug.apk
+            if [ -f Builds/Android/LordWar-1.0.0-device-validated.apk ]; then
+              echo "debug_apk_present=yes"
+              sha256sum Builds/Android/LordWar-1.0.0-device-validated.apk
             else
-              echo "apk_present=no"
+              echo "debug_apk_present=no"
+            fi
+            if [ -f Builds/Android/LordWar-1.0.0.apk ]; then
+              echo "release_apk_present=yes"
+              sha256sum Builds/Android/LordWar-1.0.0.apk
+            else
+              echo "release_apk_present=no"
             fi
           } > Evidence/CI_BUILD_SUMMARY.txt
           cat Evidence/CI_BUILD_SUMMARY.txt
