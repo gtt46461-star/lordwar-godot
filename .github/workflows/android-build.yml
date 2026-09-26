@@ -51,8 +51,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90107/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc8"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90108/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc9"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
           sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=0/' project.godot
@@ -301,10 +301,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-RC8-debug.apk" \
+            "Builds/Android/LordWar-RC9-debug.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-RC8-debug.apk
-          sha256sum Builds/Android/LordWar-RC8-debug.apk | tee Builds/Android/LordWar-RC8-debug.apk.sha256
+          test -s Builds/Android/LordWar-RC9-debug.apk
+          sha256sum Builds/Android/LordWar-RC9-debug.apk | tee Builds/Android/LordWar-RC9-debug.apk.sha256
           ls -lh Builds/Android/
 
       - name: Install Pillow for screenshot validation
@@ -337,11 +337,25 @@ jobs:
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb shell input keyevent 82 || true
           sleep 2
-          adb install -r Builds/Android/LordWar-RC8-debug.apk | tee Evidence/CI_ADB_INSTALL.log
-          adb logcat -c
+          adb install -r Builds/Android/LordWar-RC9-debug.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-RC9-debug.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
-          adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
-          sleep 25
+          adb logcat -c
+          ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
+          echo "resolved_activity=$ACTIVITY" | tee Evidence/CI_ANDROID_LAUNCH.log
+          test -n "$ACTIVITY"
+          if echo "$ACTIVITY" | grep -qi "No activity"; then exit 1; fi
+          adb shell am start -W -n "$ACTIVITY" | tee -a Evidence/CI_ANDROID_LAUNCH.log
+          adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity|com.lordwar.game" | head -n 30 | tee Evidence/CI_ANDROID_ACTIVITY_STATE.txt || true
+          START_PID=""
+          for i in $(seq 1 20); do
+            START_PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+            if [ -n "$START_PID" ]; then break; fi
+            sleep 1
+          done
+          echo "start_pid=$START_PID" | tee -a Evidence/CI_ANDROID_LAUNCH.log
+          test -n "$START_PID"
+          sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png
           read W H < <(python3 - <<'PY'
           from PIL import Image
@@ -412,10 +426,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-RC8.apk" \
+            "Builds/Android/LordWar-1.0.0-RC9.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-RC8.apk
-          sha256sum Builds/Android/LordWar-1.0.0-RC8.apk | tee Builds/Android/LordWar-1.0.0-RC8.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0-RC9.apk
+          sha256sum Builds/Android/LordWar-1.0.0-RC9.apk | tee Builds/Android/LordWar-1.0.0-RC9.apk.sha256
 
       - name: Android emulator RC release smoke test
         shell: bash
@@ -423,7 +437,7 @@ jobs:
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install Builds/Android/LordWar-1.0.0-RC8.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install Builds/Android/LordWar-1.0.0-RC9.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 1 || true
           adb shell wm size 640x360 || true
@@ -493,9 +507,9 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-RC8-debug.apk ]; then
+            if [ -f Builds/Android/LordWar-RC9-debug.apk ]; then
               echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-RC8-debug.apk
+              sha256sum Builds/Android/LordWar-RC9-debug.apk
             else
               echo "apk_present=no"
             fi
