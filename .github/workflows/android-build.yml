@@ -50,8 +50,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90103/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc4"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90104/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc5"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           sed -i 's/"GL Compatibility"/"Mobile"/g' project.godot
           sed -i 's/renderer\/rendering_method="gl_compatibility"/renderer\/rendering_method="mobile"/g' project.godot
@@ -59,6 +59,13 @@ jobs:
           echo "Renderer switched to Mobile/Vulkan for Android native-driver stability"
           grep -E 'renderer/rendering_method|config/features' project.godot
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
+          sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=0/' project.godot
+          if grep -q '^stretch/aspect=' project.godot; then
+            sed -i 's/stretch\/aspect="[^"]*"/stretch\/aspect="expand"/' project.godot
+          else
+            sed -i '/stretch\/mode="canvas_items"/a stretch/aspect="expand"' project.godot
+          fi
+          grep -E 'handheld/orientation|stretch/(mode|aspect)' project.godot
 
       - name: Verify full runtime art payload
         shell: bash
@@ -279,36 +286,40 @@ jobs:
           grep -F "LORDWAR_MENU_READY" Evidence/CI_RUNTIME_SMOKE.log
           grep -F "LORDWAR_GAME_READY" Evidence/CI_RUNTIME_SMOKE.log
 
-      - name: Switch Android export to Compatibility OpenGL renderer
+      - name: Switch Android export to Mobile Vulkan with OpenGL fallback
         shell: bash
         working-directory: project
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path("project.godot")
           s = p.read_text(encoding="utf-8")
-          s = s.replace('config/features=PackedStringArray("4.7", "C#", "Mobile")',
-                        'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")')
-          s = s.replace('config/features=PackedStringArray("4.7", "C#", "Forward Plus")',
-                        'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")')
-          s = s.replace('renderer/rendering_method="mobile"',
-                        'renderer/rendering_method="gl_compatibility"')
-          s = s.replace('renderer/rendering_method.mobile="mobile"',
-                        'renderer/rendering_method.mobile="gl_compatibility"')
-          s = s.replace('rendering/rendering_device/driver.android="vulkan"\n', '')
-          if 'renderer/rendering_method="gl_compatibility"' not in s:
-              s = s.replace('[rendering]\n', '[rendering]\nrenderer/rendering_method="gl_compatibility"\nrenderer/rendering_method.mobile="gl_compatibility"\n', 1)
+          s = re.sub(r'config/features=PackedStringArray\([^\n]*\)',
+                     'config/features=PackedStringArray("4.7", "C#", "Mobile")', s)
+          s = re.sub(r'renderer/rendering_method="[^"]*"',
+                     'renderer/rendering_method="mobile"', s)
+          s = re.sub(r'renderer/rendering_method.mobile="[^"]*"',
+                     'renderer/rendering_method.mobile="mobile"', s)
+          if 'rendering/rendering_device/driver.android=' in s:
+              s = re.sub(r'rendering/rendering_device/driver.android="[^"]*"',
+                         'rendering/rendering_device/driver.android="vulkan"', s)
+          else:
+              s = s.replace('[rendering]\n', '[rendering]\nrendering/rendering_device/driver.android="vulkan"\n', 1)
+          if 'rendering/rendering_device/fallback_to_opengl3=' in s:
+              s = re.sub(r'rendering/rendering_device/fallback_to_opengl3=(true|false)',
+                         'rendering/rendering_device/fallback_to_opengl3=true', s)
+          else:
+              s = s.replace('[rendering]\n', '[rendering]\nrendering/rendering_device/fallback_to_opengl3=true\n', 1)
           p.write_text(s, encoding="utf-8")
+
           e = Path("export_presets.cfg")
           t = e.read_text(encoding="utf-8")
-          import re
-          t = re.sub(r'command_line/extra_args="[^"]*"',
-                     'command_line/extra_args="--rendering-method gl_compatibility --rendering-driver opengl3"',
-                     t)
+          t = re.sub(r'command_line/extra_args="[^"]*"', 'command_line/extra_args=""', t)
           e.write_text(t, encoding="utf-8")
           PY
-          grep -E 'config/features|rendering_method|driver.android' project.godot || true
+          grep -E 'config/features|rendering_method|driver.android|fallback_to_opengl3|handheld/orientation|stretch/aspect' project.godot
           grep -F 'command_line/extra_args' export_presets.cfg
           test -s LordWar.sln
 
@@ -319,10 +330,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-RC4-debug.apk" \
+            "Builds/Android/LordWar-RC5-debug.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-RC4-debug.apk
-          sha256sum Builds/Android/LordWar-RC4-debug.apk | tee Builds/Android/LordWar-RC4-debug.apk.sha256
+          test -s Builds/Android/LordWar-RC5-debug.apk
+          sha256sum Builds/Android/LordWar-RC5-debug.apk | tee Builds/Android/LordWar-RC5-debug.apk.sha256
           ls -lh Builds/Android/
 
       - name: Android emulator install and launch smoke test
@@ -333,7 +344,7 @@ jobs:
           mkdir -p Evidence
           sudo chmod 666 /dev/kvm 2>/dev/null || true
           echo "no" | avdmanager create avd -n LordWarApi35 -k "system-images;android-35;google_apis;x86_64" --force
-          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader -feature -Vulkan -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
+          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu lavapipe -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
           adb wait-for-device
           BOOT_OK=0
           for i in $(seq 1 120); do
@@ -346,25 +357,32 @@ jobs:
           test "$BOOT_OK" = "1"
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb shell input keyevent 82 || true
-          adb install -r Builds/Android/LordWar-RC4-debug.apk | tee Evidence/CI_ADB_INSTALL.log
+          adb install -r Builds/Android/LordWar-RC5-debug.apk | tee Evidence/CI_ADB_INSTALL.log
           adb logcat -c
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
           sleep 25
-          adb shell input swipe 250 500 80 500 350 || true
-          adb shell input tap 160 320 || true
+          SIZE=$(adb shell wm size | tail -n1 | awk '{print $3}' | tr -d '\r')
+          W=${SIZE%x*}; H=${SIZE#*x}
+          echo "screen=${W}x${H}" | tee Evidence/CI_ANDROID_SCREEN_SIZE.txt
+          test "$W" -gt "$H"
+          adb shell input swipe $((W*75/100)) $((H*60/100)) $((W*25/100)) $((H*60/100)) 350 || true
+          adb shell input tap $((W*50/100)) $((H*50/100)) || true
           sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png || true
-          adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log
+          adb wait-for-device
+          adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
           STARTUP_OK=$(grep -c "LORDWAR_STARTUP_OK" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
-          echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          echo "fatal_markers=$FATALS"
+          echo "present_errors=$PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_DEVICE_SCREEN.png | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_DEVICE_SCREEN.png)
-          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ]; then
+          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ] || [ "$PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             exit 1
           fi
@@ -379,10 +397,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-RC4.apk" \
+            "Builds/Android/LordWar-1.0.0-RC5.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-RC4.apk
-          sha256sum Builds/Android/LordWar-1.0.0-RC4.apk | tee Builds/Android/LordWar-1.0.0-RC4.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0-RC5.apk
+          sha256sum Builds/Android/LordWar-1.0.0-RC5.apk | tee Builds/Android/LordWar-1.0.0-RC5.apk.sha256
 
       - name: Android emulator RC release smoke test
         shell: bash
@@ -390,27 +408,34 @@ jobs:
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install Builds/Android/LordWar-1.0.0-RC4.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install Builds/Android/LordWar-1.0.0-RC5.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb logcat -c
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
           sleep 30
+          SIZE=$(adb shell wm size | tail -n1 | awk '{print $3}' | tr -d '\r')
+          W=${SIZE%x*}; H=${SIZE#*x}
+          echo "screen=${W}x${H}" | tee Evidence/CI_ANDROID_RELEASE_SCREEN_SIZE.txt
+          test "$W" -gt "$H"
           for i in $(seq 1 4); do
-            adb shell input swipe 260 520 80 520 300 || true
-            adb shell input tap 150 300 || true
+            adb shell input swipe $((W*75/100)) $((H*60/100)) $((W*25/100)) $((H*60/100)) 300 || true
+            adb shell input tap $((W*50/100)) $((H*50/100)) || true
             sleep 8
           done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png || true
-          adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log
+          adb wait-for-device
+          adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
           echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
           STARTUP_OK=$(grep -c "LORDWAR_STARTUP_OK" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
-          echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          echo "fatal_markers=$FATALS"
+          echo "present_errors=$RELEASE_PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_RELEASE_SCREEN.png | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_RELEASE_SCREEN.png)
-          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ]; then
+          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ] || [ "$RELEASE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
             exit 1
           fi
@@ -429,9 +454,9 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-RC4-debug.apk ]; then
+            if [ -f Builds/Android/LordWar-RC5-debug.apk ]; then
               echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-RC4-debug.apk
+              sha256sum Builds/Android/LordWar-RC5-debug.apk
             else
               echo "apk_present=no"
             fi
