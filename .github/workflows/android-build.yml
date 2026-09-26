@@ -412,12 +412,7 @@ jobs:
           echo "screen_mean=$SCREEN_MEAN screen_stddev=$SCREEN_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_mean=$GAME_MEAN game_stddev=$GAME_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "headless_visual_capture_is_evidence_only=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          if python3 - <<PY
-screen_std=float("$SCREEN_STD")
-game_std=float("$GAME_STD")
-raise SystemExit(0 if max(screen_std, game_std) > 2.0 else 1)
-PY
-          then
+          if python3 -c "import sys; sys.exit(0 if max(float('$SCREEN_STD'), float('$GAME_STD')) > 2.0 else 1)"; then
             echo "visual_capture_has_variance=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           else
             echo "visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
@@ -510,11 +505,7 @@ PY
           RELEASE_STD=$(echo "$RELEASE_STATS" | awk '{print $2}')
           echo "release_mean=$RELEASE_MEAN release_stddev=$RELEASE_STD" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "release_headless_visual_capture_is_evidence_only=yes" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          if python3 - <<PY
-std=float("$RELEASE_STD")
-raise SystemExit(0 if std > 2.0 else 1)
-PY
-          then
+          if python3 -c "import sys; sys.exit(0 if float('$RELEASE_STD') > 2.0 else 1)"; then
             echo "release_visual_capture_has_variance=yes" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           else
             echo "release_visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
