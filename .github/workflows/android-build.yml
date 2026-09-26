@@ -284,6 +284,7 @@ jobs:
                         'renderer/rendering_method="mobile"')
           s = s.replace('renderer/rendering_method.mobile="gl_compatibility"',
                         'renderer/rendering_method.mobile="mobile"')
+          s = s.replace('handheld/orientation=1', 'handheld/orientation=0')
           if 'rendering/rendering_device/driver.android="vulkan"' not in s:
               s = s.replace('[rendering]\n', '[rendering]\nrendering/rendering_device/driver.android="vulkan"\n', 1)
           p.write_text(s, encoding="utf-8")
@@ -293,7 +294,7 @@ jobs:
                         'command_line/extra_args="--rendering-method mobile --rendering-driver vulkan"')
           e.write_text(t, encoding="utf-8")
           PY
-          grep -E 'config/features|rendering_method|driver.android' project.godot
+          grep -E 'config/features|rendering_method|driver.android|handheld/orientation' project.godot
           grep -F 'command_line/extra_args' export_presets.cfg
           test -s LordWar.sln
 
@@ -322,32 +323,39 @@ jobs:
           adb wait-for-device
           BOOT_OK=0
           for i in $(seq 1 120); do
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
-              BOOT_OK=1
-              break
-            fi
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then BOOT_OK=1; break; fi
             sleep 2
           done
           test "$BOOT_OK" = "1"
-          adb shell input keyevent 82 || true
           adb install -r Builds/Android/LordWar-RC3-debug.apk | tee Evidence/CI_ADB_INSTALL.log
           adb logcat -c || true
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
           sleep 4
-          adb shell input tap 260 210 || true
-          sleep 18
-          adb wait-for-device
+          adb shell input tap 520 200 || true
+          STARTUP_OK=0
+          for i in $(seq 1 90); do
+            PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+            if [ -z "$PID" ]; then break; fi
+            if adb logcat -d -v brief | grep -F "LORDWAR_STARTUP_OK" >/dev/null; then STARTUP_OK=1; break; fi
+            sleep 2
+          done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-          echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png || true
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
-          echo "--- crash markers ---" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          grep -E "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|dotnet|mono|Godot.*ERROR|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 200 | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt || true
-          if [ -z "$PID" ]; then
+          echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          grep -F "LORDWAR_STARTUP" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt || true
+          if [ -z "$PID" ] || [ "$STARTUP_OK" != "1" ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 250 || true
             exit 1
           fi
+          sleep 5
+          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
+          test "$(stat -c%s Evidence/CI_ANDROID_DEVICE_SCREEN.png)" -gt 5000
+          sleep 10
+          PID2="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+          test -n "$PID2"
           echo "ANDROID_DEVICE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
 
       - name: Export signed Android RC release APK
@@ -373,19 +381,30 @@ jobs:
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
           sleep 4
-          adb shell input tap 260 210 || true
-          sleep 18
-          adb wait-for-device
+          adb shell input tap 520 200 || true
+          STARTUP_OK=0
+          for i in $(seq 1 90); do
+            PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+            if [ -z "$PID" ]; then break; fi
+            if adb logcat -d -v brief | grep -F "LORDWAR_STARTUP_OK" >/dev/null; then STARTUP_OK=1; break; fi
+            sleep 2
+          done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
-          echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png || true
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
-          echo "--- crash markers ---" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          grep -E "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|dotnet|mono|Godot.*ERROR|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 200 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
-          if [ -z "$PID" ]; then
+          echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          grep -F "LORDWAR_STARTUP" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
+          if [ -z "$PID" ] || [ "$STARTUP_OK" != "1" ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+            grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 250 || true
             exit 1
           fi
+          sleep 5
+          adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png
+          test "$(stat -c%s Evidence/CI_ANDROID_RELEASE_SCREEN.png)" -gt 5000
+          sleep 10
+          PID2="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+          test -n "$PID2"
           echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
       - name: Build evidence summary
