@@ -64,48 +64,60 @@ namespace LordWar.GodotRuntime {
             AddChild(_menuLayer);
 
             var shade = new ColorRect {
+                Name = "主菜单背景",
                 Color = new Color(0.035f, 0.04f, 0.055f, 1f),
-                Position = Vector2.Zero,
-                Size = new Vector2(1920, 1080),
+                AnchorLeft = 0f, AnchorTop = 0f, AnchorRight = 1f, AnchorBottom = 1f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0,
                 MouseFilter = Control.MouseFilterEnum.Ignore
             };
             _menuLayer.AddChild(shade);
 
             var panel = new PanelContainer {
-                Position = new Vector2(470, 120),
-                Size = new Vector2(980, 820)
+                Name = "主菜单面板",
+                AnchorLeft = 0.08f, AnchorTop = 0.06f, AnchorRight = 0.92f, AnchorBottom = 0.94f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
             };
             _menuLayer.AddChild(panel);
 
-            var margin = new MarginContainer();
-            margin.AddThemeConstantOverride("margin_left", 56);
-            margin.AddThemeConstantOverride("margin_right", 56);
-            margin.AddThemeConstantOverride("margin_top", 42);
-            margin.AddThemeConstantOverride("margin_bottom", 42);
-            panel.AddChild(margin);
+            var scroll = new ScrollContainer {
+                AnchorLeft = 0f, AnchorTop = 0f, AnchorRight = 1f, AnchorBottom = 1f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
+            };
+            panel.AddChild(scroll);
 
-            var box = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
-            box.AddThemeConstantOverride("separation", 18);
+            var margin = new MarginContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            margin.AddThemeConstantOverride("margin_left", 42);
+            margin.AddThemeConstantOverride("margin_right", 42);
+            margin.AddThemeConstantOverride("margin_top", 28);
+            margin.AddThemeConstantOverride("margin_bottom", 28);
+            scroll.AddChild(margin);
+
+            var box = new VBoxContainer {
+                Alignment = BoxContainer.AlignmentMode.Center,
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+            };
+            box.AddThemeConstantOverride("separation", 14);
             margin.AddChild(box);
 
             var title = new Label { Text = "领 主 战 争", HorizontalAlignment = HorizontalAlignment.Center };
-            title.AddThemeFontSizeOverride("font_size", 54);
+            title.AddThemeFontSizeOverride("font_size", 48);
             box.AddChild(title);
 
             var sub = new Label {
                 Text = "经营城市 · 任命官员 · 统率军队 · 攻城略地",
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = HorizontalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart
             };
-            sub.AddThemeFontSizeOverride("font_size", 24);
+            sub.AddThemeFontSizeOverride("font_size", 23);
             box.AddChild(sub);
 
             var info = new Label {
-                Text = "选择开局规模。快速开局适合手机直接游玩；大型世界保留完整 160×120 四国规模。",
+                Text = "选择战役规模。快速开局适合直接游玩；大型世界保留 160×120 四国完整规模。",
                 HorizontalAlignment = HorizontalAlignment.Center,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                CustomMinimumSize = new Vector2(760, 70)
+                CustomMinimumSize = new Vector2(0, 58)
             };
-            info.AddThemeFontSizeOverride("font_size", 20);
+            info.AddThemeFontSizeOverride("font_size", 19);
             box.AddChild(info);
 
             AddMenuButton(box, "快速开局｜80×60｜三国", () => BeginWorldGeneration(0, 80, 60, 3, AiDifficulty.Hard, "快速开局"));
@@ -113,12 +125,12 @@ namespace LordWar.GodotRuntime {
             AddMenuButton(box, "大型世界｜160×120｜四国", () => BeginWorldGeneration(0, 160, 120, 4, AiDifficulty.Hard, "大型世界"));
 
             var note = new Label {
-                Text = "战争采用软克制：兵种、将军、官员、地形、士气和补给共同决定结果，不存在单项碾压。",
+                Text = "软克制体系：兵种、将军、官员、地形、士气、体力与补给共同决定战果；单个神将或单一兵种不能直接碾压。",
                 HorizontalAlignment = HorizontalAlignment.Center,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                CustomMinimumSize = new Vector2(760, 90)
+                CustomMinimumSize = new Vector2(0, 74)
             };
-            note.AddThemeFontSizeOverride("font_size", 18);
+            note.AddThemeFontSizeOverride("font_size", 17);
             box.AddChild(note);
 
             GD.Print("LORDWAR_MAIN_MENU_VISIBLE");
@@ -127,9 +139,10 @@ namespace LordWar.GodotRuntime {
         static void AddMenuButton(Container parent, string text, Action action) {
             var button = new Button {
                 Text = text,
-                CustomMinimumSize = new Vector2(760, 76)
+                CustomMinimumSize = new Vector2(0, 68),
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
             };
-            button.AddThemeFontSizeOverride("font_size", 26);
+            button.AddThemeFontSizeOverride("font_size", 24);
             button.Pressed += action;
             parent.AddChild(button);
         }
@@ -140,17 +153,26 @@ namespace LordWar.GodotRuntime {
             _loadingLayer = new CanvasLayer { Name = "世界生成", Layer = 100 };
             AddChild(_loadingLayer);
 
-            var bg = new ColorRect { Color = new Color(0.03f, 0.035f, 0.05f, 1f), Position = Vector2.Zero, Size = new Vector2(1920, 1080) };
+            var bg = new ColorRect {
+                Color = new Color(0.03f, 0.035f, 0.05f, 1f),
+                AnchorLeft = 0f, AnchorTop = 0f, AnchorRight = 1f, AnchorBottom = 1f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
+            };
             _loadingLayer.AddChild(bg);
-            var panel = new PanelContainer { Position = new Vector2(480, 320), Size = new Vector2(960, 390) };
+
+            var panel = new PanelContainer {
+                AnchorLeft = 0.14f, AnchorTop = 0.28f, AnchorRight = 0.86f, AnchorBottom = 0.72f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
+            };
             _loadingLayer.AddChild(panel);
+
             _loadingLabel = new Label {
                 Text = title + "\n正在后台生成 " + width + "×" + height + " 世界与 " + kingdoms + " 国势力……\n地图生成期间界面保持响应，请稍候。",
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart
             };
-            _loadingLabel.AddThemeFontSizeOverride("font_size", 28);
+            _loadingLabel.AddThemeFontSizeOverride("font_size", 26);
             panel.AddChild(_loadingLabel);
         }
 
@@ -228,17 +250,32 @@ namespace LordWar.GodotRuntime {
             FreeLayer(ref _menuLayer);
             _menuLayer = new CanvasLayer { Name = "错误界面", Layer = 120 };
             AddChild(_menuLayer);
-            var panel = new PanelContainer { Position = new Vector2(410, 250), Size = new Vector2(1100, 560) };
+
+            var bg = new ColorRect {
+                Color = new Color(0.045f, 0.025f, 0.03f, 1f),
+                AnchorLeft = 0f, AnchorTop = 0f, AnchorRight = 1f, AnchorBottom = 1f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
+            };
+            _menuLayer.AddChild(bg);
+
+            var panel = new PanelContainer {
+                AnchorLeft = 0.1f, AnchorTop = 0.16f, AnchorRight = 0.9f, AnchorBottom = 0.84f,
+                OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
+            };
             _menuLayer.AddChild(panel);
+
             var box = new VBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
             panel.AddChild(box);
             var msg = new Label {
-                Text = "游戏初始化失败，但程序已阻止闪退。\n" + (ex == null ? "未知错误" : ex.GetType().Name + ": " + ex.Message) + "\n诊断：user://lordwar_startup_error.txt",
+                Text = "游戏初始化失败，但程序已阻止闪退。\n" +
+                    (ex == null ? "未知错误" : ex.GetType().Name + ": " + ex.Message) +
+                    "\n诊断：user://lordwar_startup_error.txt",
                 HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                CustomMinimumSize = new Vector2(980, 300)
+                CustomMinimumSize = new Vector2(0, 280)
             };
-            msg.AddThemeFontSizeOverride("font_size", 24);
+            msg.AddThemeFontSizeOverride("font_size", 22);
             box.AddChild(msg);
             AddMenuButton(box, "返回主菜单", BuildMainMenu);
         }
@@ -257,6 +294,11 @@ namespace LordWar.GodotRuntime {
 
         public void CreateFreshWorld(int requestedSeed, int requestedWidth, int requestedHeight, int requestedKingdoms, AiDifficulty difficulty) {
             BeginWorldGeneration(requestedSeed, requestedWidth, requestedHeight, requestedKingdoms, difficulty, "新建世界");
+        }
+
+        public void ReturnToMainMenu() {
+            if (_worldTask != null && !_worldTask.IsCompleted) return;
+            BuildMainMenu();
         }
 
         public void RebindViews() {
