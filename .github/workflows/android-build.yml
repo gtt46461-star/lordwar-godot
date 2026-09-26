@@ -311,6 +311,11 @@ jobs:
                        'rendering/gl_compatibility/driver.android="opengl3"', s)
           else:
               s=s.replace('[rendering]\n','[rendering]\nrendering/gl_compatibility/driver.android="opengl3"\n',1)
+          if 'rendering/limits/opengl/max_renderable_lights=' in s:
+              s=re.sub(r'rendering/limits/opengl/max_renderable_lights=[^\n]*',
+                       'rendering/limits/opengl/max_renderable_lights=64', s)
+          else:
+              s=s.replace('[rendering]\n','[rendering]\nrendering/limits/opengl/max_renderable_lights=64\n',1)
           if 'rendering/limits/opengl/max_lights_per_object=' in s:
               s=re.sub(r'rendering/limits/opengl/max_lights_per_object=[^\n]*',
                        'rendering/limits/opengl/max_lights_per_object=1', s)
