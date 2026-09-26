@@ -9,7 +9,7 @@ on:
       - ".github/workflows/android-build.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-android:
@@ -19,6 +19,7 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
       GODOT_VERSION: "4.7.2"
+      GODOT_TEMPLATE_DIR: "4.7.2.stable"
       EXPECTED_SOURCE_SHA256: "86844f4a7ebb119832d5f32d7188b89c253f8f3ad9a667f2ac9c5ca0a2c7cc64"
 
     steps:
@@ -54,10 +55,12 @@ jobs:
               p.write_text(s, encoding="utf-8")
           PY
 
-      - name: Setup .NET 9
+      - name: Setup .NET 8 and 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -65,10 +68,27 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android command line tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="$HOME/android-sdk"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl -fL --retry 5 --retry-delay 3 \
+            "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip" \
+            -o /tmp/android-cmdline.zip
+          rm -rf /tmp/android-cmdline
+          mkdir -p /tmp/android-cmdline
+          unzip -q /tmp/android-cmdline.zip -d /tmp/android-cmdline
+          rm -rf "$ANDROID_HOME/cmdline-tools/latest"
+          mv /tmp/android-cmdline/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
 
-      - name: Install Godot 4.7 Android SDK requirements
+      - name: Install Android SDK packages required by Godot 4.7
         shell: bash
         run: |
           set -euo pipefail
@@ -80,20 +100,52 @@ jobs:
             "cmdline-tools;latest" \
             "cmake;3.10.2.4988404" \
             "ndk;28.1.13356709"
-          echo "ANDROID_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" >> "$GITHUB_ENV"
 
-      - name: Setup Godot 4.7.2 .NET and templates
-        uses: chickensoft-games/setup-godot@v2
-        with:
-          version: "4.7.2"
-          use-dotnet: true
-          include-templates: true
+      - name: Install Godot 4.7.2 .NET editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/godot" "$HOME/bin"
+          curl -fL --retry 5 --retry-delay 3 \
+            "https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_mono_linux_x86_64.zip" \
+            -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d "$HOME/godot"
+          GODOT_BIN=$(find "$HOME/godot" -type f -name 'Godot*_mono_linux*x86_64*' -o -name 'Godot*mono*linux*x86_64*' | head -n 1)
+          if [ -z "$GODOT_BIN" ]; then
+            GODOT_BIN=$(find "$HOME/godot" -type f -name 'Godot*linux*x86_64*' | head -n 1)
+          fi
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          ln -sf "$GODOT_BIN" "$HOME/bin/godot"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
 
-      - name: Create deterministic CI debug keystore
+      - name: Install matching Godot .NET export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 5 --retry-delay 3 \
+            "https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_mono_export_templates.tpz" \
+            -o /tmp/templates.tpz
+          rm -rf /tmp/godot-templates
+          mkdir -p /tmp/godot-templates
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          TARGET="$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_DIR"
+          mkdir -p "$TARGET"
+          if [ -d /tmp/godot-templates/templates ]; then
+            cp -a /tmp/godot-templates/templates/. "$TARGET/"
+          else
+            cp -a /tmp/godot-templates/. "$TARGET/"
+          fi
+          test -f "$TARGET/android_debug.apk"
+          test -f "$TARGET/android_release.apk"
+          echo "$GODOT_TEMPLATE_DIR" > "$TARGET/version.txt"
+
+      - name: Create CI debug keystore
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.android"
+          rm -f "$HOME/.android/lordwar-ci-debug.keystore"
           keytool -genkeypair -v \
             -keystore "$HOME/.android/lordwar-ci-debug.keystore" \
             -storepass android \
@@ -111,6 +163,7 @@ jobs:
           dotnet --info
           godot --version
           java -version
+          sdkmanager --version
           adb --version
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "JAVA_HOME=$JAVA_HOME"
@@ -125,16 +178,11 @@ jobs:
             python3 Tools/r32_verify.py 2>&1 | tee Evidence/CI_R32_VERIFY.log
           fi
 
-      - name: Restore C# dependencies
+      - name: Restore and build C#
         shell: bash
         working-directory: project
         run: |
           dotnet restore LordWar.csproj 2>&1 | tee Evidence/CI_DOTNET_RESTORE.log
-
-      - name: Build C# project
-        shell: bash
-        working-directory: project
-        run: |
           dotnet build LordWar.csproj -c Release --no-restore 2>&1 | tee Evidence/CI_DOTNET_BUILD.log
 
       - name: Import Godot project
@@ -156,7 +204,7 @@ jobs:
           sha256sum Builds/Android/LordWar-R32-debug.apk | tee Builds/Android/LordWar-R32-debug.apk.sha256
           ls -lh Builds/Android/
 
-      - name: Create build evidence summary
+      - name: Build evidence summary
         if: always()
         shell: bash
         working-directory: project
