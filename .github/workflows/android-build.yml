@@ -50,8 +50,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90104/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc5"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90105/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc6"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           sed -i 's/"GL Compatibility"/"Mobile"/g' project.godot
           sed -i 's/renderer\/rendering_method="gl_compatibility"/renderer\/rendering_method="mobile"/g' project.godot
@@ -330,10 +330,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-RC5-debug.apk" \
+            "Builds/Android/LordWar-RC6-debug.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-RC5-debug.apk
-          sha256sum Builds/Android/LordWar-RC5-debug.apk | tee Builds/Android/LordWar-RC5-debug.apk.sha256
+          test -s Builds/Android/LordWar-RC6-debug.apk
+          sha256sum Builds/Android/LordWar-RC6-debug.apk | tee Builds/Android/LordWar-RC6-debug.apk.sha256
           ls -lh Builds/Android/
 
       - name: Android emulator install and launch smoke test
@@ -355,34 +355,44 @@ jobs:
             sleep 2
           done
           test "$BOOT_OK" = "1"
+          adb shell settings put system accelerometer_rotation 0 || true
+          adb shell settings put system user_rotation 1 || true
+          adb shell wm size 640x360 || true
+          adb shell wm density 160 || true
+          sleep 3
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb shell input keyevent 82 || true
-          adb install -r Builds/Android/LordWar-RC5-debug.apk | tee Evidence/CI_ADB_INSTALL.log
+          adb install -r Builds/Android/LordWar-RC6-debug.apk | tee Evidence/CI_ADB_INSTALL.log
           adb logcat -c
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
           sleep 25
-          SIZE=$(adb shell wm size | tail -n1 | awk '{print $3}' | tr -d '\r')
-          W=${SIZE%x*}; H=${SIZE#*x}
-          echo "screen=${W}x${H}" | tee Evidence/CI_ANDROID_SCREEN_SIZE.txt
+          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png
+          W=$(identify -format '%w' Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png)
+          H=$(identify -format '%h' Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png)
+          echo "screenshot=${W}x${H}" | tee Evidence/CI_ANDROID_SCREEN_SIZE.txt
           test "$W" -gt "$H"
           adb shell input swipe $((W*75/100)) $((H*60/100)) $((W*25/100)) $((H*60/100)) 350 || true
           adb shell input tap $((W*50/100)) $((H*50/100)) || true
           sleep 20
-          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png || true
+          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
           adb wait-for-device
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          STARTUP_OK=$(grep -c "LORDWAR_STARTUP_OK" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
-          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          MENU_OK=$(grep -c "LORDWAR_MAIN_MENU_VISIBLE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           echo "fatal_markers=$FATALS"
           echo "present_errors=$PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_DEVICE_SCREEN.png | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_DEVICE_SCREEN.png)
-          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ] || [ "$PRESENT_ERRORS" -gt 0 ]; then
+          if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 2 ] || [ "$FATALS" -gt 0 ] || [ "$PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             exit 1
           fi
@@ -397,10 +407,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-RC5.apk" \
+            "Builds/Android/LordWar-1.0.0-RC6.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-RC5.apk
-          sha256sum Builds/Android/LordWar-1.0.0-RC5.apk | tee Builds/Android/LordWar-1.0.0-RC5.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0-RC6.apk
+          sha256sum Builds/Android/LordWar-1.0.0-RC6.apk | tee Builds/Android/LordWar-1.0.0-RC6.apk.sha256
 
       - name: Android emulator RC release smoke test
         shell: bash
@@ -408,14 +418,20 @@ jobs:
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install Builds/Android/LordWar-1.0.0-RC5.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install Builds/Android/LordWar-1.0.0-RC6.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb shell settings put system accelerometer_rotation 0 || true
+          adb shell settings put system user_rotation 1 || true
+          adb shell wm size 640x360 || true
+          adb shell wm density 160 || true
+          sleep 2
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb logcat -c
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
           sleep 30
-          SIZE=$(adb shell wm size | tail -n1 | awk '{print $3}' | tr -d '\r')
-          W=${SIZE%x*}; H=${SIZE#*x}
-          echo "screen=${W}x${H}" | tee Evidence/CI_ANDROID_RELEASE_SCREEN_SIZE.txt
+          adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png
+          W=$(identify -format '%w' Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png)
+          H=$(identify -format '%h' Evidence/CI_ANDROID_RELEASE_SCREEN_BEFORE.png)
+          echo "screenshot=${W}x${H}" | tee Evidence/CI_ANDROID_RELEASE_SCREEN_SIZE.txt
           test "$W" -gt "$H"
           for i in $(seq 1 4); do
             adb shell input swipe $((W*75/100)) $((H*60/100)) $((W*25/100)) $((H*60/100)) 300 || true
@@ -427,15 +443,19 @@ jobs:
           adb wait-for-device
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
           echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          STARTUP_OK=$(grep -c "LORDWAR_STARTUP_OK" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
-          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          MENU_OK=$(grep -c "LORDWAR_MAIN_MENU_VISIBLE" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+          echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           echo "fatal_markers=$FATALS"
           echo "present_errors=$RELEASE_PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           identify -format 'mean=%[mean] stddev=%[standard-deviation]\n' Evidence/CI_ANDROID_RELEASE_SCREEN.png | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           STDDEV=$(identify -format '%[standard-deviation]' Evidence/CI_ANDROID_RELEASE_SCREEN.png)
-          if [ -z "$PID" ] || [ "$STARTUP_OK" -lt 1 ] || [ "$FATALS" -gt 0 ] || [ "$RELEASE_PRESENT_ERRORS" -gt 0 ]; then
+          if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$RELEASE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
             exit 1
           fi
@@ -454,9 +474,9 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-RC5-debug.apk ]; then
+            if [ -f Builds/Android/LordWar-RC6-debug.apk ]; then
               echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-RC5-debug.apk
+              sha256sum Builds/Android/LordWar-RC6-debug.apk
             else
               echo "apk_present=no"
             fi

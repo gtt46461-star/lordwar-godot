@@ -31,6 +31,7 @@ namespace LordWar.GodotRuntime {
         readonly Stopwatch _worldWatch = new Stopwatch();
         bool _ciAutoStart;
         int _menuFrames;
+        double _runtimeProbeSeconds;
         bool _ciCapturePending;
         int _ciCaptureFrames;
 
@@ -53,7 +54,14 @@ namespace LordWar.GodotRuntime {
             }
 
             if (_worldTask != null && _worldTask.IsCompleted) CompleteWorldGeneration();
-            if (World != null) World.Tick((float)delta);
+            if (World != null) {
+                World.Tick((float)delta);
+                _runtimeProbeSeconds += delta;
+                if (_runtimeProbeSeconds >= 5.0) {
+                    _runtimeProbeSeconds = 0.0;
+                    GD.Print("LORDWAR_RUNTIME_ALIVE day=" + World.Day + " cities=" + World.Cities.Count + " people=" + World.People.Count);
+                }
+            }
 
             if (_ciCapturePending) {
                 _ciCaptureFrames++;
