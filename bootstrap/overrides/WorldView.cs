@@ -19,6 +19,7 @@ namespace LordWar.GodotRuntime {
         Texture2D _warrior;
         readonly List<Vector2> _forestPositions = new List<Vector2>();
         readonly List<Vector2> _mountainPositions = new List<Vector2>();
+        readonly List<Vector2> _roadPositions = new List<Vector2>();
         double _redrawClock;
 
         public void Bind(GameWorld world) { Bind(world, _art); }
@@ -45,6 +46,7 @@ namespace LordWar.GodotRuntime {
             _ground = null;
             _forestPositions.Clear();
             _mountainPositions.Clear();
+            _roadPositions.Clear();
             if (_world == null || _world.Map == null) return;
 
             World.WorldMap map = _world.Map;
@@ -57,6 +59,7 @@ namespace LordWar.GodotRuntime {
                         : tile.Road ? new Color(.47f, .37f, .24f)
                         : TerrainColor(tile.Terrain);
                     image.SetPixel(x, y, baseColor);
+                    if (tile.Road) _roadPositions.Add(new Vector2(x * TileSize, y * TileSize));
 
                     // Deterministic sparse decoration keeps the map legible while reusing the original pixel-art assets.
                     int decoration = Math.Abs((x * 73856093) ^ (y * 19349663) ^ _world.Seed);
@@ -92,16 +95,10 @@ namespace LordWar.GodotRuntime {
                 if (_mountain != null) DrawTextureRect(_mountain, new Rect2(p - new Vector2(12, 14), new Vector2(24, 22)), false);
             }
 
-            // Road sprites sit directly on the tile grid and preserve the original project's visual language.
+            // Road tile positions are cached at bind time so armies animate without rescanning the map.
             if (_road != null) {
-                for (int y = 0; y < map.Height; y++)
-                    for (int x = 0; x < map.Width; x++) {
-                        World.WorldTile tile = map.Get(x, y);
-                        if (tile != null && tile.Road) {
-                            Vector2 p = new Vector2(x * TileSize, y * TileSize);
-                            DrawTextureRect(_road, new Rect2(p, new Vector2(TileSize, TileSize)), false, new Color(1f, 1f, 1f, .72f));
-                        }
-                    }
+                foreach (Vector2 p in _roadPositions)
+                    DrawTextureRect(_road, new Rect2(p, new Vector2(TileSize, TileSize)), false, new Color(1f, 1f, 1f, .72f));
             }
 
             foreach (City city in _world.Cities.Values) {
