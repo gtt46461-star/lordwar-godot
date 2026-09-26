@@ -1,0 +1,10 @@
+{
+  "name": "LordWar",
+  "GUID": "LordWar.Android.Core",
+  "author": "LordWar",
+  "version": "0.1.0",
+  "description": "领主战争 R30 核心运行链的 Android NeoModLoader 接入验证",
+  "Dependencies": [],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

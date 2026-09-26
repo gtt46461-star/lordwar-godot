@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>LordWar.Android.NML.CompileCheck</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../LordWarMod/**/*.cs" />
+    <Reference Include="NeoModLoader_mobile"><HintPath>../_deps/NeoModLoader_mobile.dll</HintPath></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll</HintPath></Reference>
+    <Reference Include="Il2CppInterop.Runtime"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2CppInterop.Runtime.dll</HintPath></Reference>
+    <Reference Include="Il2Cppmscorlib"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2Cppmscorlib.dll</HintPath></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.CoreModule.dll</HintPath></Reference>
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.IMGUIModule.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,29 @@
+name: LordWar WorldBox Android mod compile check
+on:
+  workflow_dispatch:
+  push:
+    branches: [construction/worldbox-android-mod]
+    paths: [WorldBoxMod/**, .github/workflows/worldbox-android-mod.yml]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Get public Android mod reference assemblies
+        run: |
+          git clone --depth 1 https://github.com/WorldBoxOpenMods/AndroidModLoader.git WorldBoxMod/_deps/AndroidModLoader
+          curl --fail --location --retry 3 --output WorldBoxMod/_deps/NeoModLoader_mobile.dll https://github.com/WorldBoxOpenMods/AndroidModLoader/releases/download/2.0/NeoModLoader_mobile.dll
+          echo '273aa9ce93e9de9dec56339871fe7d55c10010ccb12a386db0f676a6eeaf3132  WorldBoxMod/_deps/NeoModLoader_mobile.dll' | sha256sum --check
+      - name: Compile game core
+        run: dotnet build WorldBoxMod/Smoke/CoreSmoke.csproj -c Release
+      - name: Exercise creation, day tick, save and restore
+        run: dotnet run --no-build -c Release --project WorldBoxMod/Smoke/CoreSmoke.csproj -- "$GITHUB_WORKSPACE/WorldBoxMod/LordWarMod"
+      - name: Compile Android NML mod against published assemblies
+        run: dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LordWar-NML-compile-check
+          path: WorldBoxMod/Build/bin/Release/net8.0/*.dll
