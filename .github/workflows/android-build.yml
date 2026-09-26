@@ -511,6 +511,13 @@ jobs:
             adb shell input tap $((W*50/100)) $((H*50/100)) || true
             sleep 8
           done
+          echo "Waiting for four release runtime heartbeats..."
+          for i in $(seq 1 30); do
+            adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
+            HEARTBEATS=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
+            if [ "$HEARTBEATS" -ge 4 ]; then break; fi
+            sleep 2
+          done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png || true
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
