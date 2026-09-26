@@ -43,15 +43,15 @@ jobs:
           set -euo pipefail
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
-          grep -F "LORDWAR_STARTUP_OK" project/Scripts/Godot/LordWarApp.cs
+          grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
 
       - name: Set Android RC version and universal architectures
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90102/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc3"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90103/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0-rc4"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           sed -i 's/"GL Compatibility"/"Mobile"/g' project.godot
           sed -i 's/renderer\/rendering_method="gl_compatibility"/renderer\/rendering_method="mobile"/g' project.godot
@@ -269,7 +269,7 @@ jobs:
             echo "Startup fatal marker detected"
             exit 1
           fi
-          grep -F "LORDWAR_STARTUP_OK" Evidence/CI_RUNTIME_SMOKE.log
+          grep -F "LORDWAR_GAME_READY" Evidence/CI_RUNTIME_SMOKE.log
 
       - name: Switch Android export to Vulkan Mobile renderer
         shell: bash
@@ -307,10 +307,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-RC3-debug.apk" \
+            "Builds/Android/LordWar-RC4-debug.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-RC3-debug.apk
-          sha256sum Builds/Android/LordWar-RC3-debug.apk | tee Builds/Android/LordWar-RC3-debug.apk.sha256
+          test -s Builds/Android/LordWar-RC4-debug.apk
+          sha256sum Builds/Android/LordWar-RC4-debug.apk | tee Builds/Android/LordWar-RC4-debug.apk.sha256
           ls -lh Builds/Android/
 
       - name: Android emulator install and launch smoke test
@@ -329,24 +329,27 @@ jobs:
             sleep 2
           done
           test "$BOOT_OK" = "1"
-          adb install -r Builds/Android/LordWar-RC3-debug.apk | tee Evidence/CI_ADB_INSTALL.log
+          adb install -r Builds/Android/LordWar-RC4-debug.apk | tee Evidence/CI_ADB_INSTALL.log
           adb logcat -c || true
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
           sleep 4
-          adb shell input tap 520 200 || true
+          MENU_READY_DEBUG=0
+          if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_DEBUG=1; fi
+          echo "menu_ready_debug=$MENU_READY_DEBUG" | tee Evidence/CI_ANDROID_MENU_STATUS.txt
+          test "$MENU_READY_DEBUG" = "1"
           STARTUP_OK=0
           for i in $(seq 1 90); do
             PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
             if [ -z "$PID" ]; then break; fi
-            if adb logcat -d -v brief | grep -F "LORDWAR_STARTUP_OK" >/dev/null; then STARTUP_OK=1; break; fi
+            if adb logcat -d -v brief | grep -F "LORDWAR_GAME_READY" >/dev/null; then STARTUP_OK=1; break; fi
             sleep 2
           done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          grep -F "LORDWAR_STARTUP" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt || true
+          echo "game_ready=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          grep -E "LORDWAR_(MENU_READY|MAIN_MENU_VISIBLE|GAME_CREATE_BEGIN|WORLD_OK|GAME_READY|STARTUP_FATAL)" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt || true
           if [ -z "$PID" ] || [ "$STARTUP_OK" != "1" ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 250 || true
@@ -367,10 +370,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-RC3.apk" \
+            "Builds/Android/LordWar-1.0.0-RC4.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-RC3.apk
-          sha256sum Builds/Android/LordWar-1.0.0-RC3.apk | tee Builds/Android/LordWar-1.0.0-RC3.apk.sha256
+          test -s Builds/Android/LordWar-1.0.0-RC4.apk
+          sha256sum Builds/Android/LordWar-1.0.0-RC4.apk | tee Builds/Android/LordWar-1.0.0-RC4.apk.sha256
 
       - name: Android emulator RC release smoke test
         shell: bash
@@ -378,24 +381,27 @@ jobs:
         run: |
           set -euo pipefail
           adb wait-for-device
-          adb install -r Builds/Android/LordWar-1.0.0-RC3.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install -r Builds/Android/LordWar-1.0.0-RC4.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb logcat -c || true
           adb shell am force-stop com.lordwar.game || true
           adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
           sleep 4
-          adb shell input tap 520 200 || true
+          MENU_READY_RELEASE=0
+          if adb logcat -d -v brief | grep -F "LORDWAR_MENU_READY" >/dev/null; then MENU_READY_RELEASE=1; fi
+          echo "menu_ready_release=$MENU_READY_RELEASE" | tee Evidence/CI_ANDROID_RELEASE_MENU_STATUS.txt
+          test "$MENU_READY_RELEASE" = "1"
           STARTUP_OK=0
           for i in $(seq 1 90); do
             PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
             if [ -z "$PID" ]; then break; fi
-            if adb logcat -d -v brief | grep -F "LORDWAR_STARTUP_OK" >/dev/null; then STARTUP_OK=1; break; fi
+            if adb logcat -d -v brief | grep -F "LORDWAR_GAME_READY" >/dev/null; then STARTUP_OK=1; break; fi
             sleep 2
           done
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true
           echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          echo "startup_ok=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          grep -F "LORDWAR_STARTUP" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
+          echo "game_ready=$STARTUP_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          grep -E "LORDWAR_(MENU_READY|MAIN_MENU_VISIBLE|GAME_CREATE_BEGIN|WORLD_OK|GAME_READY|STARTUP_FATAL)" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 100 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
           if [ -z "$PID" ] || [ "$STARTUP_OK" != "1" ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
             grep -E "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL|godot.*ERROR" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 250 || true
@@ -420,9 +426,9 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-RC3-debug.apk ]; then
+            if [ -f Builds/Android/LordWar-RC4-debug.apk ]; then
               echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-RC3-debug.apk
+              sha256sum Builds/Android/LordWar-RC4-debug.apk
             else
               echo "apk_present=no"
             fi
