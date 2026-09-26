@@ -329,7 +329,7 @@ jobs:
           mkdir -p Evidence
           sudo chmod 666 /dev/kvm 2>/dev/null || true
           echo "no" | avdmanager create avd -n LordWarApi35 -k "system-images;android-35;google_apis;x86_64" --force
-          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu lavapipe -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
+          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
           adb wait-for-device
           BOOT_OK=0
           for i in $(seq 1 120); do
