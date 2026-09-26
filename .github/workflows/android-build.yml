@@ -376,6 +376,7 @@ jobs:
           adb shell input tap $((W*50/100)) $((H*50/100)) || true
           sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
+          adb exec-out run-as com.lordwar.game cat files/lordwar_ci_game.png > Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png || true
           adb wait-for-device
           adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true
           PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
