@@ -1,4 +1,4 @@
-name: LordWar R32 Android APK
+name: LordWar Android RC Build
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
@@ -44,13 +44,14 @@ jobs:
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
           grep -F "LORDWAR_STARTUP_OK" project/Scripts/Godot/LordWarApp.cs
 
-      - name: Set R32.1 crash-fix Android version
+      - name: Set Android RC version and universal architectures
         shell: bash
         working-directory: project
         run: |
           sed -i 's/version\/code=90032/version\/code=90034/' export_presets.cfg
           sed -i 's/version\/name="[^"]*"/version\/name="0.9.0-dev.20260926-r32.2-async-crashfix"/' export_presets.cfg
-          grep -E 'version/(code|name)' export_presets.cfg
+          sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
+          grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
 
       - name: Verify full runtime art payload
         shell: bash
@@ -98,6 +99,7 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/emulator" >> "$GITHUB_PATH"
 
       - name: Install Android SDK packages required by Godot 4.7
         shell: bash
@@ -110,7 +112,9 @@ jobs:
             "platforms;android-35" \
             "cmdline-tools;latest" \
             "cmake;3.10.2.4988404" \
-            "ndk;28.1.13356709"
+            "ndk;28.1.13356709" \
+            "emulator" \
+            "system-images;android-35;google_apis;x86_64"
 
       - name: Install Godot 4.7.2 .NET editor
         shell: bash
@@ -183,6 +187,9 @@ jobs:
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$HOME/.android/lordwar-ci-debug.keystore" >> "$GITHUB_ENV"
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$HOME/.android/lordwar-ci-debug.keystore" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=androiddebugkey" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=android" >> "$GITHUB_ENV"
 
       - name: Verify toolchain
         shell: bash
@@ -237,11 +244,78 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-R32-debug.apk" \
+            "Builds/Android/LordWar-RC1-debug.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-R32-debug.apk
-          sha256sum Builds/Android/LordWar-R32-debug.apk | tee Builds/Android/LordWar-R32-debug.apk.sha256
+          test -s Builds/Android/LordWar-RC1-debug.apk
+          sha256sum Builds/Android/LordWar-RC1-debug.apk | tee Builds/Android/LordWar-RC1-debug.apk.sha256
           ls -lh Builds/Android/
+
+      - name: Android emulator install and launch smoke test
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          mkdir -p Evidence
+          sudo chmod 666 /dev/kvm 2>/dev/null || true
+          echo "no" | avdmanager create avd -n LordWarApi35 -k "system-images;android-35;google_apis;x86_64" --force
+          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
+          adb wait-for-device
+          BOOT_OK=0
+          for i in $(seq 1 120); do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
+              BOOT_OK=1
+              break
+            fi
+            sleep 2
+          done
+          test "$BOOT_OK" = "1"
+          adb shell input keyevent 82 || true
+          adb install -r Builds/Android/LordWar-RC1-debug.apk | tee Evidence/CI_ADB_INSTALL.log
+          adb logcat -c
+          adb shell am force-stop com.lordwar.game || true
+          adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_LAUNCH.log
+          sleep 20
+          adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png || true
+          adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT.log
+          PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+          echo "pid=$PID" | tee Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "--- crash markers ---" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          grep -E "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|dotnet|mono|Godot.*ERROR|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 200 | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt || true
+          if [ -z "$PID" ]; then
+            echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+            exit 1
+          fi
+          echo "ANDROID_DEVICE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+
+      - name: Export signed Android RC release APK
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          "$HOME/bin/godot" --headless --path . \
+            --export-release "Android Debug" \
+            "Builds/Android/LordWar-1.0.0-RC1.apk" \
+            --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
+          test -s Builds/Android/LordWar-1.0.0-RC1.apk
+          sha256sum Builds/Android/LordWar-1.0.0-RC1.apk | tee Builds/Android/LordWar-1.0.0-RC1.apk.sha256
+
+      - name: Android emulator RC release smoke test
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          adb install -r Builds/Android/LordWar-1.0.0-RC1.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb logcat -c
+          adb shell am force-stop com.lordwar.game || true
+          adb shell monkey -p com.lordwar.game -c android.intent.category.LAUNCHER 1 | tee Evidence/CI_ANDROID_RELEASE_LAUNCH.log
+          sleep 20
+          adb exec-out screencap -p > Evidence/CI_ANDROID_RELEASE_SCREEN.png || true
+          adb logcat -d -v threadtime > Evidence/CI_ANDROID_RELEASE_LOGCAT.log
+          PID="$(adb shell pidof com.lordwar.game | tr -d '\r' || true)"
+          echo "pid=$PID" | tee Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          grep -E "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|dotnet|mono|Godot.*ERROR|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 200 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
+          test -n "$PID"
+          echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
       - name: Build evidence summary
         if: always()
@@ -254,9 +328,9 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-R32-debug.apk ]; then
+            if [ -f Builds/Android/LordWar-RC1-debug.apk ]; then
               echo "apk_present=yes"
-              sha256sum Builds/Android/LordWar-R32-debug.apk
+              sha256sum Builds/Android/LordWar-RC1-debug.apk
             else
               echo "apk_present=no"
             fi
@@ -274,6 +348,8 @@ jobs:
             project/Builds/Android/*.apk
             project/Builds/Android/*.sha256
             project/Evidence/CI_*.log
+            project/Evidence/CI_*.txt
+            project/Evidence/CI_*.png
             project/Evidence/CI_BUILD_SUMMARY.txt
             project/Scripts/Godot/LordWarApp.cs
             bootstrap/overrides/LordWarApp.cs
