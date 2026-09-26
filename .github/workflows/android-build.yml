@@ -217,6 +217,17 @@ jobs:
             python3 Tools/r32_verify.py 2>&1 | tee Evidence/CI_R32_VERIFY.log
           fi
 
+      - name: Generate Godot C# solution
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          rm -f LordWar.sln
+          dotnet new sln -n LordWar
+          dotnet sln LordWar.sln add LordWar.csproj
+          test -s LordWar.sln
+          grep -F "LordWar.csproj" LordWar.sln
+
       - name: Restore and build C#
         shell: bash
         working-directory: project
@@ -246,6 +257,34 @@ jobs:
           fi
           grep -F "LORDWAR_STARTUP_OK" Evidence/CI_RUNTIME_SMOKE.log
 
+      - name: Switch Android export to Vulkan Mobile renderer
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("project.godot")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace('config/features=PackedStringArray("4.7", "C#", "GL Compatibility")',
+                        'config/features=PackedStringArray("4.7", "C#", "Mobile")')
+          s = s.replace('renderer/rendering_method="gl_compatibility"',
+                        'renderer/rendering_method="mobile"')
+          s = s.replace('renderer/rendering_method.mobile="gl_compatibility"',
+                        'renderer/rendering_method.mobile="mobile"')
+          if 'rendering/rendering_device/driver.android="vulkan"' not in s:
+              s = s.replace('[rendering]\n', '[rendering]\nrendering/rendering_device/driver.android="vulkan"\n', 1)
+          p.write_text(s, encoding="utf-8")
+          e = Path("export_presets.cfg")
+          t = e.read_text(encoding="utf-8")
+          t = t.replace('command_line/extra_args=""',
+                        'command_line/extra_args="--rendering-method mobile --rendering-driver vulkan"')
+          e.write_text(t, encoding="utf-8")
+          PY
+          grep -E 'config/features|rendering_method|driver.android' project.godot
+          grep -F 'command_line/extra_args' export_presets.cfg
+          test -s LordWar.sln
+
       - name: Export Android debug APK
         shell: bash
         working-directory: project
@@ -267,7 +306,7 @@ jobs:
           mkdir -p Evidence
           sudo chmod 666 /dev/kvm 2>/dev/null || true
           echo "no" | avdmanager create avd -n LordWarApi35 -k "system-images;android-35;google_apis;x86_64" --force
-          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
+          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -feature Vulkan -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
           adb wait-for-device
           BOOT_OK=0
           for i in $(seq 1 120); do
@@ -372,6 +411,7 @@ jobs:
             project/Evidence/CI_*.png
             project/Evidence/CI_BUILD_SUMMARY.txt
             project/Scripts/Godot/LordWarApp.cs
+            project/LordWar.sln
             project/LordWar.sln
             project/project.godot
             bootstrap/overrides/LordWarApp.cs
