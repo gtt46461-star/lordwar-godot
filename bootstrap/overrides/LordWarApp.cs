@@ -34,7 +34,8 @@ namespace LordWar.GodotRuntime {
 
         public override void _Ready() {
             Engine.MaxFps = 60;
-            bool forcedSmoke = string.Equals(System.Environment.GetEnvironmentVariable("LORDWAR_SMOKE_TEST"), "1", StringComparison.Ordinal);\n            _ciAutoStart = forcedSmoke || (OS.GetName() == "Android" && RuntimeInformation.ProcessArchitecture == Architecture.X64);
+            bool forcedSmoke = string.Equals(System.Environment.GetEnvironmentVariable("LORDWAR_SMOKE_TEST"), "1", StringComparison.Ordinal);
+            _ciAutoStart = forcedSmoke || (OS.GetName() == "Android" && RuntimeInformation.ProcessArchitecture == Architecture.X64);
             BuildMainMenu();
             GD.Print("LORDWAR_MENU_READY arch=" + RuntimeInformation.ProcessArchitecture + " android=" + (OS.GetName() == "Android"));
         }
