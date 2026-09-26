@@ -330,7 +330,7 @@ namespace LordWar.GodotRuntime {
         }
 
         public void RebindViews() {
-            if (View != null) View.Bind(World);
+            if (View != null) View.Bind(World, Art);
             if (Camera != null) Camera.Bind(World);
         }
 
