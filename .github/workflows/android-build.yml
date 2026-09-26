@@ -227,18 +227,7 @@ jobs:
             python3 Tools/r32_verify.py 2>&1 | tee Evidence/CI_R32_VERIFY.log
           fi
 
-      - name: Generate Godot C# solution
-        shell: bash
-        working-directory: project
-        run: |
-          set -euo pipefail
-          rm -f LordWar.sln
-          dotnet new sln -n LordWar
-          dotnet sln LordWar.sln add LordWar.csproj
-          test -s LordWar.sln
-          grep -F "LordWar.csproj" LordWar.sln
-
-      - name: Create required Godot C# solution
+      - name: Generate and build Godot C# solution
         shell: bash
         working-directory: project
         run: |
@@ -248,18 +237,9 @@ jobs:
           dotnet sln LordWar.sln add LordWar.csproj
           test -s LordWar.sln
           grep -F "LordWar.csproj" LordWar.sln
-          echo "GODOT_CSHARP_SOLUTION=PASS"
-
-      - name: Restore and build C#
-        shell: bash
-        working-directory: project
-        run: |
-          rm -f LordWar.sln
-          dotnet new sln -n LordWar --force
-          dotnet sln LordWar.sln add LordWar.csproj
-          test -s LordWar.sln
           dotnet restore LordWar.sln 2>&1 | tee Evidence/CI_DOTNET_RESTORE.log
           dotnet build LordWar.sln -c Debug --no-restore 2>&1 | tee Evidence/CI_DOTNET_BUILD.log
+          echo "GODOT_CSHARP_SOLUTION_BUILD=PASS"
 
       - name: Import Godot project
         shell: bash
@@ -545,8 +525,6 @@ jobs:
             project/Evidence/CI_*.png
             project/Evidence/CI_BUILD_SUMMARY.txt
             project/Scripts/Godot/LordWarApp.cs
-            project/LordWar.sln
-            project/LordWar.sln
             project/LordWar.sln
             project/project.godot
             bootstrap/overrides/LordWarApp.cs
