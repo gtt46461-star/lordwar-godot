@@ -31,6 +31,8 @@ namespace LordWar.GodotRuntime {
         readonly Stopwatch _worldWatch = new Stopwatch();
         bool _ciAutoStart;
         int _menuFrames;
+        bool _ciCapturePending;
+        int _ciCaptureFrames;
 
         public override void _Ready() {
             Engine.MaxFps = 60;
@@ -52,6 +54,20 @@ namespace LordWar.GodotRuntime {
 
             if (_worldTask != null && _worldTask.IsCompleted) CompleteWorldGeneration();
             if (World != null) World.Tick((float)delta);
+
+            if (_ciCapturePending) {
+                _ciCaptureFrames++;
+                if (_ciCaptureFrames >= 30) {
+                    _ciCapturePending = false;
+                    try {
+                        Image image = GetViewport().GetTexture().GetImage();
+                        Error err = image.SavePng("user://lordwar_ci_game.png");
+                        GD.Print("LORDWAR_CI_CAPTURE_OK error=" + err);
+                    } catch (Exception ex) {
+                        GD.PushError("LORDWAR_CI_CAPTURE_FAIL " + ex);
+                    }
+                }
+            }
         }
 
         void BuildMainMenu() {
@@ -232,6 +248,10 @@ namespace LordWar.GodotRuntime {
 
                 _worldWatch.Stop();
                 GD.Print("LORDWAR_GAME_READY map=" + World.Map.Width + "x" + World.Map.Height + " kingdoms=" + World.Kingdoms.Count + " ms=" + _worldWatch.ElapsedMilliseconds);
+                if (OS.GetName() == "Android" && RuntimeInformation.ProcessArchitecture == Architecture.X64) {
+                    _ciCaptureFrames = 0;
+                    _ciCapturePending = true;
+                }
             } catch (Exception ex) {
                 ShowStartupFailure(ex);
             }
