@@ -1,0 +1,191 @@
+name: LordWar R32 Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "bootstrap/**"
+      - ".github/workflows/android-build.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      GODOT_VERSION: "4.7.2"
+      EXPECTED_SOURCE_SHA256: "86844f4a7ebb119832d5f32d7188b89c253f8f3ad9a667f2ac9c5ca0a2c7cc64"
+
+    steps:
+      - name: Checkout bootstrap
+        uses: actions/checkout@v4
+
+      - name: Reconstruct R32 source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _buildsrc
+          cat bootstrap/r32_*.b64 | tr -d '\n\r' | base64 -d > _buildsrc/lordwar-r32.tar.gz
+          echo "$EXPECTED_SOURCE_SHA256  _buildsrc/lordwar-r32.tar.gz" | sha256sum -c -
+          mkdir -p project
+          tar -xzf _buildsrc/lordwar-r32.tar.gz -C project
+          echo "Reconstructed source files: $(find project -type f | wc -l)"
+
+      - name: Prepare Android texture import compatibility
+        shell: bash
+        working-directory: project
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("project.godot")
+          s = p.read_text(encoding="utf-8")
+          key = "textures/vram_compression/import_etc2_astc=true"
+          if key not in s:
+              marker = "[rendering]\\n"
+              if marker in s:
+                  s = s.replace(marker, marker + key + "\\n", 1)
+              else:
+                  s += "\\n[rendering]\\n" + key + "\\n"
+              p.write_text(s, encoding="utf-8")
+          PY
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Godot 4.7 Android SDK requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "build-tools;35.0.1" \
+            "platforms;android-35" \
+            "cmdline-tools;latest" \
+            "cmake;3.10.2.4988404" \
+            "ndk;28.1.13356709"
+          echo "ANDROID_HOME=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" >> "$GITHUB_ENV"
+
+      - name: Setup Godot 4.7.2 .NET and templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: "4.7.2"
+          use-dotnet: true
+          include-templates: true
+
+      - name: Create deterministic CI debug keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v \
+            -keystore "$HOME/.android/lordwar-ci-debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=LordWar CI,O=LordWar,C=CN" \
+            -keyalg RSA -keysize 2048 -validity 10000
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$HOME/.android/lordwar-ci-debug.keystore" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> "$GITHUB_ENV"
+
+      - name: Verify toolchain
+        shell: bash
+        run: |
+          dotnet --info
+          godot --version
+          java -version
+          adb --version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "JAVA_HOME=$JAVA_HOME"
+
+      - name: Static project verification
+        shell: bash
+        working-directory: project
+        run: |
+          mkdir -p Evidence
+          python3 Tools/static_verify.py 2>&1 | tee Evidence/CI_STATIC_VERIFY.log
+          if [ -f Tools/r32_verify.py ]; then
+            python3 Tools/r32_verify.py 2>&1 | tee Evidence/CI_R32_VERIFY.log
+          fi
+
+      - name: Restore C# dependencies
+        shell: bash
+        working-directory: project
+        run: |
+          dotnet restore LordWar.csproj 2>&1 | tee Evidence/CI_DOTNET_RESTORE.log
+
+      - name: Build C# project
+        shell: bash
+        working-directory: project
+        run: |
+          dotnet build LordWar.csproj -c Release --no-restore 2>&1 | tee Evidence/CI_DOTNET_BUILD.log
+
+      - name: Import Godot project
+        shell: bash
+        working-directory: project
+        run: |
+          godot --headless --editor --quit --path . --verbose 2>&1 | tee Evidence/CI_GODOT_IMPORT.log
+
+      - name: Export Android debug APK
+        shell: bash
+        working-directory: project
+        run: |
+          mkdir -p Builds/Android
+          godot --headless --path . \
+            --export-debug "Android Debug" \
+            "Builds/Android/LordWar-R32-debug.apk" \
+            --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
+          test -s Builds/Android/LordWar-R32-debug.apk
+          sha256sum Builds/Android/LordWar-R32-debug.apk | tee Builds/Android/LordWar-R32-debug.apk.sha256
+          ls -lh Builds/Android/
+
+      - name: Create build evidence summary
+        if: always()
+        shell: bash
+        working-directory: project
+        run: |
+          {
+            echo "workflow_run=$GITHUB_RUN_ID"
+            echo "commit=$GITHUB_SHA"
+            echo "godot_version=$GODOT_VERSION"
+            echo "source_sha256=$EXPECTED_SOURCE_SHA256"
+            echo "timestamp_utc=$(date -u +%FT%TZ)"
+            if [ -f Builds/Android/LordWar-R32-debug.apk ]; then
+              echo "apk_present=yes"
+              sha256sum Builds/Android/LordWar-R32-debug.apk
+            else
+              echo "apk_present=no"
+            fi
+          } > Evidence/CI_BUILD_SUMMARY.txt
+          cat Evidence/CI_BUILD_SUMMARY.txt
+
+      - name: Upload APK, source and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lordwar-r32-android-build
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            project/Builds/Android/*.apk
+            project/Builds/Android/*.sha256
+            project/Evidence/CI_*.log
+            project/Evidence/CI_BUILD_SUMMARY.txt
+            _buildsrc/lordwar-r32.tar.gz
