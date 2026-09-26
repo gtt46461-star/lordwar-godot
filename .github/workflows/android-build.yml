@@ -430,6 +430,11 @@ jobs:
             sleep 1
           done
           echo "start_pid=$START_PID" | tee -a Evidence/CI_ANDROID_LAUNCH.log
+          if [ -z "$START_PID" ]; then
+            adb logcat -d -v threadtime > Evidence/CI_ANDROID_DEVICE_LOGCAT_EARLY.log || true
+            grep -Ei 'FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|AndroidRuntime|Godot|mono|\.NET|lib.*\.so|crash|exception|EGL|Vulkan' Evidence/CI_ANDROID_DEVICE_LOGCAT_EARLY.log | tail -n 160 || true
+            adb shell dumpsys activity exit-info com.lordwar.game | tail -n 100 || true
+          fi
           test -n "$START_PID"
           sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png
