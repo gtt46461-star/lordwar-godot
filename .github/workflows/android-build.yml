@@ -274,7 +274,7 @@ jobs:
           grep -F "LORDWAR_MENU_READY" Evidence/CI_RUNTIME_SMOKE.log
           grep -F "LORDWAR_GAME_READY" Evidence/CI_RUNTIME_SMOKE.log
 
-      - name: Use Vulkan Mobile renderer for Android
+      - name: Keep GLES Compatibility below Android shader uniform limit
         shell: bash
         working-directory: project
         run: |
@@ -285,20 +285,29 @@ jobs:
           p=Path("project.godot")
           s=p.read_text(encoding="utf-8")
           s=re.sub(r'config/features=PackedStringArray\([^\n]*\)',
-                   'config/features=PackedStringArray("4.7", "C#")', s)
+                   'config/features=PackedStringArray("4.7", "C#", "GL Compatibility")', s)
           s=re.sub(r'renderer/rendering_method="[^"]*"',
-                   'renderer/rendering_method="mobile"', s)
+                   'renderer/rendering_method="gl_compatibility"', s)
           s=re.sub(r'renderer/rendering_method.mobile="[^"]*"',
-                   'renderer/rendering_method.mobile="mobile"', s)
-          s=re.sub(r'^rendering/gl_compatibility/driver.android="[^"]*"\n', '', s, flags=re.M)
+                   'renderer/rendering_method.mobile="gl_compatibility"', s)
+          if 'rendering/gl_compatibility/driver.android=' in s:
+              s=re.sub(r'rendering/gl_compatibility/driver.android="[^"]*"',
+                       'rendering/gl_compatibility/driver.android="opengl3"', s)
+          else:
+              s=s.replace('[rendering]\n','[rendering]\nrendering/gl_compatibility/driver.android="opengl3"\n',1)
+          if 'rendering/limits/opengl/max_lights_per_object=' in s:
+              s=re.sub(r'rendering/limits/opengl/max_lights_per_object=[^\n]*',
+                       'rendering/limits/opengl/max_lights_per_object=1', s)
+          else:
+              s=s.replace('[rendering]\n','[rendering]\nrendering/limits/opengl/max_lights_per_object=1\n',1)
           p.write_text(s,encoding="utf-8")
           e=Path("export_presets.cfg")
           t=e.read_text(encoding="utf-8")
           t=re.sub(r'command_line/extra_args="[^"]*"',
-                   'command_line/extra_args="--rendering-method mobile --rendering-driver vulkan"',t)
+                   'command_line/extra_args="--rendering-method gl_compatibility --rendering-driver opengl3"',t)
           e.write_text(t,encoding="utf-8")
           PY
-          grep -E 'config/features|rendering_method|handheld/orientation|stretch/aspect' project.godot
+          grep -E 'rendering/limits/opengl/max_lights_per_object|config/features|rendering_method|gl_compatibility/driver.android|handheld/orientation|stretch/aspect' project.godot
           grep -F 'command_line/extra_args' export_presets.cfg
           test -s LordWar.sln
       - name: Export Android debug APK
@@ -434,8 +443,8 @@ jobs:
           GAME_STD=$(echo "$GAME_STATS" | awk '{print $2}')
           echo "screen_mean=$SCREEN_MEAN screen_stddev=$SCREEN_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_mean=$GAME_MEAN game_stddev=$GAME_STD" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          echo "headless_visual_capture_is_evidence_only=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          if python3 -c "import sys; sys.exit(0 if max(float('$SCREEN_STD'), float('$GAME_STD')) > 2.0 else 1)"; then
+          echo "android_emulator_game_capture_required=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          if python3 -c "import sys; sys.exit(0 if float('$GAME_STD') > 2.0 else 1)"; then
             echo "visual_capture_has_variance=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           else
             echo "visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
