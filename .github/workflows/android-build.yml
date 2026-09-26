@@ -20,7 +20,7 @@ jobs:
       DOTNET_NOLOGO: "1"
       GODOT_VERSION: "4.7.2"
       GODOT_TEMPLATE_DIR: "4.7.2.stable.mono"
-      EXPECTED_SOURCE_SHA256: "3e39e440b0c21b8606d3e533c0300f9aa398ab60b089a9546a7deaba876d58b2"
+      EXPECTED_SOURCE_SHA256: "365e4a1c7557f8cf605f6d0d177a7eb531b88822e44dbcde3b28ec7f07c32657"
 
     steps:
       - name: Checkout bootstrap
@@ -36,6 +36,14 @@ jobs:
           mkdir -p project
           tar -xzf _buildsrc/lordwar-r32.tar.gz -C project
           echo "Reconstructed source files: $(find project -type f | wc -l)"
+
+      - name: Verify full runtime art payload
+        shell: bash
+        working-directory: project
+        run: |
+          PNG_COUNT=$(find Art/LordWarArt -type f -iname '*.png' | wc -l)
+          echo "runtime_png=$PNG_COUNT"
+          test "$PNG_COUNT" -ge 1655
 
       - name: Verify Android texture import setting
         shell: bash
