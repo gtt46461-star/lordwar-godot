@@ -7,7 +7,7 @@
     <AssemblyName>LordWar.Android.NML.CompileCheck</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../LordWarMod/**/*.cs" />
+    <Compile Include="../LordWarMod/LordWarMod.cs" />
     <Reference Include="NeoModLoader_mobile"><HintPath>../_deps/NeoModLoader_mobile.dll</HintPath></Reference>
     <Reference Include="Assembly-CSharp"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll</HintPath></Reference>
     <Reference Include="Il2CppInterop.Runtime"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2CppInterop.Runtime.dll</HintPath></Reference>
