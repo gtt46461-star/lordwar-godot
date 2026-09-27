@@ -194,18 +194,18 @@
     "copied_core_matches_uploaded_R30": false,
     "nine_required_csv_counts_match": true,
     "mod_json_parses": true,
-    "entry_calls_R30_world_creation_and_war": true,
+    "entry_calls_R30_world_creation_and_war": false,
     "core_has_UnityEditor_or_UnityEngine_imports": false,
     "all_44_core_files_derived_from_uploaded_R30": true,
     "native_tab_and_button_entry_compiles_against_public_NML_mobile_references": true
   },
   "runtime_compilation": {
     "core": "PASS (.NET 8 csc)",
-    "NML_android_reference_compile": "PASS (public mobile 2.0 and reference assemblies, CS1701 warnings)",
+    "NML_android_reference_compile": "PASS (GitHub Actions 36321362788; public AndroidModLoader references and mobile 2.0; 0 warnings, 0 errors; not target APK runtime proof)",
     "on_device": "NOT_RUN"
   },
-  "device_test": "NOT_RUN (native tab and mod world not observed on device)",
-  "apk_build": "NOT_RUN",
+  "device_test": "NOT_RUN (no connected arm64 Android device or emulator; loader, native UI, WorldBox state, save/restart unverified)",
+  "apk_build": "NOT_RUN (source-only mod package; no newly built APK)",
   "source_file_hashes_mean": "Original uploaded R30 hashes; modified_files gives ported hashes.",
   "modified_files": [
     {
@@ -249,5 +249,15 @@
       "ported_sha256": "d4a49bb94c605d249bba7592570fd7e8f76eaa579e7a7b4de9cff5e06db056da"
     }
   ],
-  "runtime_smoke": "PASS: 160x120, four kingdoms/cities, 220 people, day advancement, save validation and restore"
+  "runtime_smoke": "PASS only for dormant standalone R30 CoreSmoke; does not exercise current native mod entry",
+  "native_entry_20260927": {
+    "github_branch": "construction/worldbox-android-mod",
+    "commit_verified": "fc88cb90fb2ac6c4c6e69cd058a1d3635f18d094",
+    "compile_run": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36321362788",
+    "native_selected_city_read": "COMPILED; device NOT_RUN",
+    "native_capital_command": "COMPILED; device NOT_RUN",
+    "save_load_and_restart": "NOT_RUN",
+    "standalone_GameWorld_execution": "removed from current LordWarMod.cs entry; historical Core still included but dormant",
+    "other_requirements": "NOT_IMPLEMENTED"
+  }
 }

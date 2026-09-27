@@ -18,6 +18,8 @@ jobs:
       - name: Get public Android mod reference assemblies
         run: |
           git clone --depth 1 https://github.com/WorldBoxOpenMods/AndroidModLoader.git WorldBoxMod/_deps/AndroidModLoader
+          git -C WorldBoxMod/_deps/AndroidModLoader fetch --depth 1 origin 165fe841f832b7e64dd54cef815ab2b9d5ffed7b
+          git -C WorldBoxMod/_deps/AndroidModLoader checkout --detach 165fe841f832b7e64dd54cef815ab2b9d5ffed7b
           curl --fail --location --retry 3 --output WorldBoxMod/_deps/NeoModLoader_mobile.dll https://github.com/WorldBoxOpenMods/AndroidModLoader/releases/download/2.0/NeoModLoader_mobile.dll
           echo '273aa9ce93e9de9dec56339871fe7d55c10010ccb12a386db0f676a6eeaf3132  WorldBoxMod/_deps/NeoModLoader_mobile.dll' | sha256sum --check
       - name: Compile game core
@@ -29,4 +31,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: LordWar-NML-compile-check
-          path: WorldBoxMod/Build/bin/Release/net8.0/*.dll
+          path: WorldBoxMod/Build/bin/Release/net8.0/LordWar.Android.NML.CompileCheck.dll
