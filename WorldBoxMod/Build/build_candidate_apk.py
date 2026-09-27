@@ -21,9 +21,13 @@ from axml_version import patch_version
 
 EXPECTED_OUTER = "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
 SOURCE_VERSION_CODE = 688
-TARGET_VERSION_CODE = 689
-MOD_PREFIX = "assets/MelonLoader/NMLMods/LordWarMod/"
+TARGET_VERSION_CODE = 690
+MOD_ROOT = "assets/MelonLoader/NMLMods/"
+DEPLOY_MOD_ROOT = "assets/copyToData/MelonLoader/NMLMods/"
+MOD_PREFIX = MOD_ROOT + "LordWarMod/"
+DEPLOY_MOD_PREFIX = DEPLOY_MOD_ROOT + "LordWarMod/"
 NML_DLL = "assets/MelonLoader/Mods/NeoModLoader_mobile.dll"
+DEPLOY_NML_DLL = "assets/copyToData/MelonLoader/Mods/NeoModLoader_mobile.dll"
 GAME_ANCHORS = (
     "lib/arm64-v8a/libil2cpp.so",
     "assets/bin/Data/globalgamemanagers",
@@ -88,9 +92,11 @@ def replace_mod(loader_seed, mod_zip, unsigned_inner):
             with source.open(info) as content, target.open(info, "w", force_zip64=info.file_size > 2**31) as output:
                 shutil.copyfileobj(content, output, 1024 * 1024)
         for info in mod.infolist():
-            name = "assets/MelonLoader/NMLMods/" + info.filename
-            with mod.open(info) as content, target.open(name, "w") as output:
-                shutil.copyfileobj(content, output, 1024 * 1024)
+            for root in (MOD_ROOT, DEPLOY_MOD_ROOT):
+                with mod.open(info) as content, target.open(root + info.filename, "w") as output:
+                    shutil.copyfileobj(content, output, 1024 * 1024)
+        with source.open(NML_DLL) as content, target.open(DEPLOY_NML_DLL, "w") as output:
+            shutil.copyfileobj(content, output, 1024 * 1024)
 
 
 def verify_mod(inner_path, mod_zip):
@@ -98,12 +104,18 @@ def verify_mod(inner_path, mod_zip):
         assert inner.testzip() is None
         names = set(inner.namelist())
         installed = {name for name in names if name.startswith(MOD_PREFIX)}
-        expected = {"assets/MelonLoader/NMLMods/" + name for name in mod.namelist()}
+        expected = {MOD_ROOT + name for name in mod.namelist()}
         if installed != expected:
             raise ValueError("Dormant game core or files from the old mod remain in the APK")
+        deployment = {name for name in names if name.startswith(DEPLOY_MOD_PREFIX)}
+        if deployment != {DEPLOY_MOD_ROOT + name for name in mod.namelist()}:
+            raise ValueError("Deployment directory differs from active mod package")
         for name in mod.namelist():
-            if sha_entry(inner, "assets/MelonLoader/NMLMods/" + name) != sha_entry(mod, name):
-                raise ValueError("Installed mod differs from the active source: " + name)
+            for root in (MOD_ROOT, DEPLOY_MOD_ROOT):
+                if sha_entry(inner, root + name) != sha_entry(mod, name):
+                    raise ValueError("Packaged or deployment mod differs from the active source: " + name)
+        if sha_entry(inner, NML_DLL) != sha_entry(inner, DEPLOY_NML_DLL):
+            raise ValueError("Deployment NML loader differs from the packaged loader")
 
 
 def verify_outer(original_path, candidate_path, inner_path):
