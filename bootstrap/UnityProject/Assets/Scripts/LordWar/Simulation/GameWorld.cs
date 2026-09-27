@@ -56,15 +56,34 @@ namespace LordWar.Simulation {
         public SiegeOwner Sieges;
         public MarchOwner March;
         public TickScheduler Scheduler = new TickScheduler();
+        public SimulationClock Clock = new SimulationClock();
+        public readonly List<string> ProcessedCommandIds = new List<string>();
+        readonly HashSet<string> _processedCommandIds = new HashSet<string>();
 
         DeterministicRandom _rng;
         WorldGenerator _worldGenerator;
         readonly Dictionary<string,AiOwner> _ai = new Dictionary<string,AiOwner>();
-        float _dayAccumulator; public float SecondsPerDay = 30f; public float TimeScale = 1f; public bool Paused;
-        public float DayProgress01 { get { return Mathx.Clamp(_dayAccumulator / Math.Max(1f, SecondsPerDay), 0f, 1f); } }
-        public float TimeIntoDaySeconds { get { return _dayAccumulator; } }
-        public bool IsNightTime { get { float span=Math.Max(.01f,SecondsPerDay);float q=(_dayAccumulator/span+.25f)%1f;return q<.20f||q>.80f; } }
-        public void RestoreClock(float seconds,float timeScale,bool paused){_dayAccumulator=Mathx.Clamp(seconds,0f,Math.Max(1f,SecondsPerDay)-.001f);TimeScale=Mathx.Clamp(timeScale,.1f,8f);Paused=paused;}
+        public float SecondsPerDay = 30f; public float TimeScale = 1f; public bool Paused;
+        public float DayProgress01 { get { return Mathx.Clamp(Clock.DaySeconds / Math.Max(1f, SecondsPerDay), 0f, 1f); } }
+        public float TimeIntoDaySeconds { get { return Clock.DaySeconds; } }
+        public bool IsNightTime { get { float span=Math.Max(.01f,SecondsPerDay);float q=(Clock.DaySeconds/span+.25f)%1f;return q<.20f||q>.80f; } }
+        public void RestoreClock(float seconds,float timeScale,bool paused){RestoreClock(seconds,timeScale,paused,(long)Math.Floor((Day*SecondsPerDay+seconds)/SimulationClock.FixedStep),0f);}
+        public void RestoreClock(float seconds,float timeScale,bool paused,long tick,float pending){Clock.Restore(tick,pending,seconds,SecondsPerDay);TimeScale=Mathx.Clamp(timeScale,.1f,8f);Paused=paused;Scheduler.RestorePhase(tick,SimulationClock.FixedStep);}
+        public void RestoreCommands(IEnumerable<string> ids){ProcessedCommandIds.Clear();_processedCommandIds.Clear();if(ids==null)return;foreach(string id in ids){if(string.IsNullOrEmpty(id)||!_processedCommandIds.Add(id))continue;ProcessedCommandIds.Add(id);}while(ProcessedCommandIds.Count>512){_processedCommandIds.Remove(ProcessedCommandIds[0]);ProcessedCommandIds.RemoveAt(0);}}
+        public bool ExecuteClockCommand(WorldCommand command,out string reason){
+            reason="";if(command==null||string.IsNullOrEmpty(command.Id)){reason="命令ID缺失";return false;}
+            if(_processedCommandIds.Contains(command.Id)){reason="重复命令";return false;}
+            switch(command.Kind){
+                case WorldCommandKind.Pause:if(Paused){reason="已暂停";return false;}Paused=true;break;
+                case WorldCommandKind.Resume:if(!Paused){reason="已运行";return false;}Paused=false;break;
+                case WorldCommandKind.SetSpeed:if(command.Value!=1f&&command.Value!=2f&&command.Value!=4f){reason="无效速度";return false;}TimeScale=command.Value;break;
+                case WorldCommandKind.AdvanceDay:AdvanceDay();break;
+                default:reason="未知命令";return false;
+            }
+            _processedCommandIds.Add(command.Id);ProcessedCommandIds.Add(command.Id);
+            if(ProcessedCommandIds.Count>512){_processedCommandIds.Remove(ProcessedCommandIds[0]);ProcessedCommandIds.RemoveAt(0);}
+            return true;
+        }
 
         public string PlayerKingdomId { get; private set; }
         public AiDifficulty ComputerDifficulty = AiDifficulty.Hard;
@@ -111,8 +130,8 @@ namespace LordWar.Simulation {
             Scheduler.Register("施工", .25f, delegate(float dt) { TickConstruction(dt); });
             Scheduler.Register("治理", 1f, delegate(float dt) { TickGovernance(dt); });
             Scheduler.Register("军队行军", .25f, delegate(float dt) { TickArmyMovement(dt); });
+            Scheduler.Register("居民行走", .25f, delegate(float dt) { TickWorldWalkers(dt); });
             Scheduler.Register("持续战斗", .25f, 3, delegate(float dt) { TickActiveBattles(dt); });
-            RecordEvent("世界","读档恢复","Seed "+Seed+"，地图 "+(Map==null?0:Map.Width)+"×"+(Map==null?0:Map.Height)+"，国家 "+Kingdoms.Count+"，电脑难度 "+ChineseText.Difficulty(ComputerDifficulty));
         }
 
         public void CreateNewWorld(int width, int height, int kingdomCount) {
@@ -173,7 +192,35 @@ namespace LordWar.Simulation {
             Scheduler.Register("施工", .25f, delegate(float dt) { TickConstruction(dt); });
             Scheduler.Register("治理", 1f, delegate(float dt) { TickGovernance(dt); });
             Scheduler.Register("军队行军", .25f, delegate(float dt) { TickArmyMovement(dt); });
+            Scheduler.Register("居民行走", .25f, delegate(float dt) { TickWorldWalkers(dt); });
             Scheduler.Register("持续战斗", .25f, 3, delegate(float dt) { TickActiveBattles(dt); });
+            SeedWorldWalker();
+        }
+
+        void SeedWorldWalker(){
+            Kingdom k;City c;if(string.IsNullOrEmpty(PlayerKingdomId)||!Kingdoms.TryGetValue(PlayerKingdomId,out k)||!Cities.TryGetValue(k.CapitalCityId,out c))return;
+            Person resident=null;foreach(string id in c.PersonIds){Person p;if(People.TryGetValue(id,out p)&&p.Alive&&p.Class==SocialClass.Commoner){resident=p;break;}}
+            if(resident==null)return;
+            for(int r=2;r<=6;r++)for(int dy=-r;dy<=r;dy++)for(int dx=-r;dx<=r;dx++){
+                if(Math.Abs(dx)+Math.Abs(dy)!=r)continue;
+                WorldTile tile=Map.Get(c.X+dx,c.Y+dy);if(tile==null||tile.Terrain==TerrainKind.DeepWater||tile.Terrain==TerrainKind.Coast||tile.Terrain==TerrainKind.Lake)continue;
+                List<GridPoint> path=_worldGenerator.FindPath(Map,new GridPoint(c.X,c.Y),new GridPoint(c.X+dx,c.Y+dy),false);
+                if(path.Count<2||path.Count>12)continue;
+                resident.IsWorldWalker=true;resident.WalkRoute=path;resident.X=c.X;resident.Y=c.Y;resident.WalkRouteIndex=0;resident.WalkForward=true;resident.WalkProgress=0f;return;
+            }
+        }
+        void TickWorldWalkers(float dt){
+            foreach(Person p in People.Values){
+                if(!p.IsWorldWalker||!p.Alive||p.Injury==InjuryState.Captured||p.WalkRoute==null||p.WalkRoute.Count<2)continue;
+                p.WalkProgress+=dt;
+                while(p.WalkProgress>=1f){
+                    p.WalkProgress-=1f;
+                    if(p.WalkRouteIndex>=p.WalkRoute.Count-1)p.WalkForward=false;
+                    else if(p.WalkRouteIndex<=0)p.WalkForward=true;
+                    p.WalkRouteIndex+=p.WalkForward?1:-1;
+                    GridPoint step=p.WalkRoute[p.WalkRouteIndex];p.X=step.X;p.Y=step.Y;
+                }
+            }
         }
 
         string PaletteHex(int i){string[] p={"#A63B32","#365E8D","#467A4A","#84643F","#6B4C86","#2C7772","#8B7135","#7D3F52"};return p[Math.Abs(i)%p.Length];}
@@ -1088,7 +1135,15 @@ namespace LordWar.Simulation {
             if(Day%10==0)MaintenanceSweep();
         }
 
-        public void Tick(float realSeconds) { if(Paused||realSeconds<=0)return;float scaled=realSeconds*Mathx.Clamp(TimeScale,.1f,8f);Scheduler.Tick(scaled);_dayAccumulator+=scaled;while(_dayAccumulator>=SecondsPerDay){_dayAccumulator-=SecondsPerDay;AdvanceDay();} }
+        public void Tick(float realSeconds) {
+            if(Paused||realSeconds<=0f)return;
+            Clock.Accumulate(realSeconds,TimeScale);
+            int budget=8;
+            while(budget-->0&&Clock.HasStep){
+                Scheduler.Tick(SimulationClock.FixedStep);
+                int days=Clock.Step(SecondsPerDay);for(int i=0;i<days;i++)AdvanceDay();
+            }
+        }
 
         float FoodSecurity(City c) { return Mathx.Clamp(c.Food / (float)Math.Max(1, c.PersonIds.Count * 6), .2f, 1f); }
 

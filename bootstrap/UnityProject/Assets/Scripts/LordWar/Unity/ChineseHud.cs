@@ -16,9 +16,10 @@ namespace LordWar.UnityRuntime {
         int newWorldSize=160, newWorldKingdoms=2; AiDifficulty newDifficulty=AiDifficulty.Hard;
         readonly WorldGenerationOptions newMapOptions=new WorldGenerationOptions();
         readonly HashSet<string> selectedArmyIds=new HashSet<string>();
+        public bool BlocksWorldInput {get{return showNewWorldSetup||LordWarBootstrap.World==null;}}
 
         void OnGUI(){
-            GameWorld w=LordWarBootstrap.World;if(w==null)return;
+            GameWorld w=LordWarBootstrap.World;if(w==null){DrawMainMenu();if(showNewWorldSetup)DrawNewWorldSetup(null);return;}
             CleanupArmySelection(w);
             DrawTop(w);
             if(showApplications)DrawApplications(w);
@@ -33,6 +34,23 @@ namespace LordWar.UnityRuntime {
             DrawConstruction(w);
         }
 
+        void DrawMainMenu(){
+            float panelWidth=Mathf.Min(440f,Screen.width-32f),panelHeight=Mathf.Min(360f,Screen.height-32f);
+            Rect area=new Rect((Screen.width-panelWidth)*.5f,(Screen.height-panelHeight)*.5f,panelWidth,panelHeight);
+            GUI.Box(area,"领主战争 · "+BuildInfo.Batch);
+            GUILayout.BeginArea(new Rect(area.x+24f,area.y+38f,area.width-48f,area.height-52f));
+            GUILayout.Label("建立一个世界，观察居民、地形与城市。",GUILayout.Height(36));
+            if(GUILayout.Button("创建新世界",GUILayout.Height(48)))showNewWorldSetup=true;
+            bool canLoad=UnitySaveService.HasSave;bool old=GUI.enabled;GUI.enabled=canLoad;
+            if(GUILayout.Button("读取存档",GUILayout.Height(48))){status=LordWarBootstrap.LoadSavedWorld()?"读档成功":"存档损坏或不兼容";}
+            GUI.enabled=old;
+            GUILayout.Space(16);GUILayout.Label("当前批次："+BuildInfo.Batch+"｜构建："+BuildInfo.BuildId);
+            GUILayout.Label("本批范围：首个世界、基础画面、暂停和存读档。其余玩法逐批验收。");
+            GUILayout.Label(status);
+            GUILayout.EndArea();
+        }
+        bool ClockAction(GameWorld w,WorldCommandKind kind,float value=0f){string reason;bool ok=w.ExecuteClockCommand(new WorldCommand(Guid.NewGuid().ToString("N"),kind,value),out reason);if(!ok)status=reason;return ok;}
+
         void DrawTop(GameWorld w){
             Kingdom player=null;City capital=null;if(!string.IsNullOrEmpty(w.PlayerKingdomId))w.Kingdoms.TryGetValue(w.PlayerKingdomId,out player);if(player!=null)w.Cities.TryGetValue(player.CapitalCityId,out capital);
             GUI.Box(new Rect(8,8,330,338),"领主战争");
@@ -41,24 +59,24 @@ namespace LordWar.UnityRuntime {
             GUI.Label(new Rect(18,58,305,24),"国家："+activeKingdoms+"（附庸 "+vassals+"）　城市："+w.Cities.Count+"　人口："+w.People.Count+"　电脑："+ChineseText.Difficulty(w.ComputerDifficulty));
             if(player!=null)GUI.Label(new Rect(18,80,305,24),"国库："+player.Treasury+" 金币　军队："+player.ArmyIds.Count+"　国势："+ChineseText.KingdomStatusText(player.Status));
             if(capital!=null)GUI.Label(new Rect(18,102,305,24),"都城："+capital.Name+"（"+capital.CultureId+"）　粮 "+capital.Food+"　木 "+capital.Wood+"　石 "+capital.Stone+"　铁 "+capital.Iron+"　马 "+capital.Horses);
-            if(GUI.Button(new Rect(18,132,145,32),"推进一日")){w.AdvanceDay();status="时间推进";}
+            if(GUI.Button(new Rect(18,132,145,32),"推进一日")){if(ClockAction(w,WorldCommandKind.AdvanceDay))status="时间推进";}
             if(GUI.Button(new Rect(173,132,145,32),"战争 / 出征")){showWar=!showWar;showApplications=false;showPlanning=false;showSociety=false;}
             if(GUI.Button(new Rect(18,172,95,30),"新建世界")){showNewWorldSetup=!showNewWorldSetup;showApplications=false;showWar=false;showPlanning=false;showSociety=false;}
             if(GUI.Button(new Rect(118,172,95,30),"保存游戏"))status=UnitySaveService.Save(w)?"存档成功":"存档失败";
-            if(GUI.Button(new Rect(218,172,100,30),"读取存档")){bool ok=UnitySaveService.Load(w);selectedArmyIds.Clear();status=ok?"读档成功":"没有可用存档";if(ok){WorldRenderer vr=FindObjectOfType<WorldRenderer>();if(vr!=null)vr.Refresh();}}
+            if(GUI.Button(new Rect(218,172,100,30),"读取存档")){bool ok=LordWarBootstrap.LoadSavedWorld();selectedArmyIds.Clear();selectedPersonId="";selectedEquipmentId="";status=ok?"读档成功":"没有可用存档";}
             int pending=w.PlayerPendingProposalCount;
             if(GUI.Button(new Rect(18,210,145,32),"申请 / 奏报（"+pending+"）")){showApplications=!showApplications;showWar=false;showPlanning=false;showSociety=false;}
             if(GUI.Button(new Rect(173,210,145,32),"军队 / 人物"))showArmy=!showArmy;
             if(GUI.Button(new Rect(18,246,145,24),"城市区域规划")){showPlanning=!showPlanning;showWar=false;showApplications=false;showSociety=false;}
             if(GUI.Button(new Rect(173,246,145,24),"政务 / 社会")){showSociety=!showSociety;showWar=false;showApplications=false;showPlanning=false;}
-            if(GUI.Button(new Rect(18,274,72,24),w.Paused?"继续":"暂停"))w.Paused=!w.Paused;
-            if(GUI.Button(new Rect(96,274,66,24),"×1"))w.TimeScale=1f;if(GUI.Button(new Rect(168,274,66,24),"×2"))w.TimeScale=2f;if(GUI.Button(new Rect(240,274,66,24),"×4"))w.TimeScale=4f;
+            if(GUI.Button(new Rect(18,274,72,24),w.Paused?"继续":"暂停"))ClockAction(w,w.Paused?WorldCommandKind.Resume:WorldCommandKind.Pause);
+            if(GUI.Button(new Rect(96,274,66,24),"×1"))ClockAction(w,WorldCommandKind.SetSpeed,1f);if(GUI.Button(new Rect(168,274,66,24),"×2"))ClockAction(w,WorldCommandKind.SetSpeed,2f);if(GUI.Button(new Rect(240,274,66,24),"×4"))ClockAction(w,WorldCommandKind.SetSpeed,4f);
             GUI.Label(new Rect(18,302,300,20),"本日 "+Mathf.RoundToInt(w.DayProgress01*100f)+"%　速度 ×"+w.TimeScale.ToString("0.#"));
             GUI.Label(new Rect(18,322,300,20),status);
         }
 
         void DrawNewWorldSetup(GameWorld w){
-            Rect area=new Rect(Math.Max(350,(Screen.width-500)/2),Math.Max(8,(Screen.height-600)/2),500,Math.Min(600,Screen.height-16));GUI.Box(area,"创建新世界");GUILayout.BeginArea(new Rect(area.x+18,area.y+34,area.width-36,area.height-48));
+            float panelWidth=Mathf.Min(500f,Screen.width-16f);Rect area=new Rect((Screen.width-panelWidth)*.5f,Math.Max(8,(Screen.height-600)/2),panelWidth,Math.Min(600,Screen.height-16));GUI.Box(area,"创建新世界");GUILayout.BeginArea(new Rect(area.x+18,area.y+34,area.width-36,area.height-48));
             GUILayout.Label("世界种子（留空随机；输入0是固定种子）");newSeedText=GUILayout.TextField(newSeedText,24);
             GUILayout.Space(8);GUILayout.Label("地图规模："+newWorldSize+"×"+newWorldSize);GUILayout.BeginHorizontal();if(GUILayout.Button("160"))newWorldSize=160;if(GUILayout.Button("224"))newWorldSize=224;if(GUILayout.Button("320"))newWorldSize=320;GUILayout.EndHorizontal();
             newMapOptions.LandPercent=MapSlider("陆地比例",newMapOptions.LandPercent,15,85);

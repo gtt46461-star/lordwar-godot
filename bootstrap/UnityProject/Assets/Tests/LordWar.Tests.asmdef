@@ -1,0 +1,7 @@
+{
+  "name": "LordWar.Tests",
+  "references": ["LordWar.Runtime"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}

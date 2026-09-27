@@ -126,13 +126,47 @@ public sealed class LordWarCoreTests {
         old.Get(0,0).Terrain=TerrainKind.Coast;
         var save=new GameSave{SaveVersion=27,Map=old};
         SaveOwner.Migrate(save);
-        Assert.AreEqual(28,save.SaveVersion);
+        Assert.AreEqual(29,save.SaveVersion);
         Assert.IsTrue(save.Map.LegacyGenerator);
         Assert.AreEqual(.24f,save.Map.SeaLevel,0.00001f);
         Assert.IsNotNull(save.Map.GenerationOptions);
         Assert.AreEqual(TerrainKind.Coast,save.Map.Get(0,0).Terrain);
         SaveOwner.Migrate(save);
         Assert.AreEqual(TerrainKind.Coast,save.Map.Get(0,0).Terrain);
+    }
+
+    [Test]
+    public void N01_ClockPauseCommandsAndWalkerSurviveSaveRestore() {
+        GameDataCatalog data=new GameDataCatalog();data.LoadAll(new UnityDataProvider());
+        GameWorld world=new GameWorld(24680,data);world.CreateNewWorld(80,64,2);
+        Person walker=null;foreach(Person p in world.People.Values)if(p.IsWorldWalker){walker=p;break;}
+        Assert.IsNotNull(walker,"新世界必须绑定现有人口作为行走人物");
+        long start=world.Clock.TickIndex;int x=walker.X,y=walker.Y;string reason;
+        Assert.IsTrue(world.ExecuteClockCommand(new WorldCommand("pause-1",WorldCommandKind.Pause),out reason),reason);
+        for(int i=0;i<20;i++)world.Tick(.1f);
+        Assert.AreEqual(start,world.Clock.TickIndex);Assert.AreEqual(x,walker.X);Assert.AreEqual(y,walker.Y);
+        Assert.IsFalse(world.ExecuteClockCommand(new WorldCommand("pause-1",WorldCommandKind.Pause),out reason));
+        Assert.IsTrue(world.ExecuteClockCommand(new WorldCommand("resume-1",WorldCommandKind.Resume),out reason),reason);
+        for(int i=0;i<12;i++)world.Tick(.1f);
+        Assert.Greater(world.Clock.TickIndex,start);
+        Assert.IsTrue(x!=walker.X||y!=walker.Y,"实际人物要沿地图路径行走");
+        GameSave save=GameSaveService.Capture(world);Assert.IsTrue(GameSaveService.Validate(save,out reason),reason);
+        GameWorld loaded=new GameWorld(save.Seed,data);GameSaveService.Restore(loaded,save);
+        Person same=loaded.People[walker.Id];Assert.AreEqual(walker.X,same.X);Assert.AreEqual(walker.Y,same.Y);
+        Assert.AreEqual(world.Clock.TickIndex,loaded.Clock.TickIndex);
+        Assert.AreEqual(world.People.Count,loaded.People.Count);
+        Assert.IsFalse(loaded.ExecuteClockCommand(new WorldCommand("resume-1",WorldCommandKind.Resume),out reason));
+    }
+
+    [Test]
+    public void N01_MarchOwnerCarriesTravelBudgetBetweenSchedulerSteps() {
+        WorldMap map=new WorldMap(6,3,17);foreach(WorldTile t in map.Tiles)t.Terrain=TerrainKind.Grass;
+        Army army=new Army{Id="A",X=0,Y=1,FoodDays=8f};
+        MarchOwner march=new MarchOwner(new WorldGenerator(17),map);
+        Assert.IsTrue(march.SetDestination(army,4,1));
+        for(int i=0;i<5;i++)march.Step(army,.25f,false,0f,1);
+        Assert.Greater(army.X,0,"小步长必须累积移动预算");
+        Assert.GreaterOrEqual(army.MarchProgress,0f);
     }
 
     [Test]

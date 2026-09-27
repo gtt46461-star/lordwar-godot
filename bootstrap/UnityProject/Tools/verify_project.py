@@ -520,7 +520,7 @@ war_admin_marks=['class WarAdministrationOwner','OfficialBusyElsewhere','WarAdmi
 missing_war_admin=[x for x in war_admin_marks if x not in war_admin_text+world_text+model_text]
 ui_war_admin_marks=['战争负责官员：未指派','AssignWarOfficial','撤销负责官员','SetWarOfficialFocus','ChineseText.WarFocus']
 missing_war_admin_ui=[x for x in ui_war_admin_marks if x not in hud_text+world_text+chinese_text]
-save_admin_marks=['WarAdministrations','s.WarAdministrations.Add','s.WarAdministrations','CurrentVersion=28','SaveVersion=28']
+save_admin_marks=['WarAdministrations','s.WarAdministrations.Add','s.WarAdministrations','CurrentVersion=29','SaveVersion=29']
 missing_war_admin_save=[x for x in save_admin_marks if x not in save_text+save_service_text]
 if not re.search(r'public const int CurrentVersion=(?:2[7-9]|[3-9][0-9])',save_text): missing_war_admin_save.append('saveVersion>=27')
 add('指定战争负责官员与撤销/战务重点','PASS' if not missing_war_admin and not missing_war_admin_ui else 'FAIL','每场战争唯一责任官员；可指派/撤销并切换综合/守城/野战/攻城/拦截，官员能力真实决定反应半径和调度军令数' if not missing_war_admin and not missing_war_admin_ui else '执行缺少='+','.join(missing_war_admin)+' UI缺少='+','.join(missing_war_admin_ui))
@@ -559,8 +559,11 @@ add('Unity Editor','AVAILABLE' if unity else 'BLOCKED','存在' if unity else '�
 
 # Git consistency
 try:
-    subprocess.run(['git','diff','--check'],cwd=ROOT,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-    add('git diff --check','PASS','无空白错误')
+    inside=subprocess.run(['git','rev-parse','--is-inside-work-tree'],cwd=ROOT,check=False,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    if inside.returncode==0 and inside.stdout.strip()=='true':
+        subprocess.run(['git','diff','--check'],cwd=ROOT,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        add('git diff --check','PASS','无空白错误')
+    else:add('git diff --check','NOT_RUN','独立源码包不含.git；从仓库根目录单独执行')
 except subprocess.CalledProcessError as e:
     add('git diff --check','FAIL',e.stdout+e.stderr)
 
