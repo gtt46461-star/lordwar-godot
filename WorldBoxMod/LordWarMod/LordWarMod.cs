@@ -32,6 +32,8 @@ namespace LordWar.AndroidMod
         private ScrollWindow _nativeInbox;
         private bool _foundNativeCivilizations;
         private readonly Dictionary<string, global::City> _nativeCities = new Dictionary<string, global::City>();
+        private readonly Dictionary<string, global::Kingdom> _nativeKingdoms = new Dictionary<string, global::Kingdom>();
+        private int _lastNativeSyncDay = -1;
 
         protected override void OnModLoad()
         {
@@ -64,6 +66,8 @@ namespace LordWar.AndroidMod
             }
             _world = null;
             _nativeCities.Clear();
+            _nativeKingdoms.Clear();
+            _lastNativeSyncDay = -1;
             _foundNativeCivilizations = fromWorldBox && MapBox.instance != null &&
                 MapBox.instance.cities != null && MapBox.instance.cities.Count == 0;
             _showInbox = false;
@@ -177,11 +181,16 @@ namespace LordWar.AndroidMod
                         try { BindExistingNativeCities(); }
                         catch (Exception error) { _status = "原生城市关联失败: " + error.Message; LogInfo(_status); }
                     }
+                    SyncNativeCities();
                     LogInfo("LordWar world initialized: " + _world.Map.Width + "×" + _world.Map.Height);
                 }
             }
             if (_world == null || _world.Paused) return;
-            try { _world.Tick(Math.Min(Time.deltaTime, 0.25f)); }
+            try
+            {
+                _world.Tick(Math.Min(Time.deltaTime, 0.25f));
+                if (_world.Day != _lastNativeSyncDay) SyncNativeCities();
+            }
             catch (Exception error)
             {
                 _world.Paused = true;
@@ -204,6 +213,8 @@ namespace LordWar.AndroidMod
                     global::WorldTile tile = target == null ? null : target.getTile();
                     if (tile == null || Math.Abs(tile.x - x) > 2 || Math.Abs(tile.y - y) > 2) continue;
                     _nativeCities[city.Id] = target;
+                    if (target.kingdom != null && !_nativeKingdoms.ContainsKey(city.KingdomId))
+                        _nativeKingdoms[city.KingdomId] = target.kingdom;
                     break;
                 }
             }
@@ -232,10 +243,33 @@ namespace LordWar.AndroidMod
                 }
                 Kingdom lordKingdom;
                 if (founder.kingdom != null && _world.Kingdoms.TryGetValue(city.KingdomId, out lordKingdom))
+                {
                     founder.kingdom.setName(lordKingdom.Name);
+                    _nativeKingdoms[city.KingdomId] = founder.kingdom;
+                }
                 created++;
             }
             _status = "已在 WorldBox 地图建立 " + created + " 个领主战争城市";
+        }
+
+        private void SyncNativeCities()
+        {
+            if (_world == null) return;
+            foreach (City city in _world.Cities.Values)
+            {
+                global::City nativeCity;
+                global::Kingdom nativeKingdom;
+                if (!_nativeCities.TryGetValue(city.Id, out nativeCity) || nativeCity == null) continue;
+                try
+                {
+                    if (!string.Equals(nativeCity.name, city.Name, StringComparison.Ordinal)) nativeCity.setName(city.Name);
+                    if (_nativeKingdoms.TryGetValue(city.KingdomId, out nativeKingdom) && nativeKingdom != null &&
+                        (nativeCity.kingdom == null || nativeCity.kingdom.getID() != nativeKingdom.getID()))
+                        nativeCity.setKingdom(nativeKingdom);
+                }
+                catch (Exception error) { LogInfo("LordWar city sync " + city.Id + ": " + error.Message); }
+            }
+            _lastNativeSyncDay = _world.Day;
         }
 
         private void BuildMapTexture()
@@ -293,7 +327,7 @@ namespace LordWar.AndroidMod
                 _world.Paused = !_world.Paused;
             if (GUI.Button(new Rect(x + 166f * scale, top, 140f * scale, 48f * scale), "推进一天"))
             {
-                try { _world.AdvanceDay(); }
+                try { _world.AdvanceDay(); SyncNativeCities(); }
                 catch (Exception error) { _status = "推进失败: " + error.Message; }
             }
             top += 60f * scale;
