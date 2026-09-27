@@ -121,6 +121,27 @@ namespace LordWar.AndroidMod
                 if (!water) land++;
             }
             if (land < 16) throw new InvalidOperationException("地图陆地太少，无法建立领地");
+            if (native.cities != null && native.cities.Count > 0)
+            {
+                native.cities.checkLists();
+                for (int i = 0; i < native.cities.list.Count && map.CitySites.Count < 16; i++)
+                {
+                    global::City nativeCity = native.cities.list[i];
+                    if (nativeCity == null || nativeCity.kingdom == null) continue;
+                    global::WorldTile center = nativeCity.getTile();
+                    if (center == null) continue;
+                    int cx = Math.Max(0, Math.Min(width - 1, (int)((center.x + .5) * width / MapBox.width)));
+                    int cy = Math.Max(0, Math.Min(height - 1, (int)((center.y + .5) * height / MapBox.height)));
+                    if (map.CitySites.Any(p => p.X == cx && p.Y == cy)) continue;
+                    LordWar.World.WorldTile cityTerrain = map.Get(cx, cy);
+                    if (cityTerrain.Terrain == TerrainKind.DeepWater) cityTerrain.Terrain = TerrainKind.Grass;
+                    cityTerrain.Height = Math.Max(cityTerrain.Height, .45f);
+                    cityTerrain.Fertility = Math.Max(cityTerrain.Fertility, .72f);
+                    map.CitySites.Add(new GridPoint(cx, cy));
+                    map.CitySiteNames.Add(nativeCity.name);
+                    map.CitySiteKingdomKeys.Add(nativeCity.kingdom.getID().ToString());
+                }
+            }
             return map;
         }
 
