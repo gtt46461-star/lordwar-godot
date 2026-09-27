@@ -11,7 +11,6 @@ namespace LordWar.AndroidMod
     public sealed class LordWarMod : BasicMod<LordWarMod>
     {
         private const string WindowId = "lordwar_city_window";
-        private const string SelectPowerId = "lordwar_select_city";
         private ScrollWindow _cityWindow;
         private long _cityId = -1;
         private long _kingdomId = -1;
@@ -24,21 +23,8 @@ namespace LordWar.AndroidMod
                 Sprite cityIcon = SpriteTextureLoader.getSprite("ui/Icons/iconCity");
                 var tab = TabManager.CreateTab("lordwar", "领主战争", "在原版城市中执行领主命令", cityIcon);
 
-                AssetManager.powers.add(new GodPower
-                {
-                    id = SelectPowerId,
-                    name = "领主战争 · 选城",
-                    force_map_mode = MetaType.City,
-                    select_button_action = _ => false,
-                    click_special_action = (tile, _) => SelectCityFromMap(tile),
-                    unselect_when_window = false
-                });
-                var select = PowerButtonCreator.CreateGodPowerButton(SelectPowerId, cityIcon, tab.transform);
-                PowerButtonCreator.AddButtonToTab(select, tab);
-
                 var open = PowerButtonCreator.CreateSimpleButton(
-                    "lordwar_open_city", (Action)OpenSelectedCity,
-                    SpriteTextureLoader.getSprite("ui/Icons/iconKingdom"), tab.transform);
+                    "lordwar_open_city", (Action)OpenSelectedCity, cityIcon, tab.transform);
                 PowerButtonCreator.AddButtonToTab(open, tab);
                 LogInfo("LordWar native city entry registered");
             }
@@ -49,18 +35,10 @@ namespace LordWar.AndroidMod
             }
         }
 
-        private bool SelectCityFromMap(global::WorldTile tile)
-        {
-            global::City city = tile == null ? null : tile.zone_city;
-            if (!BindCity(city)) return false;
-            ShowCityWindow();
-            return true;
-        }
-
         private void OpenSelectedCity()
         {
-            if (BindCity(SelectedMetas.selected_city)) ShowCityWindow();
-            else ShowCityWindow();
+            BindCity(SelectedMetas.selected_city);
+            ShowCityWindow();
         }
 
         private bool BindCity(global::City city)
@@ -199,7 +177,7 @@ namespace LordWar.AndroidMod
 
         private static void AddText(Transform parent, string value, float height)
         {
-            var item = new GameObject("LordWarCityText", typeof(RectTransform));
+            var item = new GameObject("LordWarCityText");
             item.transform.SetParent(parent, false);
             var layout = item.AddComponent<LayoutElement>();
             layout.preferredHeight = height;
@@ -213,7 +191,7 @@ namespace LordWar.AndroidMod
 
         private static void AddAction(Transform parent, string label, Action action)
         {
-            var item = new GameObject("LordWarCityAction", typeof(RectTransform));
+            var item = new GameObject("LordWarCityAction");
             item.transform.SetParent(parent, false);
             var layout = item.AddComponent<LayoutElement>();
             layout.preferredHeight = 42f;
@@ -224,7 +202,7 @@ namespace LordWar.AndroidMod
             var button = item.AddComponent<Button>();
             button.onClick.AddListener(() => action());
 
-            var textObject = new GameObject("Label", typeof(RectTransform));
+            var textObject = new GameObject("Label");
             textObject.transform.SetParent(item.transform, false);
             var text = textObject.AddComponent<Text>();
             text.font = LocalizedTextManager.current_font;
