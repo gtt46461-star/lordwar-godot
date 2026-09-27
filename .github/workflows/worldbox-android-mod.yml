@@ -40,17 +40,17 @@ jobs:
           dotnet build WorldBoxMod/Build/LoaderRecipe/InstallerCli.csproj -c Release
           dotnet build WorldBoxMod/Build/LoaderRecipe/LoaderPathPatch.csproj -c Release
       - name: Package independently installable NML source mod
-        run: python3 WorldBoxMod/Build/package_mod.py --output WorldBoxMod/dist/LordWarMod-0.2.1.zip --manifest WorldBoxMod/dist/LordWarMod-0.2.1.manifest.json
+        run: python3 WorldBoxMod/Build/package_mod.py --output WorldBoxMod/dist/LordWarMod-0.2.2.zip --manifest WorldBoxMod/dist/LordWarMod-0.2.2.manifest.json
       - uses: actions/upload-artifact@v4
         with:
           name: LordWar-NML-compile-check
           path: WorldBoxMod/Build/bin/Release/net8.0/LordWar.Android.NML.CompileCheck.dll
       - uses: actions/upload-artifact@v4
         with:
-          name: LordWar-NML-source-mod-0.2.1
+          name: LordWar-NML-source-mod-0.2.2
           path: |
-            WorldBoxMod/dist/LordWarMod-0.2.1.zip
-            WorldBoxMod/dist/LordWarMod-0.2.1.manifest.json
+            WorldBoxMod/dist/LordWarMod-0.2.2.zip
+            WorldBoxMod/dist/LordWarMod-0.2.2.manifest.json
       - uses: actions/upload-artifact@v4
         with:
           name: WorldBox-Android-reference-signatures
