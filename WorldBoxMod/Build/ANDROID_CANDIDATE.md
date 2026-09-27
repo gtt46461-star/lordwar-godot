@@ -23,10 +23,12 @@ python3 WorldBoxMod/Build/build_candidate_apk.py \
 
 脚本校验原始 APK 身份、Unity 资源和 IL2CPP 游戏锚点、加载器种子、模组实际字节，
 重签内外两层并验证签名和对齐，还比较所有保留的外层条目内容。独立 ZIP
-`LordWarMod-0.2.1.zip` 只含 `LordWarMod/mod.json` 与
+`LordWarMod-0.2.2.zip` 只含 `LordWarMod/mod.json` 与
 `LordWarMod/LordWarMod.cs`。未运行的旧 Core/Data 仅作源码迁移依据。
 
-本次外层 APK 是 `com.mkarpenko.worldbox`，versionName `0.50.6`、versionCode `688`；
+本次内外两层 APK 都是 `com.mkarpenko.worldbox`，versionName `0.50.6`、versionCode `689`；
+构建脚本直接定位二进制清单中的 `android:versionCode`，从原始 `688` 改为 `689`，
+其余清单字节保留，并通过 `aapt dump badging` 逐层核对。
 当前签名证书 SHA-256 为
 `a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13`，
 不同于原外层证书 SHA-256
@@ -34,9 +36,10 @@ python3 WorldBoxMod/Build/build_candidate_apk.py \
 不能保证覆盖用户已有原版安装；**不要卸载、清除数据或覆盖现有存档**。
 
 此次通过的是构建、静态 ZIP、签名、对齐和内容一致性。`adb devices` 为空，
-安装、启动、加载器日志、原版选城按钮、王都命令以及存档重启都是 `NOT_RUN`。
+安装、启动、加载器日志、原版选城按钮、王都、城主和军队长命令以及存档重启都是 `NOT_RUN`。
 此前内层 APK 黑屏视频无法替代本次外层 APK 的实际运行证据。即便它之后能启动，
-目前入口只有读取原生城市和人物以及王都命令；建设、军队、外交和其余玩法尚未迁入，
+目前入口只有读取原生城市和人物、王都、原版城主及军队长任命命令；
+建设、征募、行军、战争、外交和其余玩法尚未迁入，
 所以它不是完整《领主战争》游戏。
 
 在有可访问的 arm64 Android 设备后，先备份用户世界存档与购买状态，再收集
