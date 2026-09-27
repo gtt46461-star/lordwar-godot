@@ -20,7 +20,7 @@
 ## 已完成的检查
 
 - 使用 .NET 8 的 C# 编译器编译纯游戏核心，并实际运行生成世界、推进一天、存档校验和恢复：`CORE_SMOKE_PASS skills=360 units=156 map=160x120 kingdoms=4 cities=4 people=220 day=1`。
-- 当前原生入口在 GitHub Actions [run 36321362788](https://github.com/gtt46461-star/lordwar-godot/actions/runs/36321362788) 编译通过：`dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release`，`0 Warning(s), 0 Error(s)`。参考件来自 AndroidModLoader 的公开程序集和 `NeoModLoader_mobile.dll` 2.0；并非从用户目标 APK 提取的同一版本运行时程序集，不能据此推定目标 APK 已兼容。
+- 当前含地图选城工具的原生入口在 GitHub Actions [run 36322350671](https://github.com/gtt46461-star/lordwar-godot/actions/runs/36322350671) 编译通过：`dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release`，`0 Warning(s), 0 Error(s)`。参考件来自 AndroidModLoader 的公开程序集和 `NeoModLoader_mobile.dll` 2.0；并非从用户目标 APK 提取的同一版本运行时程序集，不能据此推定目标 APK 已兼容。
 - 旧 run `36293519434` 和上一候选 APK 属于已弃用的并行地图实现，仅作历史记录。本次没有生成、安装或启动新的 APK。当前 NML 模组目录可单独打包，必须先在真实目标上验证加载器和首个原生命令。
 - `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流位于仓库分支的 `.github/workflows/`。
 

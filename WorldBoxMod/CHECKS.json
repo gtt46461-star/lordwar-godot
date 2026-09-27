@@ -252,12 +252,13 @@
   "runtime_smoke": "PASS only for dormant standalone R30 CoreSmoke; does not exercise current native mod entry",
   "native_entry_20260927": {
     "github_branch": "construction/worldbox-android-mod",
-    "commit_verified": "fc88cb90fb2ac6c4c6e69cd058a1d3635f18d094",
-    "compile_run": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36321362788",
+    "commit_verified": "0768e96a168d31786d5107e66da6a5399165a3bd",
+    "compile_run": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36322350671",
     "native_selected_city_read": "COMPILED; device NOT_RUN",
     "native_capital_command": "COMPILED; device NOT_RUN",
     "save_load_and_restart": "NOT_RUN",
     "standalone_GameWorld_execution": "removed from current LordWarMod.cs entry; historical Core still included but dormant",
-    "other_requirements": "NOT_IMPLEMENTED"
+    "other_requirements": "NOT_IMPLEMENTED",
+    "native_map_city_power": "COMPILED with IL2CPPHelper.C<PowerActionWithID>; device NOT_RUN"
   }
 }
