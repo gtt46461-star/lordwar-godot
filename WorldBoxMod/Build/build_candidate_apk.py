@@ -6,6 +6,7 @@ Neither the game APK, loader binaries nor the signing key belong in git.
 """
 
 import argparse
+from copy import copy
 import hashlib
 import json
 import os
@@ -87,9 +88,9 @@ def replace_mod(loader_seed, mod_zip, unsigned_inner):
             if info.filename.startswith(MOD_PREFIX) or is_signature(info.filename):
                 continue
             if info.filename == "AndroidManifest.xml":
-                target.writestr(info, patch_version(source.read(info), SOURCE_VERSION_CODE, TARGET_VERSION_CODE))
+                target.writestr(copy(info), patch_version(source.read(info), SOURCE_VERSION_CODE, TARGET_VERSION_CODE))
                 continue
-            with source.open(info) as content, target.open(info, "w", force_zip64=info.file_size > 2**31) as output:
+            with source.open(info) as content, target.open(copy(info), "w", force_zip64=info.file_size > 2**31) as output:
                 shutil.copyfileobj(content, output, 1024 * 1024)
         for info in mod.infolist():
             for root in (MOD_ROOT, DEPLOY_MOD_ROOT):
