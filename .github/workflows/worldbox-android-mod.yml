@@ -31,7 +31,8 @@ jobs:
       - name: Inspect Android reference type signatures
         run: |
           mkdir -p WorldBoxMod/dist
-          dotnet run -c Release --project WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -- WorldBoxMod/_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll > WorldBoxMod/dist/native-api-probe.txt
+          dotnet build WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -c Release
+          dotnet run --no-build -c Release --project WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -- WorldBoxMod/_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll > WorldBoxMod/dist/native-api-probe.txt
       - name: Compile pinned Android loader construction tools
         run: |
           git clone https://github.com/LemonLoader/MelonLoaderInstaller.git WorldBoxMod/_deps/MelonLoaderInstaller
