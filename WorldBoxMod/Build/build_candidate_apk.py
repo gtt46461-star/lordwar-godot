@@ -135,7 +135,8 @@ def main():
     badging(args.original_outer)
     badging(args.loader_seed_inner)
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    mod_zip = args.output_dir / "LordWarMod-0.2.1.zip"
+    mod_version = json.loads((MOD_DIR / "mod.json").read_text(encoding="utf-8"))["version"]
+    mod_zip = args.output_dir / ("LordWarMod-" + mod_version + ".zip")
     mod_manifest = args.output_dir / "mod-manifest.json"
     package(mod_zip, mod_manifest)
 
