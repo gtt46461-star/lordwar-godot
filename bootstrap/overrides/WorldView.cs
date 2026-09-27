@@ -8,7 +8,7 @@ namespace LordWar.GodotRuntime {
     /// <summary>N01 world canvas: saved map tiles and people, drawn with explicit existing sprite IDs.</summary>
     public sealed partial class WorldView : Node2D {
         public const float TileSize = 10f;
-        const int Detail = 4;
+        const int Detail = 8;
         const string Root = "res://Art/LordWarArt/";
         const string HouseAssetId = "小住宅";
         const string VillaAssetId = "别墅";
@@ -55,24 +55,48 @@ namespace LordWar.GodotRuntime {
             }
         }
         static bool Water(TerrainKind t){return t==TerrainKind.DeepWater||t==TerrainKind.Lake||t==TerrainKind.River;}
+        static Image LoadTerrainArt(string assetId) {
+            Texture2D texture=GD.Load<Texture2D>(Root+"地图_地形/"+assetId+".png");
+            if(texture==null)throw new InvalidOperationException("N01 terrain art missing: "+assetId);
+            Image pixels=texture.GetImage();
+            if(pixels==null||pixels.GetWidth()!=28||pixels.GetHeight()!=28)
+                throw new InvalidOperationException("N01 terrain art dimensions invalid: "+assetId);
+            return pixels;
+        }
+        static string TerrainAsset(TerrainKind terrain) {
+            switch(terrain){
+                case TerrainKind.DeepWater:return "iconTileDeepOcean__17c9c48fa3ef13e408331d51f9c7f071__1";
+                case TerrainKind.Lake:
+                case TerrainKind.River:return "iconTileCloseOcean__644572b67e771194493c4a640a9faa1a__1";
+                case TerrainKind.Coast:
+                case TerrainKind.Desert:return "iconTileSand__37c8aad1e967dd946ae7a7b69d3e6d01__1";
+                case TerrainKind.Forest:return "iconTileForest__57e0886d0ce48d34399e37d04c32d888__1";
+                case TerrainKind.Hill:return "iconTileHills__716312abde6b3cb4fba15f03da0c9345__1";
+                case TerrainKind.Mountain:
+                case TerrainKind.MountainPass:return "iconTileMountains__ff1cce5cd6cce9545b921d8f49779b71__1";
+                case TerrainKind.Snow:return "iconTileHighSoil__6e1abd836d40cf84d98d419bb0c29c01__1";
+                case TerrainKind.Marsh:return "iconTileSwamp__46987c74113bca648a7b006c6ca60838__1";
+                default:return "iconTileSoilGreen__adfec68add4eb0c46954bde705c3269b__1";
+            }
+        }
         static Texture2D BuildTerrain(WorldMap map) {
+            var samples=new System.Collections.Generic.Dictionary<string,Image>();
+            foreach(TerrainKind terrain in Enum.GetValues<TerrainKind>()){
+                string asset=TerrainAsset(terrain);
+                if(!samples.ContainsKey(asset))samples[asset]=LoadTerrainArt(asset);
+            }
+            GD.Print("LORDWAR_N01_TERRAIN_ASSETS loaded="+samples.Count);
             var image=Image.Create(map.Width*Detail,map.Height*Detail,false,Image.Format.Rgba8);
             for(int y=0;y<map.Height;y++)for(int x=0;x<map.Width;x++){
                 WorldTile t=map.Get(x,y);if(t==null)continue;
                 Color baseColor=Ground(t.Terrain);
+                Image sample=samples[TerrainAsset(t.Terrain)];
+                int variant=Noise(x,y,map.Seed)%Detail;
                 for(int py=0;py<Detail;py++)for(int px=0;px<Detail;px++){
-                    int n=Noise(x*Detail+px,y*Detail+py,map.Seed);
-                    float shift=((n%13)-6)*.006f;
-                    Color c=baseColor.Lightened(Math.Max(0f,shift)).Darkened(Math.Max(0f,-shift));
-                    if(Water(t.Terrain)){
-                        if(n%19==0)c=c.Lightened(.16f);
-                    }else{
-                        if(t.River&&(px==1||px==2))c=Ground(TerrainKind.River);
-                        else if(t.Road&&(py==1||py==2))c=new Color("a88c61");
-                        else if(t.Terrain==TerrainKind.Snow&&n%13==0)c=new Color("a7bdd0");
-                        else if(t.Terrain==TerrainKind.Forest&&n%9<2)c=c.Darkened(.15f);
-                        else if(t.Terrain==TerrainKind.Hill&&px==py)c=c.Lightened(.10f);
-                    }
+                    Color art=sample.GetPixel(10+(px+variant)%Detail,10+(py+variant)%Detail);
+                    Color c=baseColor.Lerp(art,.55f*art.A);
+                    if(!Water(t.Terrain)&&t.River&&(px==3||px==4))c=c.Lerp(Ground(TerrainKind.River),.75f);
+                    else if(!Water(t.Terrain)&&t.Road&&(py==3||py==4))c=c.Lerp(new Color("a88c61"),.65f);
                     image.SetPixel(x*Detail+px,y*Detail+py,c);
                 }
             }

@@ -84,8 +84,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90117/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1-n01-r6"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90118/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1-n01-r7"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
           sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=1/' project.godot
@@ -345,10 +345,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-N01-Godot-90117-device-validated.apk" \
+            "Builds/Android/LordWar-N01-Godot-90118-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-N01-Godot-90117-device-validated.apk
-          sha256sum Builds/Android/LordWar-N01-Godot-90117-device-validated.apk | tee Builds/Android/LordWar-N01-Godot-90117-device-validated.apk.sha256
+          test -s Builds/Android/LordWar-N01-Godot-90118-device-validated.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90118-device-validated.apk | tee Builds/Android/LordWar-N01-Godot-90118-device-validated.apk.sha256
           ls -lh Builds/Android/
 
       - name: Export signed Android N01 release APK
@@ -358,10 +358,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-N01-Godot-90117.apk" \
+            "Builds/Android/LordWar-N01-Godot-90118.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-N01-Godot-90117.apk
-          sha256sum Builds/Android/LordWar-N01-Godot-90117.apk | tee Builds/Android/LordWar-N01-Godot-90117.apk.sha256
+          test -s Builds/Android/LordWar-N01-Godot-90118.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90118.apk | tee Builds/Android/LordWar-N01-Godot-90118.apk.sha256
 
       - name: Archive exact final source used by release
         shell: bash
@@ -371,29 +371,29 @@ jobs:
           cp -a ../bootstrap ./bootstrap
           cp ../.github/workflows/android-build.yml ./.github/workflows/android-build.yml
           python3 Tools/n01_source_manifest.py | tee Evidence/CI_BUILD_IDENTITY.log
-          rm -f ../_buildsrc/LordWar-N01-Godot-90117-FinalSource.tar.gz
-          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-N01-Godot-90117-FinalSource.tar.gz .
-          test -s ../_buildsrc/LordWar-N01-Godot-90117-FinalSource.tar.gz
-          sha256sum ../_buildsrc/LordWar-N01-Godot-90117-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
+          rm -f ../_buildsrc/LordWar-N01-Godot-90118-FinalSource.tar.gz
+          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-N01-Godot-90118-FinalSource.tar.gz .
+          test -s ../_buildsrc/LordWar-N01-Godot-90118-FinalSource.tar.gz
+          sha256sum ../_buildsrc/LordWar-N01-Godot-90118-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
           mkdir -p ../_buildsrc/clean_source
-          tar -xzf ../_buildsrc/LordWar-N01-Godot-90117-FinalSource.tar.gz -C ../_buildsrc/clean_source
-          (cd ../_buildsrc/clean_source && zip -qr ../LordWar-N01-Godot-90117-SOURCE.zip .)
-          test -s ../_buildsrc/LordWar-N01-Godot-90117-SOURCE.zip
-          sha256sum ../_buildsrc/LordWar-N01-Godot-90117-SOURCE.zip | tee Evidence/CI_SOURCE_ZIP_SHA256.txt
+          tar -xzf ../_buildsrc/LordWar-N01-Godot-90118-FinalSource.tar.gz -C ../_buildsrc/clean_source
+          (cd ../_buildsrc/clean_source && zip -qr ../LordWar-N01-Godot-90118-SOURCE.zip .)
+          test -s ../_buildsrc/LordWar-N01-Godot-90118-SOURCE.zip
+          sha256sum ../_buildsrc/LordWar-N01-Godot-90118-SOURCE.zip | tee Evidence/CI_SOURCE_ZIP_SHA256.txt
 
       - name: Build again from freshly unpacked complete SOURCE
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p _verify_source
-          unzip -q _buildsrc/LordWar-N01-Godot-90117-SOURCE.zip -d _verify_source
+          unzip -q _buildsrc/LordWar-N01-Godot-90118-SOURCE.zip -d _verify_source
           cd _verify_source
           python3 Tools/n01_source_manifest.py | tee ../project/Evidence/CI_FRESH_SOURCE_IDENTITY.log
           LORDWAR_GODOT_BIN="$HOME/bin/godot" \
             LORDWAR_APK_OUTPUT_DIR="Builds/Android/repro-$GITHUB_RUN_ID" \
             bash Tools/build_android_ci.sh 2>&1 | tee ../project/Evidence/CI_FRESH_SOURCE_BUILD.log
-          test -s "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90117.apk"
-          sha256sum "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90117.apk" | tee ../project/Evidence/CI_FRESH_SOURCE_APK_SHA256.txt
+          test -s "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90118.apk"
+          sha256sum "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90118.apk" | tee ../project/Evidence/CI_FRESH_SOURCE_APK_SHA256.txt
           rm -rf Builds
 
       - name: Install Pillow for screenshot validation
@@ -432,8 +432,8 @@ jobs:
           adb shell input keyevent 82 || true
           sleep 2
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90117-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-N01-Godot-90117-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90118-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-N01-Godot-90118-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -c
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
@@ -491,7 +491,7 @@ jobs:
           PY
           adb shell input tap $((W*11/100)) $((H*93/100))
           sleep 2
-          adb shell input tap $((W*15/100)) $((H*97/100))
+          adb shell input tap $((W*15/100)) $((H*95/100))
           adb logcat -d -v brief > Evidence/CI_N01_UI_SAVE_BEFORE_KILL.log
           grep -F 'LORDWAR_UI_SAVE tick=' Evidence/CI_N01_UI_SAVE_BEFORE_KILL.log
           adb shell am force-stop com.lordwar.game
@@ -515,11 +515,11 @@ jobs:
               raise SystemExit('save/kill/reload differs: '+str((saved,restored)))
           print('N01_UI_SAVE_KILL_RESTORE=PASS '+str(saved[-1]))
           PY
-          adb shell input tap $((W*85/100)) $((H*97/100))
+          adb shell input tap $((W*85/100)) $((H*95/100))
           sleep 1
           adb exec-out screencap -p > Evidence/CI_N01_UI_ABOUT.png
           adb logcat -d -v brief > Evidence/CI_N01_UI_ABOUT.log
-          grep -F 'LORDWAR_UI_ABOUT buildId=N01-GODOT-20260927-6' Evidence/CI_N01_UI_ABOUT.log
+          grep -F 'LORDWAR_UI_ABOUT buildId=N01-GODOT-20260927-7' Evidence/CI_N01_UI_ABOUT.log
           adb shell input swipe $((W*75/100)) $((H*35/100)) $((W*25/100)) $((H*35/100)) 350 || true
           adb shell input tap $((W*50/100)) $((H*50/100)) || true
           sleep 20
@@ -543,12 +543,14 @@ jobs:
           adb shell dumpsys dropbox --print data_app_crash > Evidence/CI_ANDROID_DROPBOX_APP_CRASH.txt 2>&1 || true
           MENU_OK=$(grep -c "LORDWAR_MAIN_MENU_VISIBLE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           GAME_READY=$(grep -c "LORDWAR_GAME_READY" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
+          TERRAIN_READY=$(grep -c "LORDWAR_N01_TERRAIN_ASSETS loaded=9" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           EFFECTIVE_PRESENT_ERRORS=$PRESENT_ERRORS
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "terrain_art_ready=$TERRAIN_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "present_errors=$PRESENT_ERRORS effective_present_errors=$EFFECTIVE_PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
@@ -589,7 +591,7 @@ jobs:
             echo "visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             exit 1
           fi
-          if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$EFFECTIVE_PRESENT_ERRORS" -gt 0 ]; then
+          if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$TERRAIN_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$EFFECTIVE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
             exit 1
           fi
@@ -604,7 +606,7 @@ jobs:
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90117.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90118.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 0 || true
           adb shell wm size 360x640 || true
@@ -714,15 +716,15 @@ jobs:
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             if [ -f build_identity.json ]; then cat build_identity.json; fi
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-N01-Godot-90117-device-validated.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90118-device-validated.apk ]; then
               echo "debug_apk_present=yes"
-              sha256sum Builds/Android/LordWar-N01-Godot-90117-device-validated.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90118-device-validated.apk
             else
               echo "debug_apk_present=no"
             fi
-            if [ -f Builds/Android/LordWar-N01-Godot-90117.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90118.apk ]; then
               echo "release_apk_present=yes"
-              sha256sum Builds/Android/LordWar-N01-Godot-90117.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90118.apk
             else
               echo "release_apk_present=no"
             fi
@@ -749,6 +751,6 @@ jobs:
             bootstrap/overrides/*.cs
             project/Scripts/LordWar/World/WorldGenerator.cs
             _buildsrc/lordwar-r32.tar.gz
-            _buildsrc/LordWar-N01-Godot-90117-FinalSource.tar.gz
-            _buildsrc/LordWar-N01-Godot-90117-SOURCE.zip
+            _buildsrc/LordWar-N01-Godot-90118-FinalSource.tar.gz
+            _buildsrc/LordWar-N01-Godot-90118-SOURCE.zip
             project/build_identity.json

@@ -39,7 +39,7 @@ namespace LordWar.GodotRuntime {
 
         void BuildUi() {
             var root = new PanelContainer {
-                AnchorLeft = .01f, AnchorTop = .79f, AnchorRight = .99f, AnchorBottom = .995f,
+                AnchorLeft = .01f, AnchorTop = .78f, AnchorRight = .99f, AnchorBottom = .995f,
                 OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
             };
             _rootPanel = root;
@@ -90,7 +90,7 @@ namespace LordWar.GodotRuntime {
 
         void SetExpanded(bool expanded) {
             _expanded = expanded;
-            if (_rootPanel != null) _rootPanel.AnchorTop = expanded ? .28f : .79f;
+            if (_rootPanel != null) _rootPanel.AnchorTop = expanded ? .28f : .78f;
             if (_tabs1 != null) _tabs1.Visible = expanded;
             if (_tabs2 != null) _tabs2.Visible = expanded;
             if (_actionBox != null) _actionBox.Visible = expanded;
@@ -165,7 +165,7 @@ namespace LordWar.GodotRuntime {
         void TogglePause(){GameWorld w=W();if(w!=null)ClockAction(w.Paused?WorldCommandKind.Resume:WorldCommandKind.Pause);}
         void SetSpeed(float speed){ClockAction(WorldCommandKind.SetSpeed,speed);}
         void AdvanceDay(){ClockAction(WorldCommandKind.AdvanceDay);}
-        void SaveGame(){GameWorld w=W();if(w==null)return;string m;bool ok=GodotSaveService.Save(w,out m);SetStatus(m);if(ok){Person walker=null;foreach(Person p in w.People.Values)if(p.IsWorldWalker){walker=p;break;}GD.Print("LORDWAR_UI_SAVE tick="+w.Clock.TickIndex+" walker="+(walker==null?"none":walker.Id+":"+walker.X+","+walker.Y+":"+walker.WalkRouteIndex+":"+walker.WalkProgress.ToString("R",System.Globalization.CultureInfo.InvariantCulture))+" people="+w.People.Count);}}
+        void SaveGame(){GameWorld w=W();if(w==null)return;string m;bool ok=GodotSaveService.Save(w,out m);SetStatus(m);if(ok){Person walker=null;foreach(Person p in w.People.Values)if(p.IsWorldWalker){walker=p;break;}GD.Print("LORDWAR_UI_SAVE tick="+w.Clock.TickIndex+" walker="+(walker==null?"none":walker.Id+":"+walker.X+","+walker.Y+":"+walker.WalkRouteIndex+":"+walker.WalkProgress.ToString("R",System.Globalization.CultureInfo.InvariantCulture))+" people="+w.People.Count);}else GD.PushError("LORDWAR_UI_SAVE_FAIL "+m);}
         void LoadGame(){GameWorld w=W();if(w==null)return;string m;bool ok=GodotSaveService.Load(w,out m);if(ok)_app.RebindViews();SetStatus(m);Refresh();}
         void ReturnMenu(){if(_app!=null)_app.ReturnToMainMenu();}
         void FocusCapital(){City c=PlayerCapital();if(c!=null&&_app.Camera!=null)_app.Camera.FocusWorldPoint(c.X,c.Y);}
