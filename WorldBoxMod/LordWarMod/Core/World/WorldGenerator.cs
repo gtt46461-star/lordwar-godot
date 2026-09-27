@@ -5,6 +5,15 @@ namespace LordWar.World {
         readonly int _seed; readonly DeterministicRandom _rng;
         public WorldGenerator(int seed){_seed=seed;_rng=new DeterministicRandom(seed);}
         public WorldMap Generate(int w,int h,int cityCount){var m=new WorldMap(w,h,_seed);GenerateFields(m);CarveMountainChains(m);SeedLakes(m);TraceRivers(m,Mathx.Clamp(cityCount+1,2,6));Classify(m);MarkNaturalFords(m);AssignResourceZones(m);PlaceCities(m,cityCount,Math.Max(12,Math.Min(w,h)/5));BuildRoadNetwork(m);return m;}
+        // The caller supplies a plain managed snapshot. Do not pass Unity/IL2CPP objects to the simulation thread.
+        public void PrepareImportedMap(WorldMap map,int cityCount){
+            if(map==null||map.Width<16||map.Height<16||map.Tiles==null||map.Tiles.Length!=map.Width*map.Height)throw new ArgumentException("地图数据无效");
+            map.CitySites.Clear();
+            AssignResourceZones(map);
+            PlaceCities(map,cityCount,Math.Max(8,Math.Min(map.Width,map.Height)/5));
+            if(map.CitySites.Count==0)throw new InvalidOperationException("地图上没有可建设城市的陆地");
+            BuildRoadNetwork(map);
+        }
         float HashNoise(int x,int y,int salt){unchecked{uint n=(uint)(x*374761393+y*668265263+_seed*69069+salt*362437);n=(n^(n>>13))*1274126177u;n^=n>>16;return (n&0xffff)/65535f;}}
         float SmoothNoise(float x,float y,int salt){int x0=(int)Math.Floor(x),y0=(int)Math.Floor(y);float tx=x-x0,ty=y-y0;float a=HashNoise(x0,y0,salt),b=HashNoise(x0+1,y0,salt),c=HashNoise(x0,y0+1,salt),d=HashNoise(x0+1,y0+1,salt);float ab=a+(b-a)*tx,cd=c+(d-c)*tx;return ab+(cd-ab)*ty;}
         float Fbm(int x,int y,int salt){float sum=0,amp=.55f,scale=48f,norm=0;for(int o=0;o<5;o++){sum+=SmoothNoise(x/scale,y/scale,salt+o*31)*amp;norm+=amp;amp*=.5f;scale*=.5f;}return sum/norm;}
