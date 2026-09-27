@@ -16,9 +16,12 @@ import zipfile
 from pathlib import Path
 
 from package_mod import MOD_DIR, package
+from axml_version import patch_version
 
 
 EXPECTED_OUTER = "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
+SOURCE_VERSION_CODE = 688
+TARGET_VERSION_CODE = 689
 MOD_PREFIX = "assets/MelonLoader/NMLMods/LordWarMod/"
 NML_DLL = "assets/MelonLoader/Mods/NeoModLoader_mobile.dll"
 GAME_ANCHORS = (
@@ -55,9 +58,9 @@ def run(*argv, env=None):
     subprocess.run(argv, check=True, env=env, stdout=subprocess.DEVNULL)
 
 
-def badging(path):
+def badging(path, version_code=SOURCE_VERSION_CODE):
     line = subprocess.check_output(["aapt", "dump", "badging", str(path)], text=True).splitlines()[0]
-    required = ("name='com.mkarpenko.worldbox'", "versionCode='688'", "versionName='0.50.6'")
+    required = ("name='com.mkarpenko.worldbox'", f"versionCode='{version_code}'", "versionName='0.50.6'")
     if not all(field in line for field in required):
         raise ValueError("Unexpected app identity: " + line)
     return line
@@ -78,6 +81,9 @@ def replace_mod(loader_seed, mod_zip, unsigned_inner):
     with zipfile.ZipFile(loader_seed) as source, zipfile.ZipFile(mod_zip) as mod, zipfile.ZipFile(unsigned_inner, "w", allowZip64=True) as target:
         for info in source.infolist():
             if info.filename.startswith(MOD_PREFIX) or is_signature(info.filename):
+                continue
+            if info.filename == "AndroidManifest.xml":
+                target.writestr(info, patch_version(source.read(info), SOURCE_VERSION_CODE, TARGET_VERSION_CODE))
                 continue
             with source.open(info) as content, target.open(info, "w", force_zip64=info.file_size > 2**31) as output:
                 shutil.copyfileobj(content, output, 1024 * 1024)
@@ -110,7 +116,12 @@ def verify_outer(original_path, candidate_path, inner_path):
         for name in old:
             if name == "assets/hook.apk":
                 continue
-            if original.getinfo(name).file_size != candidate.getinfo(name).file_size or sha_entry(original, name) != sha_entry(candidate, name):
+            expected = (patch_version(original.read(name), SOURCE_VERSION_CODE, TARGET_VERSION_CODE)
+                        if name == "AndroidManifest.xml" else None)
+            if (expected is not None and candidate.read(name) != expected) or (
+                expected is None and (original.getinfo(name).file_size != candidate.getinfo(name).file_size
+                or sha_entry(original, name) != sha_entry(candidate, name))
+            ):
                 raise ValueError("Outer host file changed: " + name)
         with candidate.open("assets/hook.apk") as stream, open(inner_path, "rb") as expected:
             while True:
@@ -157,18 +168,18 @@ def main():
         run("apksigner", "verify", "--verbose", str(signed_inner))
         run("zipalign", "-c", "-p", "4", str(signed_inner))
         verify_mod(signed_inner, mod_zip)
-        badging(signed_inner)
+        badging(signed_inner, TARGET_VERSION_CODE)
 
         unsigned_outer = temp / "outer-unsigned.apk"
         aligned_outer = temp / "outer-aligned.apk"
         signed_outer = args.output_dir / "LordWar-WorldBox-0.50.6-host-mod-candidate.apk"
-        run("python3", str(Path(__file__).with_name("repack_outer_hook.py")), str(args.original_outer), str(signed_inner), str(unsigned_outer))
+        run("python3", str(Path(__file__).with_name("repack_outer_hook.py")), str(args.original_outer), str(signed_inner), str(unsigned_outer), str(TARGET_VERSION_CODE))
         run("zipalign", "-f", "-p", "4", str(unsigned_outer), str(aligned_outer))
         run("apksigner", "sign", "--ks", str(args.keystore), "--ks-key-alias", "lordwar", "--ks-pass", "env:LORDWAR_KEYSTORE_PASS", "--key-pass", "env:LORDWAR_KEYSTORE_PASS", "--out", str(signed_outer), str(aligned_outer))
         run("apksigner", "verify", "--verbose", str(signed_outer))
         run("zipalign", "-c", "-p", "4", str(signed_outer))
         verify_outer(args.original_outer, signed_outer, signed_inner)
-        badging(signed_outer)
+        badging(signed_outer, TARGET_VERSION_CODE)
 
     report = {
         "status": "SIGNED_STATIC_CANDIDATE; install, launch and gameplay NOT_RUN",
@@ -179,7 +190,7 @@ def main():
         "inner_apk_sha256": sha_file(signed_inner),
         "outer_apk_sha256": sha_file(signed_outer),
         "package": "com.mkarpenko.worldbox",
-        "versionCode": 688,
+        "versionCode": TARGET_VERSION_CODE,
         "versionName": "0.50.6",
         "signer": "lordwar candidate test certificate; does not match original",
         "device": "NOT_RUN: no adb connected Android arm64 device or applicable emulator",
