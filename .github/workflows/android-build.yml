@@ -1,4 +1,4 @@
-name: LordWar 1.0.0 Playable Release Gate
+name: LordWar N01 Godot APK Gate
 
 on:
   workflow_dispatch:
@@ -37,25 +37,40 @@ jobs:
           tar -xzf _buildsrc/lordwar-r32.tar.gz -C project
           echo "Reconstructed source files: $(find project -type f | wc -l)"
 
-      - name: Apply Android startup crash fix overlay
+      - name: Apply N01 cumulative code overlay
         shell: bash
         run: |
           set -euo pipefail
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
           cp bootstrap/overrides/LordWarHud.cs project/Scripts/Godot/LordWarHud.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
+          cp bootstrap/overrides/WorldView.cs project/Scripts/Godot/WorldView.cs
+          cp bootstrap/overrides/WorldCameraController.cs project/Scripts/Godot/WorldCameraController.cs
+          cp bootstrap/overrides/GodotSpriteAssetLibrary.cs project/Scripts/Godot/GodotSpriteAssetLibrary.cs
+          cp bootstrap/overrides/GodotSaveService.cs project/Scripts/Godot/GodotSaveService.cs
+          cp bootstrap/overrides/GameWorld.cs project/Scripts/LordWar/Simulation/GameWorld.cs
+          cp bootstrap/overrides/LordWarModels.cs project/Scripts/LordWar/Core/LordWarModels.cs
+          cp bootstrap/overrides/WorldMap.cs project/Scripts/LordWar/World/WorldMap.cs
+          cp bootstrap/overrides/SaveOwner.cs project/Scripts/LordWar/Save/SaveOwner.cs
+          cp bootstrap/overrides/GameSaveService.cs project/Scripts/LordWar/Save/GameSaveService.cs
+          cp bootstrap/overrides/TickScheduler.cs project/Scripts/LordWar/Performance/TickScheduler.cs
+          cp bootstrap/overrides/SimulationClock.cs project/Scripts/LordWar/Core/SimulationClock.cs
+          cp bootstrap/overrides/WorldCommand.cs project/Scripts/LordWar/Core/WorldCommand.cs
+          cp bootstrap/overrides/BuildInfo.cs project/Scripts/LordWar/Core/BuildInfo.cs
           grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
 
-      - name: Set Android 1.0.0 version and universal architectures
+      - name: Set Android N01 version and portrait display
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90111/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.0"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90112/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1-n01"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
-          sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=0/' project.godot
+          sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=1/' project.godot
+          sed -i 's/size\/viewport_width=[0-9]*/size\/viewport_width=540/' project.godot
+          sed -i 's/size\/viewport_height=[0-9]*/size\/viewport_height=960/' project.godot
           if grep -q '^stretch/aspect=' project.godot; then
             sed -i 's/stretch\/aspect="[^"]*"/stretch\/aspect="expand"/' project.godot
           else
@@ -188,19 +203,15 @@ jobs:
           path: ~/.android/lordwar-ci-debug.keystore
           key: lordwar-debug-signing-v1
 
-      - name: Create persistent debug signing key if missing
-        if: steps.signing_cache.outputs.cache-hit != 'true'
+      - name: Enforce old APK signing certificate
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.android"
-          keytool -genkeypair -v \
-            -keystore "$HOME/.android/lordwar-ci-debug.keystore" \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -dname "CN=LordWar CI,O=LordWar,C=CN" \
-            -keyalg RSA -keysize 2048 -validity 10000
+          test "${{ steps.signing_cache.outputs.cache-hit }}" = "true"
+          test -s "$HOME/.android/lordwar-ci-debug.keystore"
+          FINGERPRINT=$(keytool -list -v -keystore "$HOME/.android/lordwar-ci-debug.keystore" -storepass android -alias androiddebugkey | sed -n 's/.*SHA256: //p' | head -1 | tr -d ': ' | tr 'A-F' 'a-f')
+          echo "signer_sha256=$FINGERPRINT"
+          test "$FINGERPRINT" = "27160da6bd6d73c435b7fa79effef56bcb9ac3816a58b4b48cfa7af5f9556409"
 
       - name: Configure persistent debug signing
         shell: bash
@@ -267,12 +278,13 @@ jobs:
             echo "Unexpected smoke-test process exit: $SMOKE_RC"
             exit "$SMOKE_RC"
           fi
-          if grep -F "LORDWAR_STARTUP_FATAL" Evidence/CI_RUNTIME_SMOKE.log; then
+          if grep -E "LORDWAR_STARTUP_FATAL|LORDWAR_N01_SMOKE_FAIL" Evidence/CI_RUNTIME_SMOKE.log; then
             echo "Startup fatal marker detected"
             exit 1
           fi
           grep -F "LORDWAR_MENU_READY" Evidence/CI_RUNTIME_SMOKE.log
           grep -F "LORDWAR_GAME_READY" Evidence/CI_RUNTIME_SMOKE.log
+          grep -F "LORDWAR_N01_SMOKE_PASS" Evidence/CI_RUNTIME_SMOKE.log
 
       - name: Switch Android export to Compatibility OpenGL ES 3
         shell: bash
@@ -313,11 +325,33 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-1.0.0-device-validated.apk" \
+            "Builds/Android/LordWar-N01-Godot-90112-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0-device-validated.apk
-          sha256sum Builds/Android/LordWar-1.0.0-device-validated.apk | tee Builds/Android/LordWar-1.0.0-device-validated.apk.sha256
+          test -s Builds/Android/LordWar-N01-Godot-90112-device-validated.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90112-device-validated.apk | tee Builds/Android/LordWar-N01-Godot-90112-device-validated.apk.sha256
           ls -lh Builds/Android/
+
+      - name: Export signed Android N01 release APK
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          "$HOME/bin/godot" --headless --path . \
+            --export-release "Android Debug" \
+            "Builds/Android/LordWar-N01-Godot-90112.apk" \
+            --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
+          test -s Builds/Android/LordWar-N01-Godot-90112.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90112.apk | tee Builds/Android/LordWar-N01-Godot-90112.apk.sha256
+
+      - name: Archive exact final source used by release
+        shell: bash
+        working-directory: project
+        run: |
+          set -euo pipefail
+          rm -f ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz
+          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz .
+          test -s ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz
+          sha256sum ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
 
       - name: Install Pillow for screenshot validation
         shell: bash
@@ -348,15 +382,15 @@ jobs:
             echo "ro.opengles.version=$(adb shell getprop ro.opengles.version | tr -d '\r')"
           } | tee Evidence/CI_ANDROID_GPU_PROPERTIES.txt
           adb shell settings put system accelerometer_rotation 0 || true
-          adb shell settings put system user_rotation 1 || true
-          adb shell wm size 640x360 || true
+          adb shell settings put system user_rotation 0 || true
+          adb shell wm size 360x640 || true
           adb shell wm density 160 || true
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb shell input keyevent 82 || true
           sleep 2
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-1.0.0-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-1.0.0-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90112-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-N01-Godot-90112-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -c
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
@@ -382,8 +416,8 @@ jobs:
           PY
           )
           echo "screenshot=${W}x${H}" | tee Evidence/CI_ANDROID_SCREEN_SIZE.txt
-          test "$W" -gt "$H"
-          adb shell input swipe $((W*75/100)) $((H*60/100)) $((W*25/100)) $((H*60/100)) 350 || true
+          test "$W" -lt "$H"
+          adb shell input swipe $((W*75/100)) $((H*35/100)) $((W*25/100)) $((H*35/100)) 350 || true
           adb shell input tap $((W*50/100)) $((H*50/100)) || true
           sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
@@ -457,29 +491,17 @@ jobs:
           echo "ANDROID_DEVICE_RUNTIME=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "ANDROID_DEVICE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
 
-      - name: Export signed Android 1.0.0 release APK
-        shell: bash
-        working-directory: project
-        run: |
-          set -euo pipefail
-          "$HOME/bin/godot" --headless --path . \
-            --export-release "Android Debug" \
-            "Builds/Android/LordWar-1.0.0.apk" \
-            --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-1.0.0.apk
-          sha256sum Builds/Android/LordWar-1.0.0.apk | tee Builds/Android/LordWar-1.0.0.apk.sha256
-
-      - name: Android emulator 1.0.0 release smoke test
+      - name: Android emulator N01 release smoke test
         shell: bash
         working-directory: project
         run: |
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-1.0.0.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90112.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
-          adb shell settings put system user_rotation 1 || true
-          adb shell wm size 640x360 || true
+          adb shell settings put system user_rotation 0 || true
+          adb shell wm size 360x640 || true
           adb shell wm density 160 || true
           adb shell settings put secure immersive_mode_confirmations confirmed || true
           adb logcat -c
@@ -505,9 +527,9 @@ jobs:
           PY
           )
           echo "screenshot=${W}x${H}" | tee Evidence/CI_ANDROID_RELEASE_SCREEN_SIZE.txt
-          test "$W" -gt "$H"
+          test "$W" -lt "$H"
           for i in $(seq 1 4); do
-            adb shell input swipe $((W*75/100)) $((H*60/100)) $((W*25/100)) $((H*60/100)) 300 || true
+            adb shell input swipe $((W*75/100)) $((H*35/100)) $((W*25/100)) $((H*35/100)) 300 || true
             adb shell input tap $((W*50/100)) $((H*50/100)) || true
             sleep 8
           done
@@ -563,16 +585,6 @@ jobs:
           echo "ANDROID_RELEASE_RUNTIME=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
-      - name: Archive exact final source used by release
-        shell: bash
-        working-directory: project
-        run: |
-          set -euo pipefail
-          rm -f ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz
-          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz .
-          test -s ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz
-          sha256sum ../_buildsrc/LordWar-1.0.0-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
-
       - name: Build evidence summary
         if: always()
         shell: bash
@@ -584,26 +596,26 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-1.0.0-device-validated.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90112-device-validated.apk ]; then
               echo "debug_apk_present=yes"
-              sha256sum Builds/Android/LordWar-1.0.0-device-validated.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90112-device-validated.apk
             else
               echo "debug_apk_present=no"
             fi
-            if [ -f Builds/Android/LordWar-1.0.0.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90112.apk ]; then
               echo "release_apk_present=yes"
-              sha256sum Builds/Android/LordWar-1.0.0.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90112.apk
             else
               echo "release_apk_present=no"
             fi
           } > Evidence/CI_BUILD_SUMMARY.txt
           cat Evidence/CI_BUILD_SUMMARY.txt
 
-      - name: Upload APK, source and evidence
+      - name: Upload N01 APK, source and evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lordwar-r32-android-build
+          name: lordwar-n01-godot-android-build
           if-no-files-found: warn
           retention-days: 30
           path: |
@@ -616,9 +628,7 @@ jobs:
             project/Scripts/Godot/LordWarApp.cs
             project/LordWar.sln
             project/project.godot
-            bootstrap/overrides/LordWarApp.cs
-            bootstrap/overrides/WorldGenerator.cs
+            bootstrap/overrides/*.cs
             project/Scripts/LordWar/World/WorldGenerator.cs
             _buildsrc/lordwar-r32.tar.gz
-            _buildsrc/LordWar-1.0.0-FinalSource.tar.gz
-            bootstrap/overrides/BuildInfo.cs
+            _buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz

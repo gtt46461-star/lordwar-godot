@@ -6,6 +6,7 @@ using Godot;
 using LordWar.AI;
 using LordWar.Data;
 using LordWar.Simulation;
+using LordWar.Save;
 
 namespace LordWar.GodotRuntime {
     /// <summary>
@@ -23,6 +24,7 @@ namespace LordWar.GodotRuntime {
         CanvasLayer _menuLayer;
         CanvasLayer _loadingLayer;
         Label _loadingLabel;
+        Label _menuStatus;
         Task<GameWorld> _worldTask;
         int _pendingWidth;
         int _pendingHeight;
@@ -30,6 +32,7 @@ namespace LordWar.GodotRuntime {
         AiDifficulty _pendingDifficulty;
         readonly Stopwatch _worldWatch = new Stopwatch();
         bool _ciAutoStart;
+        bool _smokeRequested;
         int _menuFrames;
         double _runtimeProbeSeconds;
         bool _ciCapturePending;
@@ -39,6 +42,7 @@ namespace LordWar.GodotRuntime {
             Engine.MaxFps = 60;
             bool forcedSmoke = string.Equals(System.Environment.GetEnvironmentVariable("LORDWAR_SMOKE_TEST"), "1", StringComparison.Ordinal);
             _ciAutoStart = forcedSmoke || (OS.GetName() == "Android" && RuntimeInformation.ProcessArchitecture == Architecture.X64);
+            _smokeRequested = _ciAutoStart;
             BuildMainMenu();
             GD.Print("LORDWAR_MENU_READY arch=" + RuntimeInformation.ProcessArchitecture + " android=" + (OS.GetName() == "Android"));
         }
@@ -101,6 +105,10 @@ namespace LordWar.GodotRuntime {
                 AnchorLeft = 0.08f, AnchorTop = 0.06f, AnchorRight = 0.92f, AnchorBottom = 0.94f,
                 OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
             };
+            var menuFrame = new StyleBoxTexture { Texture = GD.Load<Texture2D>("res://Art/LordWarArt/UI_界面/windowBig__resources.assets__852.png") };
+            menuFrame.TextureMarginLeft = 12; menuFrame.TextureMarginRight = 12;
+            menuFrame.TextureMarginTop = 12; menuFrame.TextureMarginBottom = 12;
+            panel.AddThemeStyleboxOverride("panel", menuFrame);
             _menuLayer.AddChild(panel);
 
             var scroll = new ScrollContainer {
@@ -147,6 +155,10 @@ namespace LordWar.GodotRuntime {
             AddMenuButton(box, "快速开局｜80×60｜三国", () => BeginWorldGeneration(0, 80, 60, 3, AiDifficulty.Hard, "快速开局"));
             AddMenuButton(box, "标准战役｜112×84｜四国", () => BeginWorldGeneration(0, 112, 84, 4, AiDifficulty.Hard, "标准战役"));
             AddMenuButton(box, "大型世界｜160×120｜四国", () => BeginWorldGeneration(0, 160, 120, 4, AiDifficulty.Hard, "大型世界"));
+            AddMenuButton(box, "继续已有世界", LoadSavedWorld);
+            _menuStatus = new Label { Text = "N01 · " + BuildInfo.BuildId, HorizontalAlignment = HorizontalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+            _menuStatus.AddThemeFontSizeOverride("font_size", 16);
+            box.AddChild(_menuStatus);
 
             var note = new Label {
                 Text = "软克制体系：兵种、将军、官员、地形、士气、体力与补给共同决定战果；单个神将或单一兵种不能直接碾压。",
@@ -167,6 +179,9 @@ namespace LordWar.GodotRuntime {
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
             };
             button.AddThemeFontSizeOverride("font_size", 24);
+            var frame = new StyleBoxTexture { Texture = GD.Load<Texture2D>("res://Art/LordWarArt/UI_界面/buttonLong__e2122512b478b784b9d820a3167ca52e__1.png") };
+            frame.TextureMarginLeft = 8; frame.TextureMarginRight = 8; frame.TextureMarginTop = 6; frame.TextureMarginBottom = 6;
+            button.AddThemeStyleboxOverride("normal", frame);
             button.Pressed += action;
             parent.AddChild(button);
         }
@@ -243,16 +258,8 @@ namespace LordWar.GodotRuntime {
                 if (task.IsCanceled) throw new InvalidOperationException("世界生成任务被取消");
                 if (task.IsFaulted) throw task.Exception?.GetBaseException() ?? new InvalidOperationException("世界生成失败");
 
-                World = task.Result;
-                GD.Print("LORDWAR_WORLD_OK cities=" + World.Cities.Count + " people=" + World.People.Count);
-
-                Art = new GodotSpriteAssetLibrary();
-                View = new WorldView { Name = "世界渲染" }; AddChild(View);
-                Camera = new WorldCameraController { Name = "世界相机" }; AddChild(Camera);
-                Hud = new LordWarHud { Name = "中文HUD" }; AddChild(Hud);
-                RebindViews();
-                Hud.Bind(this);
-                FreeLayer(ref _loadingLayer);
+                InstallWorld(task.Result);
+                if (_smokeRequested) VerifyN01Smoke();
 
                 _worldWatch.Stop();
                 GD.Print("LORDWAR_GAME_READY map=" + World.Map.Width + "x" + World.Map.Height + " kingdoms=" + World.Kingdoms.Count + " ms=" + _worldWatch.ElapsedMilliseconds);
@@ -263,6 +270,70 @@ namespace LordWar.GodotRuntime {
             } catch (Exception ex) {
                 ShowStartupFailure(ex);
             }
+        }
+
+        void VerifyN01Smoke() {
+            try {
+                Person walker = null;
+                foreach (Person p in World.People.Values) if (p.IsWorldWalker) { walker = p; break; }
+                if (walker == null || walker.WalkRoute.Count < 2) throw new InvalidOperationException("缺少真实人口行走路线");
+                World.Tick(.2f);
+                long tick = World.Clock.TickIndex;
+                if (tick == 0) throw new InvalidOperationException("时钟未推进");
+                string reason;
+                var pause = new WorldCommand("n01-pause-check", WorldCommandKind.Pause);
+                if (!World.ExecuteClockCommand(pause,out reason) || World.ExecuteClockCommand(pause,out reason) || !World.Paused)
+                    throw new InvalidOperationException("暂停命令去重失败");
+                World.Tick(.2f);
+                if (World.Clock.TickIndex != tick) throw new InvalidOperationException("暂停期间时钟推进");
+                string msg;
+                if (!GodotSaveService.Save(World,out msg)) throw new InvalidOperationException(msg);
+                GameSave save;
+                if (!GodotSaveService.TryRead(out save,out msg)) throw new InvalidOperationException(msg);
+                var restored = new GameWorld(save.Seed,_data);
+                GameSaveService.Restore(restored,save);
+                Person restoredWalker;
+                if (!restored.People.TryGetValue(walker.Id,out restoredWalker) || !restoredWalker.IsWorldWalker ||
+                    restoredWalker.WalkRoute.Count != walker.WalkRoute.Count || restored.Events.Count != World.Events.Count ||
+                    restored.Clock.TickIndex != tick || !restored.Paused)
+                    throw new InvalidOperationException("存档恢复丢失世界状态");
+                if (restored.ExecuteClockCommand(pause,out reason)) throw new InvalidOperationException("重载后重复命令被执行");
+                if (!World.ExecuteClockCommand(new WorldCommand("n01-resume-check",WorldCommandKind.Resume),out reason))
+                    throw new InvalidOperationException("恢复运行失败："+reason);
+                GD.Print("LORDWAR_N01_SMOKE_PASS save=roundtrip clock="+tick+" person="+walker.Id);
+            } catch (Exception ex) {
+                GD.PushError("LORDWAR_N01_SMOKE_FAIL " + ex);
+                throw;
+            }
+        }
+
+        void LoadSavedWorld() {
+            GameSave save; string message;
+            if (!GodotSaveService.TryRead(out save, out message)) { if (_menuStatus != null) _menuStatus.Text = message; return; }
+            try {
+                if (_data == null) { _data = new GameDataCatalog(); _data.LoadAll(new GodotDataProvider()); }
+                var restored = new GameWorld(save.Seed, _data);
+                GameSaveService.Restore(restored, save);
+                InstallWorld(restored);
+                GD.Print("LORDWAR_SAVE_RESTORED day=" + World.Day + " tick=" + World.Clock.TickIndex);
+            } catch (Exception ex) {
+                if (_menuStatus != null) _menuStatus.Text = "读档失败：" + ex.Message;
+                GD.PushError("LORDWAR_SAVE_RESTORE_FAIL " + ex);
+            }
+        }
+
+        void InstallWorld(GameWorld world) {
+            DestroyGameplayNodes();
+            World = world;
+            GD.Print("LORDWAR_WORLD_OK cities=" + World.Cities.Count + " people=" + World.People.Count);
+            Art = new GodotSpriteAssetLibrary();
+            View = new WorldView { Name = "世界渲染" }; AddChild(View);
+            Camera = new WorldCameraController { Name = "世界相机" }; AddChild(Camera);
+            Hud = new LordWarHud { Name = "中文HUD" }; AddChild(Hud);
+            RebindViews();
+            Hud.Bind(this);
+            FreeLayer(ref _loadingLayer);
+            FreeLayer(ref _menuLayer);
         }
 
         void ShowStartupFailure(Exception ex) {

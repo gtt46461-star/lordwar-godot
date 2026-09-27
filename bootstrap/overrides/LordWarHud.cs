@@ -36,9 +36,12 @@ namespace LordWar.GodotRuntime {
 
         void BuildUi() {
             var root = new PanelContainer {
-                AnchorLeft = .01f, AnchorTop = .015f, AnchorRight = .56f, AnchorBottom = .985f,
+                AnchorLeft = .01f, AnchorTop = .57f, AnchorRight = .99f, AnchorBottom = .995f,
                 OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
             };
+            var frame = new StyleBoxTexture { Texture = GD.Load<Texture2D>("res://Art/LordWarArt/UI_界面/windowBig__resources.assets__852.png") };
+            frame.TextureMarginLeft = 12; frame.TextureMarginRight = 12; frame.TextureMarginTop = 12; frame.TextureMarginBottom = 12;
+            root.AddThemeStyleboxOverride("panel", frame);
             AddChild(root);
 
             var margin = new MarginContainer();
@@ -50,8 +53,8 @@ namespace LordWar.GodotRuntime {
             main.AddThemeConstantOverride("separation", 8);
             margin.AddChild(main);
 
-            var title = new Label { Text = "领主战争 1.0｜战略指挥台", HorizontalAlignment = HorizontalAlignment.Center };
-            title.AddThemeFontSizeOverride("font_size", 24); main.AddChild(title);
+            var title = new Label { Text = "领主战争 · " + BuildInfo.BuildId, HorizontalAlignment = HorizontalAlignment.Center };
+            title.AddThemeFontSizeOverride("font_size", 18); main.AddChild(title);
 
             _summary = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
             _summary.AddThemeFontSizeOverride("font_size", 16); main.AddChild(_summary);
@@ -79,7 +82,10 @@ namespace LordWar.GodotRuntime {
         }
 
         void AddButton(Container parent, string text, Action action) {
-            var b = new Button { Text = text, CustomMinimumSize = new Vector2(104, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            var b = new Button { Text = text, CustomMinimumSize = new Vector2(84, 34), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+            var frame = new StyleBoxTexture { Texture = GD.Load<Texture2D>("res://Art/LordWarArt/UI_界面/buttonLong__e2122512b478b784b9d820a3167ca52e__1.png") };
+            frame.TextureMarginLeft = 8; frame.TextureMarginRight = 8; frame.TextureMarginTop = 6; frame.TextureMarginBottom = 6;
+            b.AddThemeStyleboxOverride("normal", frame);
             b.AddThemeFontSizeOverride("font_size", 15); b.Pressed += action; parent.AddChild(b);
         }
         void AddTab(Container parent,string text,int page){AddButton(parent,text,()=>{_page=page;BuildActions();Refresh();});}
@@ -138,9 +144,10 @@ namespace LordWar.GodotRuntime {
         Kingdom FirstOtherKingdom(bool requireWar){return SelectedOtherKingdom(requireWar);}
 
         void SetStatus(string text){if(_status!=null)_status.Text=text??"";}
-        void TogglePause(){GameWorld w=W();if(w!=null){w.Paused=!w.Paused;SetStatus(w.Paused?"已暂停":"继续运行");}}
-        void SetSpeed(float speed){GameWorld w=W();if(w!=null){w.TimeScale=speed;SetStatus("速度 ×"+speed.ToString("0.#"));}}
-        void AdvanceDay(){GameWorld w=W();if(w!=null){w.AdvanceDay();SetStatus("已推进一日");Refresh();}}
+        void ClockAction(WorldCommandKind kind,float value=0f){GameWorld w=W();if(w==null)return;string reason;bool ok=w.ExecuteClockCommand(new WorldCommand(Guid.NewGuid().ToString("N"),kind,value),out reason);SetStatus(ok?(kind==WorldCommandKind.Pause?"已暂停":kind==WorldCommandKind.Resume?"继续运行":kind==WorldCommandKind.AdvanceDay?"已推进一日":"速度 ×"+value.ToString("0.#")):reason);Refresh();}
+        void TogglePause(){GameWorld w=W();if(w!=null)ClockAction(w.Paused?WorldCommandKind.Resume:WorldCommandKind.Pause);}
+        void SetSpeed(float speed){ClockAction(WorldCommandKind.SetSpeed,speed);}
+        void AdvanceDay(){ClockAction(WorldCommandKind.AdvanceDay);}
         void SaveGame(){GameWorld w=W();if(w==null)return;string m;GodotSaveService.Save(w,out m);SetStatus(m);}
         void LoadGame(){GameWorld w=W();if(w==null)return;string m;bool ok=GodotSaveService.Load(w,out m);if(ok)_app.RebindViews();SetStatus(m);Refresh();}
         void ReturnMenu(){if(_app!=null)_app.ReturnToMainMenu();}
