@@ -292,6 +292,10 @@ namespace LordWar.GodotRuntime {
                 long tick = World.Clock.TickIndex;
                 if (tick == 0) throw new InvalidOperationException("时钟未推进");
                 string reason;
+                int commandCount=World.ProcessedCommandIds.Count;
+                if(World.ExecuteClockCommand(new WorldCommand("n01-invalid-speed",WorldCommandKind.SetSpeed,3f),out reason) ||
+                   World.TimeScale!=1f || World.ProcessedCommandIds.Count!=commandCount)
+                    throw new InvalidOperationException("无效倍速命令污染时钟或命令账本");
                 var pause = new WorldCommand("n01-pause-check", WorldCommandKind.Pause);
                 if (!World.ExecuteClockCommand(pause,out reason) || World.ExecuteClockCommand(pause,out reason) || !World.Paused)
                     throw new InvalidOperationException("暂停命令去重失败");
@@ -305,9 +309,26 @@ namespace LordWar.GodotRuntime {
                 GameSaveService.Restore(restored,save);
                 Person restoredWalker;
                 if (!restored.People.TryGetValue(walker.Id,out restoredWalker) || !restoredWalker.IsWorldWalker ||
-                    restoredWalker.WalkRoute.Count != walker.WalkRoute.Count || restored.Events.Count != World.Events.Count ||
+                    restoredWalker.WalkRoute.Count != walker.WalkRoute.Count || restoredWalker.X!=walker.X ||
+                    restoredWalker.Y!=walker.Y || restoredWalker.WalkRouteIndex!=walker.WalkRouteIndex ||
+                    restoredWalker.WalkProgress!=walker.WalkProgress || restored.Events.Count != World.Events.Count ||
                     restored.Clock.TickIndex != tick || !restored.Paused)
                     throw new InvalidOperationException("存档恢复丢失世界状态");
+                if(restored.People.Count!=World.People.Count || restored.Cities.Count!=World.Cities.Count ||
+                   restored.Kingdoms.Count!=World.Kingdoms.Count)
+                    throw new InvalidOperationException("存档恢复人口或领地数量不守恒");
+                foreach(var pair in World.Cities){City savedCity;
+                    if(!restored.Cities.TryGetValue(pair.Key,out savedCity) || savedCity.PersonIds.Count!=pair.Value.PersonIds.Count ||
+                       savedCity.Food!=pair.Value.Food || savedCity.Wood!=pair.Value.Wood ||
+                       savedCity.Stone!=pair.Value.Stone || savedCity.Iron!=pair.Value.Iron || savedCity.Horses!=pair.Value.Horses)
+                        throw new InvalidOperationException("城市人口或物资账本不守恒："+pair.Key);
+                }
+                foreach(var pair in World.Kingdoms){Kingdom savedKingdom;
+                    if(!restored.Kingdoms.TryGetValue(pair.Key,out savedKingdom) ||
+                       savedKingdom.Treasury!=pair.Value.Treasury || savedKingdom.CityIds.Count!=pair.Value.CityIds.Count)
+                        throw new InvalidOperationException("国家金库或城市归属不守恒："+pair.Key);
+                }
+                GD.Print("LORDWAR_N01_LEDGER_REGRESSION_PASS people="+World.People.Count+" cities="+World.Cities.Count+" kingdoms="+World.Kingdoms.Count);
                 if (restored.ExecuteClockCommand(pause,out reason)) throw new InvalidOperationException("重载后重复命令被执行");
                 if (!World.ExecuteClockCommand(new WorldCommand("n01-resume-check",WorldCommandKind.Resume),out reason))
                     throw new InvalidOperationException("恢复运行失败："+reason);

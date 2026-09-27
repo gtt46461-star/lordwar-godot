@@ -94,7 +94,7 @@ namespace LordWar.GodotRuntime {
                 int variant=Noise(x,y,map.Seed)%Detail;
                 for(int py=0;py<Detail;py++)for(int px=0;px<Detail;px++){
                     Color art=sample.GetPixel(10+(px+variant)%Detail,10+(py+variant)%Detail);
-                    Color c=baseColor.Lerp(art,.55f*art.A);
+                    Color c=baseColor.Lerp(art,(Water(t.Terrain) ? .35f : .24f)*art.A);
                     if(!Water(t.Terrain)&&t.River&&(px==3||px==4))c=c.Lerp(Ground(TerrainKind.River),.75f);
                     else if(!Water(t.Terrain)&&t.Road&&(py==3||py==4))c=c.Lerp(new Color("a88c61"),.65f);
                     image.SetPixel(x*Detail+px,y*Detail+py,c);
