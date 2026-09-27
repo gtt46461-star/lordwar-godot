@@ -28,6 +28,12 @@ jobs:
         run: dotnet run --no-build -c Release --project WorldBoxMod/Smoke/CoreSmoke.csproj -- "$GITHUB_WORKSPACE/WorldBoxMod/LordWarMod"
       - name: Compile Android NML mod against published assemblies
         run: dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release
+      - name: Compile pinned Android loader construction tools
+        run: |
+          git clone https://github.com/LemonLoader/MelonLoaderInstaller.git WorldBoxMod/_deps/MelonLoaderInstaller
+          git -C WorldBoxMod/_deps/MelonLoaderInstaller checkout ac443fce9f2ef890caddf8c64bba9194a43361bd
+          dotnet build WorldBoxMod/Build/LoaderRecipe/InstallerCli.csproj -c Release
+          dotnet build WorldBoxMod/Build/LoaderRecipe/LoaderPathPatch.csproj -c Release
       - name: Package independently installable NML source mod
         run: python3 WorldBoxMod/Build/package_mod.py --output WorldBoxMod/dist/LordWarMod-0.2.1.zip --manifest WorldBoxMod/dist/LordWarMod-0.2.1.manifest.json
       - uses: actions/upload-artifact@v4
