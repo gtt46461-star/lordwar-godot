@@ -23,6 +23,16 @@ var importedWorld = new GameWorld(1234, data, AiDifficulty.Hard);
 importedWorld.CreateNewWorld(imported, 4);
 if (importedWorld.Kingdoms.Count != 4 || importedWorld.Cities.Count != 4 || importedWorld.Map.Get(0, 0).Terrain != LordWar.TerrainKind.DeepWater)
     throw new Exception("Imported map failed to initialize four kingdoms and preserve water");
+var nativeCitiesMap = new LordWar.World.WorldMap(80, 60, 1234);
+foreach (var tile in nativeCitiesMap.Tiles) { tile.Terrain = LordWar.TerrainKind.Grass; tile.Height = .45f; tile.Fertility = .75f; }
+nativeCitiesMap.CitySites.Add(new LordWar.GridPoint(20, 20));
+nativeCitiesMap.CitySites.Add(new LordWar.GridPoint(45, 35));
+nativeCitiesMap.CitySiteNames.Add("北城"); nativeCitiesMap.CitySiteNames.Add("南城");
+nativeCitiesMap.CitySiteKingdomKeys.Add("native-kingdom-1"); nativeCitiesMap.CitySiteKingdomKeys.Add("native-kingdom-1");
+var nativeCitiesWorld = new GameWorld(1234, data, AiDifficulty.Hard);
+nativeCitiesWorld.CreateNewWorld(nativeCitiesMap, 2);
+if (nativeCitiesWorld.Cities.Count != 2 || nativeCitiesWorld.Kingdoms.Count != 1)
+    throw new Exception("Imported native city grouping failed");
 if (world.Map.Width != 160 || world.Map.Height != 120 || world.Kingdoms.Count != 4)
     throw new Exception("world initialization invariant failed");
 if (world.People.Count == 0 || world.Cities.Count != 4)
