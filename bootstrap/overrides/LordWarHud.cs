@@ -69,7 +69,7 @@ namespace LordWar.GodotRuntime {
             AddButton(timeRow, "推进一日", AdvanceDay);
             AddButton(timeRow, "保存", SaveGame); AddButton(timeRow, "读取", LoadGame);
             AddButton(timeRow, "更多", () => SetExpanded(!_expanded));
-            AddButton(timeRow, "关于", () => { _page=8; SetExpanded(true); BuildActions(); Refresh(); });
+            AddButton(timeRow, "关于", () => { _page=8; SetExpanded(true); BuildActions(); Refresh(); GD.Print("LORDWAR_UI_ABOUT buildId="+BuildInfo.BuildId); });
 
             var tabs1 = new HFlowContainer(); main.AddChild(tabs1); _tabs1 = tabs1;
             AddTab(tabs1, "总览", 0); AddTab(tabs1, "城市规划", 1); AddTab(tabs1, "军事", 2); AddTab(tabs1, "人事任命", 3);
@@ -165,7 +165,7 @@ namespace LordWar.GodotRuntime {
         void TogglePause(){GameWorld w=W();if(w!=null)ClockAction(w.Paused?WorldCommandKind.Resume:WorldCommandKind.Pause);}
         void SetSpeed(float speed){ClockAction(WorldCommandKind.SetSpeed,speed);}
         void AdvanceDay(){ClockAction(WorldCommandKind.AdvanceDay);}
-        void SaveGame(){GameWorld w=W();if(w==null)return;string m;GodotSaveService.Save(w,out m);SetStatus(m);}
+        void SaveGame(){GameWorld w=W();if(w==null)return;string m;bool ok=GodotSaveService.Save(w,out m);SetStatus(m);if(ok){Person walker=null;foreach(Person p in w.People.Values)if(p.IsWorldWalker){walker=p;break;}GD.Print("LORDWAR_UI_SAVE tick="+w.Clock.TickIndex+" walker="+(walker==null?"none":walker.Id+":"+walker.X+","+walker.Y+":"+walker.WalkRouteIndex+":"+walker.WalkProgress.ToString("R",System.Globalization.CultureInfo.InvariantCulture))+" people="+w.People.Count);}}
         void LoadGame(){GameWorld w=W();if(w==null)return;string m;bool ok=GodotSaveService.Load(w,out m);if(ok)_app.RebindViews();SetStatus(m);Refresh();}
         void ReturnMenu(){if(_app!=null)_app.ReturnToMainMenu();}
         void FocusCapital(){City c=PlayerCapital();if(c!=null&&_app.Camera!=null)_app.Camera.FocusWorldPoint(c.X,c.Y);}

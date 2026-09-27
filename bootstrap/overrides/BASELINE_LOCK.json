@@ -1,0 +1,17 @@
+{
+  "batch": "N01",
+  "sourceBaseline": "R32 Godot 4.7.2 .NET",
+  "inputArchive": "bootstrap/r32_*.b64 reconstructed lordwar-r32.tar.gz",
+  "inputArchiveSha256": "365e4a1c7557f8cf605f6d0d177a7eb531b88822e44dbcde3b28ec7f07c32657",
+  "workingProject": "project/ (GitHub Actions); SOURCE.zip root after extraction",
+  "packageName": "com.lordwar.game",
+  "signingCertificateSha256": "27160da6bd6d73c435b7fa79effef56bcb9ac3816a58b4b48cfa7af5f9556409",
+  "versionCode": 90117,
+  "versionName": "1.0.1-n01-r6",
+  "buildId": "N01-GODOT-20260927-6",
+  "branch": "main",
+  "toolchain": "Godot 4.7.2 stable mono; .NET 8 and 9; Android SDK 35; JDK 17; GitHub Actions ubuntu-latest",
+  "scene": "Scenes/Main.tscn",
+  "font": "Godot engine fallback font; Chinese text validated through Android screenshots",
+  "recovery": "R32 archive plus bootstrap/overrides are preserved; final SOURCE.zip contains the cumulative project and build scripts"
+}

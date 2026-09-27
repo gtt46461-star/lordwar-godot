@@ -165,6 +165,7 @@ namespace LordWar.GodotRuntime {
             AddMenuButton(box, "关于本批", () => {
                 if (_menuStatus != null) _menuStatus.Text = "N01 · " + BuildInfo.BuildId + " · 版本 " + BuildInfo.VersionName +
                     "\n本批可新建/读取、观察地图和居民行走、暂停、倍速及保存；后续系统按 N02–N21 逐批验收。";
+                GD.Print("LORDWAR_UI_ABOUT buildId=" + BuildInfo.BuildId);
             });
             _menuStatus = new Label { Text = "N01 · " + BuildInfo.BuildId, HorizontalAlignment = HorizontalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
             _menuStatus.AddThemeFontSizeOverride("font_size", 16);
@@ -326,6 +327,9 @@ namespace LordWar.GodotRuntime {
                 GameSaveService.Restore(restored, save);
                 InstallWorld(restored);
                 GD.Print("LORDWAR_SAVE_RESTORED day=" + World.Day + " tick=" + World.Clock.TickIndex);
+                Person walker=null;
+                foreach(Person p in World.People.Values)if(p.IsWorldWalker){walker=p;break;}
+                GD.Print("LORDWAR_N01_RESTORE tick="+World.Clock.TickIndex+" walker="+(walker==null?"none":walker.Id+":"+walker.X+","+walker.Y+":"+walker.WalkRouteIndex+":"+walker.WalkProgress.ToString("R",System.Globalization.CultureInfo.InvariantCulture))+" people="+World.People.Count);
                 GD.Print("LORDWAR_GAME_READY restored map=" + World.Map.Width + "x" + World.Map.Height + " kingdoms=" + World.Kingdoms.Count);
             } catch (Exception ex) {
                 if (_menuStatus != null) _menuStatus.Text = "读档失败：" + ex.Message;
