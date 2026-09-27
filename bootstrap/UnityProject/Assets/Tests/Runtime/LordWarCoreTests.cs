@@ -91,6 +91,35 @@ public sealed class LordWarCoreTests {
     }
 
     [Test]
+    public void PixelTerrain_ChangesCoastRoadAndSnowWithoutMutatingWorld() {
+        WorldMap map=new WorldMap(3,2,19);
+        foreach(WorldTile t in map.Tiles){t.Terrain=TerrainKind.Grass;t.RoadCondition=1f;}
+        map.Get(0,0).Terrain=TerrainKind.DeepWater;
+        map.Get(1,1).Road=true;
+        int scale=PixelTerrainPainter.PixelsPerTile;
+        var first=new UnityEngine.Color32[map.Width*map.Height*scale*scale];
+        var repeat=new UnityEngine.Color32[first.Length];
+        PixelTerrainPainter.Paint(map,first);
+        PixelTerrainPainter.Paint(map,repeat);
+        CollectionAssert.AreEqual(first,repeat);
+        int width=map.Width*scale;
+        UnityEngine.Color32 water=first[1*width+1];
+        UnityEngine.Color32 shoreline=first[1*width+scale];
+        UnityEngine.Color32 inland=first[1*width+scale*2];
+        Assert.AreNotEqual(water,shoreline);
+        Assert.AreNotEqual(shoreline,inland);
+        map.Get(1,1).Road=false;
+        PixelTerrainPainter.Paint(map,repeat);
+        Assert.AreNotEqual(first[(scale+1)*width+scale+1],repeat[(scale+1)*width+scale+1]);
+        map.Get(1,1).Road=true;
+        map.Get(1,1).SnowDepth=1f;
+        PixelTerrainPainter.Paint(map,repeat);
+        Assert.AreNotEqual(first[(scale+1)*width+scale+1],repeat[(scale+1)*width+scale+1]);
+        Assert.AreEqual(TerrainKind.Grass,map.Get(1,1).Terrain);
+        Assert.IsTrue(map.Get(1,1).Road);
+    }
+
+    [Test]
     public void Save27_MigratesMapWithoutChangingItsTiles() {
         WorldMap old=new WorldMap(4,3,7);
         foreach(WorldTile tile in old.Tiles)tile.Terrain=TerrainKind.Grass;

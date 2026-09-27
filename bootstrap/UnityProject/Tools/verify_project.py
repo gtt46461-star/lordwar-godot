@@ -272,9 +272,9 @@ else:
 
 renderer_text=(SRC/'Unity/WorldRenderer.cs').read_text(encoding='utf-8',errors='replace')
 chinese_text=(SRC/'Core/ChineseText.cs').read_text(encoding='utf-8',errors='replace')
-ui_perf_marks=['Time.unscaledTime<_nextDynamicSync','MaxVisiblePeople=480','Camera.main','InjuryState.Captured']
+ui_perf_marks=['Time.unscaledTime<_nextDynamicSync','MaxVisiblePeople=480','cam.orthographicSize','_terrainMarkers','InjuryState.Captured']
 missing_ui_perf=[x for x in ui_perf_marks if x not in renderer_text]
-add('Android可见单位LOD与帧预算','PASS' if not missing_ui_perf else 'FAIL','动态标记限频、相机距离LOD、可见人物上限与伤亡/俘虏隐藏已接入' if not missing_ui_perf else '缺少: '+','.join(missing_ui_perf))
+add('Android可见单位LOD与帧预算','PASS' if not missing_ui_perf else 'FAIL','动态标记限频、缩放分层、视野内地表装饰、可见人物上限与伤亡/俘虏隐藏已接线（未实机测速）' if not missing_ui_perf else '缺少: '+','.join(missing_ui_perf))
 cn_marks=['string Job(JobKind','string Injury(InjuryState','string EquipmentSlot(string']
 missing_cn=[x for x in cn_marks if x not in chinese_text]
 add('人物状态/职业/装备槽中文显示','PASS' if not missing_cn else 'FAIL','人物详情不直接暴露英文Job/Injury/Slot枚举' if not missing_cn else '缺少: '+','.join(missing_cn))
@@ -355,8 +355,9 @@ for p in DATA.glob('*.csv'):
 add('玩家可见占位命名','PASS' if not bad_names else 'FAIL',str(bad_names[:20]) if bad_names else '未发现')
 
 # Visual state must track simulation changes without rebuilding hundreds of objects every frame.
-visual_sync_marks=['RepaintMapTexture','PaintMapTexture','SurfaceMud','SnowDepth','RoadCondition','BuildingSignature','RebuildStaticMarkers','ArmyFlagSprite','total_war_banner_icon','ArmyFlagColor','f.ColorHex','activeArmies','activeHerds']
-missing_visual_sync=[x for x in visual_sync_marks if x not in renderer_text]
+visual_sync_marks=['RepaintMapTexture','PixelTerrainPainter.Paint','SurfaceMud','SnowDepth','RoadCondition','BuildingSignature','RebuildStaticMarkers','ArmyFlagSprite','total_war_banner_icon','ArmyFlagColor','f.ColorHex','activeArmies','activeHerds']
+visual_pixel_text=(SRC/'Unity/PixelTerrainPainter.cs').read_text(encoding='utf-8',errors='replace') if (SRC/'Unity/PixelTerrainPainter.cs').exists() else ''
+missing_visual_sync=[x for x in visual_sync_marks if x not in renderer_text+visual_pixel_text]
 add('地图状态刷新与家族军旗可视化','PASS' if not missing_visual_sync else 'FAIL','泥泞/积雪/道路逐日重绘；建筑状态按签名重建；军队使用真实旗帜Sprite并优先显示主将家族颜色；已消失军队/兽群标记会回收隐藏' if not missing_visual_sync else '缺少: '+','.join(missing_visual_sync))
 
 # Real art must be imported as pixel sprites and consumed by terrain/building/unit rendering.
@@ -366,6 +367,10 @@ renderer_art_marks=['Resources.LoadAll<Sprite>("LordWarArt")','Resources.LoadAll
 import_marks=['TextureImporterType.Sprite','FilterMode.Point','TextureImporterCompression.Uncompressed','mipmapEnabled=false','spritePixelsPerUnit=16f']
 missing_art=[x for x in renderer_art_marks if x not in assetlib_text+renderer_text]+[x for x in import_marks if x not in importer_text]
 add('真实像素素材运行时接入','PASS' if not missing_art else 'FAIL','PNG强制像素Sprite导入；真实地形/建筑/单位素材进入渲染；骑兵4帧行走/攻击条由运行时切帧' if not missing_art else '缺少: '+','.join(missing_art))
+pixel_text=(SRC/'Unity/PixelTerrainPainter.cs').read_text(encoding='utf-8',errors='replace') if (SRC/'Unity/PixelTerrainPainter.cs').exists() else ''
+pixel_marks=['PixelsPerTile=4','public static void Paint','IsWater','nearLand','t.River','t.Road','t.SnowDepth','t.SurfaceMud','_mapTexture.SetPixels32(_terrainPixels)']
+missing_pixel=[x for x in pixel_marks if x not in pixel_text+renderer_text]
+add('多像素地表和海岸连续绘制','PASS' if not missing_pixel else 'FAIL','单一WorldMap生成可重绘像素纹理，覆盖海岸/道路/河流/季节表面（静态接线，非画面验收）' if not missing_pixel else '缺少: '+','.join(missing_pixel))
 
 # Android camera navigation and fixed HUD controls must be actually wired.
 camera_path=SRC/'Unity/WorldCameraController.cs'
