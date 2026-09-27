@@ -273,7 +273,7 @@ namespace LordWar.Simulation {
 
         bool CanStartConstruction(Proposal p) {
             City city; Kingdom kingdom;
-            if (p == null || !Cities.TryGetValue(p.TargetId, out city) ||
+            if (p == null || !Cities.TryGetValue(p.TargetId, out city) || !Construction.HasAvailableWorker(city) ||
                 !Kingdoms.TryGetValue(city.KingdomId, out kingdom) || kingdom.Treasury < p.CostGold || p.CostGold < 0)
                 return false;
             if ((p.DataId ?? "").StartsWith("repair:", StringComparison.Ordinal)) {

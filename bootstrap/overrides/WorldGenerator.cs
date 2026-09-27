@@ -65,6 +65,7 @@ namespace LordWar.World {
                 if (!g.TryGetValue(ck, out currentG)) continue;
                 foreach (WorldTile n in m.Neighbors4(cur.X, cur.Y)) {
                     if (n.Terrain == TerrainKind.DeepWater || n.Terrain == TerrainKind.Lake) continue;
+                    if (!roadBuild && (n.Terrain == TerrainKind.Mountain || (n.River && !n.Bridge && !n.Ford))) continue;
                     int nk = n.Y * m.Width + n.X;
                     if (closed.Contains(nk)) continue;
                     float cost = 1f

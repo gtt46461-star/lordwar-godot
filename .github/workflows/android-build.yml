@@ -37,7 +37,7 @@ jobs:
           tar -xzf _buildsrc/lordwar-r32.tar.gz -C project
           echo "Reconstructed source files: $(find project -type f | wc -l)"
 
-      - name: Apply Android startup crash fix overlay
+      - name: Apply independent game source overlays
         shell: bash
         run: |
           set -euo pipefail
@@ -46,6 +46,8 @@ jobs:
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
           cp bootstrap/overrides/WorldMap.cs project/Scripts/LordWar/World/WorldMap.cs
           cp bootstrap/overrides/GameWorld.cs project/Scripts/LordWar/Simulation/GameWorld.cs
+          cp bootstrap/overrides/ConstructionOwner.cs project/Scripts/LordWar/Construction/ConstructionOwner.cs
+          cp bootstrap/overrides/ProposalSystem.cs project/Scripts/LordWar/Governance/ProposalSystem.cs
           grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
 
