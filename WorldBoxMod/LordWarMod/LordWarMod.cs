@@ -1,13 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using LordWar;
-using LordWar.AI;
-using LordWar.Data;
-using LordWar.Simulation;
-using LordWar.World;
 using NeoModLoader.api;
 using NeoModLoader.General;
 using NeoModLoader.General.UI.Tab;
@@ -16,422 +7,107 @@ using UnityEngine.UI;
 
 namespace LordWar.AndroidMod
 {
-    // NeoModLoader compiles the .cs files in this folder on the device.
-    // World generation and CSV parsing use the unmodified R30 simulation core.
+    /// <summary>WorldBox owns the world, actors, cities, time, visuals and save.</summary>
     public sealed class LordWarMod : BasicMod<LordWarMod>
     {
-        private GameWorld _world;
-        private Task<GameWorld> _creation;
-        private string _status = "等待创建世界";
-        private bool _panel;
-        private bool _showMap = true;
-        private bool _showInbox;
-        private Vector2 _inboxScroll;
-        private string _selectedProposalId;
-        private Texture2D _mapTexture;
-        private ScrollWindow _nativeInbox;
-        private bool _foundNativeCivilizations;
-        private readonly Dictionary<string, global::City> _nativeCities = new Dictionary<string, global::City>();
-        private readonly Dictionary<string, global::Kingdom> _nativeKingdoms = new Dictionary<string, global::Kingdom>();
-        private int _lastNativeSyncDay = -1;
+        private const string WindowId = "lordwar_city_window";
+        private const string SelectPowerId = "lordwar_select_city";
+        private ScrollWindow _cityWindow;
+        private long _cityId = -1;
+        private long _kingdomId = -1;
+        private string _status = "请选择原版城市";
 
         protected override void OnModLoad()
         {
-            LogInfo("LordWar R30 core source loaded into NML");
             try
             {
-                var icon = SpriteTextureLoader.getSprite("ui/Icons/iconKingdom");
-                var tab = TabManager.CreateTab("lordwar", "领主战争", "领主战争", icon);
+                Sprite cityIcon = SpriteTextureLoader.getSprite("ui/Icons/iconCity");
+                var tab = TabManager.CreateTab("lordwar", "领主战争", "在原版城市中执行领主命令", cityIcon);
+
+                AssetManager.powers.add(new GodPower
+                {
+                    id = SelectPowerId,
+                    name = "领主战争 · 选城",
+                    force_map_mode = MetaType.City,
+                    select_button_action = _ => false,
+                    click_special_action = (tile, _) => SelectCityFromMap(tile),
+                    unselect_when_window = false
+                });
+                var select = PowerButtonCreator.CreateGodPowerButton(SelectPowerId, cityIcon, tab.transform);
+                PowerButtonCreator.AddButtonToTab(select, tab);
+
                 var open = PowerButtonCreator.CreateSimpleButton(
-                    "lordwar_open", (Action)(() => _panel = true), icon, tab.transform);
+                    "lordwar_open_city", (Action)OpenSelectedCity,
+                    SpriteTextureLoader.getSprite("ui/Icons/iconKingdom"), tab.transform);
                 PowerButtonCreator.AddButtonToTab(open, tab);
-                var inbox = PowerButtonCreator.CreateSimpleButton(
-                    "lordwar_inbox", (Action)OpenInbox, icon, tab.transform);
-                PowerButtonCreator.AddButtonToTab(inbox, tab);
+                LogInfo("LordWar native city entry registered");
             }
             catch (Exception error)
             {
-                LogInfo("LordWar native tab unavailable: " + error);
+                LogInfo("LordWar native entry FAILED: " + error);
+                throw;
             }
         }
 
-        private void StartWorld()
+        private bool SelectCityFromMap(global::WorldTile tile)
         {
-            if (_creation != null && !_creation.IsCompleted) return;
-            WorldMap imported;
-            try { imported = CaptureWorldBoxMap(); }
-            catch (Exception error) { _status = "读取当前地图失败: " + error.Message; LogInfo(_status); return; }
-            _world = null;
-            _nativeCities.Clear();
-            _nativeKingdoms.Clear();
-            _lastNativeSyncDay = -1;
-            _foundNativeCivilizations = MapBox.instance != null &&
-                MapBox.instance.cities != null && MapBox.instance.cities.Count == 0;
-            _showInbox = false;
-            _selectedProposalId = null;
-            if (_mapTexture != null) UnityEngine.Object.Destroy(_mapTexture);
-            _mapTexture = null;
-            _status = "正在接入当前 WorldBox 地图";
-            string folder = GetDeclaration().FolderPath;
-            WorldMap mapSnapshot = imported;
-            _creation = Task.Run(() =>
-            {
-                var data = new GameDataCatalog();
-                data.LoadAll(new FolderDataProvider(folder));
-                var world = new GameWorld(Environment.TickCount, data, AiDifficulty.Hard);
-                world.CreateNewWorld(mapSnapshot, 4);
-                return world;
-            });
+            global::City city = tile == null ? null : tile.zone_city;
+            if (!BindCity(city)) return false;
+            ShowCityWindow();
+            return true;
         }
 
-        private static WorldMap CaptureWorldBoxMap()
+        private void OpenSelectedCity()
         {
-            MapBox native = MapBox.instance;
-            if (native == null || MapBox.width < 16 || MapBox.height < 16)
-                throw new InvalidOperationException("请先在 WorldBox 中打开一张地图");
-            // Bound memory and simulation costs for large WorldBox worlds. Read IL2CPP tiles on Unity's main thread.
-            int width = Math.Min(160, MapBox.width);
-            int height = Math.Min(120, MapBox.height);
-            WorldMap map = new WorldMap(width, height, Environment.TickCount);
-            int land = 0;
-            for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-            {
-                int nativeX = (int)((x + .5) * MapBox.width / width);
-                int nativeY = (int)((y + .5) * MapBox.height / height);
-                global::WorldTile source = native.GetTileSimple(nativeX, nativeY);
-                LordWar.World.WorldTile target = map.Get(x, y);
-                TileTypeBase type = source == null ? null : source.Type;
-                bool water = source == null || source.is_liquid;
-                float altitude = source == null ? 0f : Math.Max(0f, Math.Min(1f, source.Height / 255f));
-                string biome = type == null ? "" : (type.biome_id ?? "").ToLowerInvariant();
-                target.Height = water ? .10f : Math.Max(.30f, altitude);
-                target.Continental = target.Height;
-                target.Temperature = biome.Contains("snow") || biome.Contains("ice") ? .15f : .55f;
-                target.Moisture = biome.Contains("desert") ? .18f : .62f;
-                target.Fertility = biome.Contains("desert") ? .22f : .70f;
-                target.Forest = biome.Contains("forest") || biome.Contains("jungle") ? .82f : .40f;
-                target.Ore = type != null && type.mountains ? .86f : .42f;
-                target.Road = type != null && type.road;
-                target.Terrain = water ? TerrainKind.DeepWater :
-                    type != null && type.mountains ? TerrainKind.Mountain :
-                    biome.Contains("snow") || biome.Contains("ice") ? TerrainKind.Snow :
-                    biome.Contains("desert") ? TerrainKind.Desert :
-                    biome.Contains("forest") || biome.Contains("jungle") ? TerrainKind.Forest : TerrainKind.Grass;
-                if (!water) land++;
-            }
-            if (land < 16) throw new InvalidOperationException("地图陆地太少，无法建立领地");
-            if (native.cities != null && native.cities.Count > 0)
-            {
-                native.cities.checkLists();
-                for (int i = 0; i < native.cities.list.Count && map.CitySites.Count < 16; i++)
-                {
-                    global::City nativeCity = native.cities.list[i];
-                    if (nativeCity == null || nativeCity.kingdom == null) continue;
-                    global::WorldTile center = nativeCity.getTile();
-                    if (center == null) continue;
-                    int cx = Math.Max(0, Math.Min(width - 1, (int)((center.x + .5) * width / MapBox.width)));
-                    int cy = Math.Max(0, Math.Min(height - 1, (int)((center.y + .5) * height / MapBox.height)));
-                    if (map.CitySites.Any(p => p.X == cx && p.Y == cy)) continue;
-                    LordWar.World.WorldTile cityTerrain = map.Get(cx, cy);
-                    if (cityTerrain.Terrain == TerrainKind.DeepWater) cityTerrain.Terrain = TerrainKind.Grass;
-                    cityTerrain.Height = Math.Max(cityTerrain.Height, .45f);
-                    cityTerrain.Fertility = Math.Max(cityTerrain.Fertility, .72f);
-                    map.CitySites.Add(new GridPoint(cx, cy));
-                    map.CitySiteNames.Add(nativeCity.name);
-                    map.CitySiteKingdomKeys.Add(nativeCity.kingdom.getID().ToString());
-                }
-            }
-            return map;
+            if (BindCity(SelectedMetas.selected_city)) ShowCityWindow();
+            else ShowCityWindow();
         }
 
-        private void Update()
+        private bool BindCity(global::City city)
         {
-            if (_creation != null && _creation.IsCompleted)
+            if (city == null || city.isRekt() || city.kingdom == null)
             {
-                Task<GameWorld> completed = _creation;
-                _creation = null;
-                if (completed.IsFaulted)
-                {
-                    Exception error = completed.Exception == null ? null : completed.Exception.GetBaseException();
-                    _status = "创建失败: " + (error == null ? "未知错误" : error.Message);
-                    LogInfo(_status);
-                }
-                else if (completed.IsCanceled)
-                {
-                    _status = "创建已取消";
-                }
-                else
-                {
-                    _world = completed.Result;
-                    BuildMapTexture();
-                    _status = "运行中";
-                    if (_foundNativeCivilizations)
-                    {
-                        _foundNativeCivilizations = false;
-                        try { MaterializeNativeCities(); }
-                        catch (Exception error) { _status = "原生城市建立失败: " + error.Message; LogInfo(_status); }
-                    }
-                    else if (MapBox.instance != null && MapBox.instance.cities != null && MapBox.instance.cities.Count > 0)
-                    {
-                        try { BindExistingNativeCities(); }
-                        catch (Exception error) { _status = "原生城市关联失败: " + error.Message; LogInfo(_status); }
-                    }
-                    SyncNativeCities();
-                    LogInfo("LordWar world initialized: " + _world.Map.Width + "×" + _world.Map.Height);
-                }
+                _cityId = -1;
+                _kingdomId = -1;
+                _status = "请在原版地图选择一座仍属于国家的城市";
+                return false;
             }
-            if (_world == null || _world.Paused) return;
+            _cityId = city.getID();
+            _kingdomId = city.kingdom.getID();
+            SelectedMetas.selected_city = city;
+            _status = "已选择 " + city.name;
+            LogInfo("LordWar selected native city id=" + _cityId + " kingdom=" + _kingdomId);
+            return true;
+        }
+
+        private global::City ResolveCity()
+        {
+            MapBox world = MapBox.instance;
+            global::City selected = SelectedMetas.selected_city;
+            if (world == null || world.cities == null || selected == null || _cityId < 0 ||
+                selected.getID() != _cityId) return null;
+            world.cities.checkLists();
+            for (int index = 0; index < world.cities.list.Count; index++)
+            {
+                global::City city = world.cities.list[index];
+                if (city == null || city.getID() != _cityId || city.isRekt()) continue;
+                if (city.kingdom == null || city.kingdom.getID() != _kingdomId) return null;
+                return city;
+            }
+            return null;
+        }
+
+        private void ShowCityWindow()
+        {
             try
             {
-                _world.Tick(Math.Min(Time.deltaTime, 0.25f));
-                if (_world.Day != _lastNativeSyncDay) SyncNativeCities();
-            }
-            catch (Exception error)
-            {
-                _world.Paused = true;
-                _status = "运行暂停: " + error.Message;
-                LogInfo(_status);
-            }
-        }
-
-        private void BindExistingNativeCities()
-        {
-            MapBox native = MapBox.instance;
-            native.cities.checkLists();
-            foreach (City city in _world.Cities.Values)
-            {
-                int x = (int)((city.X + .5) * MapBox.width / _world.Map.Width);
-                int y = (int)((city.Y + .5) * MapBox.height / _world.Map.Height);
-                for (int i = 0; i < native.cities.list.Count; i++)
+                if (_cityWindow == null)
                 {
-                    global::City target = native.cities.list[i];
-                    global::WorldTile tile = target == null ? null : target.getTile();
-                    if (tile == null || Math.Abs(tile.x - x) > 2 || Math.Abs(tile.y - y) > 2) continue;
-                    _nativeCities[city.Id] = target;
-                    if (target.kingdom != null && !_nativeKingdoms.ContainsKey(city.KingdomId))
-                        _nativeKingdoms[city.KingdomId] = target.kingdom;
-                    break;
-                }
-            }
-            _status = "已关联 WorldBox 原生城市 " + _nativeCities.Count + " / " + _world.Cities.Count;
-        }
-
-        private void MaterializeNativeCities()
-        {
-            MapBox native = MapBox.instance;
-            if (native == null || native.cities.Count != 0)
-                throw new InvalidOperationException("当前地图已有原生城市，不能重复建立四国");
-            int created = 0;
-            foreach (City city in _world.Cities.Values)
-            {
-                int x = (int)((city.X + .5) * MapBox.width / _world.Map.Width);
-                int y = (int)((city.Y + .5) * MapBox.height / _world.Map.Height);
-                global::WorldTile tile = native.GetTileSimple(x, y);
-                if (tile == null || tile.is_liquid || tile.zone == null || tile.zone.hasCity()) continue;
-                global::Actor founder = native.units.spawnNewUnit("human", tile, false, true);
-                if (founder == null || !founder.buildCityAndStartCivilization()) continue;
-                founder.setName(city.Name + "开国者");
-                if (founder.city != null)
-                {
-                    founder.city.setName(city.Name);
-                    _nativeCities[city.Id] = founder.city;
-                }
-                Kingdom lordKingdom;
-                if (founder.kingdom != null && _world.Kingdoms.TryGetValue(city.KingdomId, out lordKingdom))
-                {
-                    founder.kingdom.setName(lordKingdom.Name);
-                    _nativeKingdoms[city.KingdomId] = founder.kingdom;
-                }
-                created++;
-            }
-            _status = "已在 WorldBox 地图建立 " + created + " 个领主战争城市";
-        }
-
-        private void SyncNativeCities()
-        {
-            if (_world == null) return;
-            foreach (City city in _world.Cities.Values)
-            {
-                global::City nativeCity;
-                global::Kingdom nativeKingdom;
-                if (!_nativeCities.TryGetValue(city.Id, out nativeCity) || nativeCity == null) continue;
-                try
-                {
-                    if (!string.Equals(nativeCity.name, city.Name, StringComparison.Ordinal)) nativeCity.setName(city.Name);
-                    if (_nativeKingdoms.TryGetValue(city.KingdomId, out nativeKingdom) && nativeKingdom != null &&
-                        (nativeCity.kingdom == null || nativeCity.kingdom.getID() != nativeKingdom.getID()))
-                        nativeCity.setKingdom(nativeKingdom);
-                }
-                catch (Exception error) { LogInfo("LordWar city sync " + city.Id + ": " + error.Message); }
-            }
-            _lastNativeSyncDay = _world.Day;
-        }
-
-        private void BuildMapTexture()
-        {
-            WorldMap map = _world.Map;
-            _mapTexture = new Texture2D(map.Width, map.Height);
-            _mapTexture.filterMode = FilterMode.Point;
-            for (int y = 0; y < map.Height; y++)
-            for (int x = 0; x < map.Width; x++)
-            {
-                LordWar.World.WorldTile tile = map.Get(x, y);
-                Color color;
-                switch (tile.Terrain)
-                {
-                    case TerrainKind.DeepWater: case TerrainKind.Lake: color = new Color(.10f, .22f, .46f); break;
-                    case TerrainKind.Coast: color = new Color(.75f, .69f, .48f); break;
-                    case TerrainKind.Forest: color = new Color(.13f, .37f, .18f); break;
-                    case TerrainKind.Hill: color = new Color(.39f, .42f, .26f); break;
-                    case TerrainKind.Mountain: case TerrainKind.MountainPass: color = new Color(.48f, .48f, .47f); break;
-                    case TerrainKind.Snow: color = new Color(.83f, .89f, .91f); break;
-                    case TerrainKind.Desert: color = new Color(.75f, .65f, .39f); break;
-                    case TerrainKind.Marsh: color = new Color(.26f, .39f, .29f); break;
-                    default: color = new Color(.34f, .56f, .28f); break;
-                }
-                if (tile.River) color = new Color(.16f, .40f, .69f);
-                if (tile.Road || tile.Bridge) color = new Color(.66f, .53f, .35f);
-                _mapTexture.SetPixel(x, y, color);
-            }
-            _mapTexture.Apply();
-        }
-
-        private void OnGUI()
-        {
-            float scale = Math.Max(1f, Screen.width / 1100f);
-            if (GUI.Button(new Rect(12f, 12f, 150f * scale, 54f * scale), "领主战争")) _panel = !_panel;
-            if (!_panel) return;
-
-            float width = Math.Min(Screen.width - 24f, 700f * scale);
-            float height = Math.Min(Screen.height - 85f, 640f * scale);
-            float x = 12f, y = 75f * scale;
-            GUI.Box(new Rect(x, y, width, height), "领主战争 · R30 核心接入");
-            float line = 34f * scale;
-            float top = y + 40f * scale;
-            GUI.Label(new Rect(x + 16f, top, width - 32f, line), _status);
-            top += line;
-
-            if (GUI.Button(new Rect(x + 16f, top, 235f * scale, 48f * scale), "接入当前 WorldBox 地图")) StartWorld();
-            if (_world == null) return;
-            if (GUI.Button(new Rect(x + width - 195f * scale, top, 178f * scale, 48f * scale),
-                "提交箱 (" + _world.PlayerPendingProposalCount + ")")) OpenInbox();
-            top += 56f * scale;
-            if (_showInbox) { DrawInbox(x, y, width, height, top, scale); return; }
-            if (GUI.Button(new Rect(x + 16f, top, 140f * scale, 48f * scale), _world.Paused ? "继续" : "暂停"))
-                _world.Paused = !_world.Paused;
-            if (GUI.Button(new Rect(x + 166f * scale, top, 140f * scale, 48f * scale), "推进一天"))
-            {
-                try { _world.AdvanceDay(); SyncNativeCities(); }
-                catch (Exception error) { _status = "推进失败: " + error.Message; }
-            }
-            top += 60f * scale;
-            GUI.Label(new Rect(x + 16f, top, width - 32f, line),
-                "第 " + _world.Day + " 天  |  国家 " + _world.Kingdoms.Count +
-                "  城市 " + _world.Cities.Count + "  人物 " + _world.People.Count +
-                "  军队 " + _world.Armies.Count);
-            top += line;
-            if (GUI.Button(new Rect(x + 16f, top, 130f * scale, line), _showMap ? "查看国家" : "查看地图"))
-                _showMap = !_showMap;
-            top += line + 5f * scale;
-
-            if (_showMap && _mapTexture != null)
-            {
-                float mapWidth = Math.Min(width - 32f, (height - (top - y) - 55f * scale) *
-                    _world.Map.Width / (float)_world.Map.Height);
-                float mapHeight = mapWidth * _world.Map.Height / (float)_world.Map.Width;
-                Rect mapRect = new Rect(x + 16f, top, mapWidth, mapHeight);
-                GUI.DrawTexture(mapRect, _mapTexture);
-                foreach (City city in _world.Cities.Values)
-                {
-                    float cx = mapRect.x + city.X / (float)_world.Map.Width * mapRect.width;
-                    float cy = mapRect.y + (1f - city.Y / (float)_world.Map.Height) * mapRect.height;
-                    GUI.Label(new Rect(cx, cy, 115f * scale, line), "● " + city.Name);
-                }
-                return;
-            }
-
-            Kingdom player;
-            if (!string.IsNullOrEmpty(_world.PlayerKingdomId) &&
-                _world.Kingdoms.TryGetValue(_world.PlayerKingdomId, out player))
-            {
-                GUI.Label(new Rect(x + 16f, top, width - 32f, line),
-                    "领地: " + player.Name + "  国库: " + player.Treasury);
-                top += line;
-                foreach (Kingdom rival in _world.Kingdoms.Values)
-                {
-                    if (rival.Id == player.Id || top + line > y + height - 95f * scale) continue;
-                    GUI.Label(new Rect(x + 16f, top, width - 200f * scale, line),
-                        rival.Name + " | " + _world.Diplomacy.Get(player.Id, rival.Id).State);
-                    if (GUI.Button(new Rect(x + width - 178f * scale, top, 155f * scale, line), "宣战并出征"))
-                    {
-                        var selected = _world.Armies.Values.Where(a => a.KingdomId == player.Id)
-                            .Select(a => a.Id).ToArray();
-                        int moved = _world.DeclareWarAndMarch(rival.Id, selected);
-                        _status = "对 " + rival.Name + " 宣战，出征军队 " + moved;
-                    }
-                    top += line + 6f * scale;
-                }
-            }
-            if (_world.Events.Count > 0)
-            {
-                WorldEvent last = _world.Events[_world.Events.Count - 1];
-                GUI.Label(new Rect(x + 16f, y + height - 48f * scale, width - 32f, line),
-                    "最新事件: " + last.Title);
-            }
-        }
-
-        private void DrawInbox(float x, float y, float width, float height, float top, float scale)
-        {
-            GUI.Label(new Rect(x + 16f, top, width - 32f, 34f * scale), "待处理申请：" + _world.PlayerPendingProposalCount);
-            top += 38f * scale;
-            float viewportHeight = Math.Max(100f * scale, height - (top - y) - 120f * scale);
-            var pending = _world.Proposals.Queue.Where(p => p.State == ProposalState.Pending &&
-                _world.IsPlayerProposal(p)).ToArray();
-            float row = 49f * scale;
-            _inboxScroll = GUI.BeginScrollView(new Rect(x + 16f, top, width - 32f, viewportHeight),
-                _inboxScroll, new Rect(0f, 0f, width - 58f, Math.Max(viewportHeight, pending.Length * row)));
-            for (int i = 0; i < pending.Length; i++)
-            {
-                Proposal proposal = pending[i];
-                if (GUI.Button(new Rect(0f, i * row, width - 60f, row - 3f * scale),
-                    proposal.Title + " · 第 " + proposal.SubmittedDay + " 天"))
-                    _selectedProposalId = proposal.Id;
-            }
-            GUI.EndScrollView();
-            top += viewportHeight + 8f * scale;
-            Proposal selected = pending.FirstOrDefault(p => p.Id == _selectedProposalId);
-            if (selected == null && pending.Length > 0) selected = pending[0];
-            if (selected == null) { GUI.Label(new Rect(x + 16f, top, width - 32f, row), "暂无待处理申请"); return; }
-            GUI.Label(new Rect(x + 16f, top, width - 32f, 44f * scale),
-                selected.Title + " | 金币 " + selected.CostGold + " | " + selected.Description);
-            top += 47f * scale;
-            if (GUI.Button(new Rect(x + 16f, top, 120f * scale, 43f * scale), "同意"))
-            {
-                _status = _world.ApproveProposal(selected.Id) ? "已同意：" + selected.Title : "申请未能执行：" + selected.Title;
-                _selectedProposalId = null;
-            }
-            if (GUI.Button(new Rect(x + 148f * scale, top, 120f * scale, 43f * scale), "拒绝"))
-            {
-                _status = _world.RejectProposal(selected.Id) ? "已拒绝：" + selected.Title : "拒绝失败：" + selected.Title;
-                _selectedProposalId = null;
-            }
-        }
-
-        private void OpenInbox()
-        {
-            _panel = true;
-            _showInbox = true;
-            if (_world == null) return;
-            try
-            {
-                if (_nativeInbox == null)
-                {
-                    _nativeInbox = WindowCreator.CreateEmptyWindow("lordwar_inbox_window", "提交箱");
-                    Transform content = _nativeInbox.transform_content;
+                    _cityWindow = WindowCreator.CreateEmptyWindow(WindowId, "领主战争");
+                    Transform content = _cityWindow.transform_content;
                     var layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
-                    layout.spacing = 4f;
-                    layout.padding = new RectOffset(8, 8, 8, 8);
+                    layout.spacing = 6f;
+                    layout.padding = new RectOffset(10, 10, 10, 10);
                     layout.childControlWidth = true;
                     layout.childForceExpandWidth = true;
                     layout.childControlHeight = false;
@@ -439,89 +115,128 @@ namespace LordWar.AndroidMod
                     var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
                     fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
                 }
-                RefreshNativeInbox();
-                ScrollWindow.showWindow("lordwar_inbox_window");
+                RefreshCityWindow();
+                ScrollWindow.showWindow(WindowId);
             }
             catch (Exception error)
             {
-                LogInfo("LordWar native inbox unavailable: " + error);
+                LogInfo("LordWar city window FAILED: " + error);
+                throw;
             }
         }
 
-        private void RefreshNativeInbox()
+        private void RefreshCityWindow()
         {
-            Transform content = _nativeInbox.transform_content;
-            for (int i = content.childCount - 1; i >= 0; i--)
-                UnityEngine.Object.Destroy(content.GetChild(i).gameObject);
-            AddInboxText(content, "提交箱 · 待处理 " + _world.PlayerPendingProposalCount, 30f);
-            foreach (Proposal proposal in _world.Proposals.Queue.ToArray())
+            Transform content = _cityWindow.transform_content;
+            for (int index = content.childCount - 1; index >= 0; index--)
+                UnityEngine.Object.Destroy(content.GetChild(index).gameObject);
+
+            AddText(content, "领主战争 · 原版城市", 40f);
+            global::City city = ResolveCity();
+            if (city == null)
             {
-                if (proposal.State != ProposalState.Pending || !_world.IsPlayerProposal(proposal)) continue;
-                string id = proposal.Id;
-                AddInboxText(content, proposal.Title + "\n" + proposal.Description, 70f);
-                AddInboxAction(content, "同意 · " + proposal.Title, () => ResolveInbox(id, true));
-                AddInboxAction(content, "拒绝 · " + proposal.Title, () => ResolveInbox(id, false));
+                _status = "选中城市不存在、已易主或当前地图已改变；请重新选城";
+                AddText(content, _status, 78f);
+                return;
             }
-            if (_world.PlayerPendingProposalCount == 0) AddInboxText(content, "暂无待处理申请", 36f);
+
+            global::Kingdom kingdom = city.kingdom;
+            AddText(content, "城市：" + city.name + "    国家：" + kingdom.name, 56f);
+            AddText(content,
+                "原版人口：" + city.getPopulationPeople() +
+                "    城市金币：" + city.getResourcesAmount("gold") +
+                "    王都：" + (kingdom.capital == city ? "是" : "否"), 56f);
+
+            int shown = 0;
+            foreach (global::Actor actor in city.units)
+            {
+                if (actor == null || actor.isRekt() || !actor.isSapient()) continue;
+                AddText(content, "城内人物：" + actor.getName() + "  ID：" + actor.getID(), 35f);
+                if (++shown == 3) break;
+            }
+            if (shown == 0) AddText(content, "城内没有可用人物", 35f);
+            AddAction(content, "设为王都", SetCapital);
+            AddText(content, _status, 65f);
         }
 
-        private void ResolveInbox(string id, bool approve)
+        private void SetCapital()
         {
-            bool ok = approve ? _world.ApproveProposal(id) : _world.RejectProposal(id);
-            _status = ok ? (approve ? "申请已同意" : "申请已拒绝") : "申请处理失败";
-            RefreshNativeInbox();
+            global::City city = ResolveCity();
+            if (city == null)
+            {
+                _status = "城市已消失、易主或选中对象变化，命令未执行";
+                RefreshCityWindow();
+                return;
+            }
+            global::Kingdom kingdom = city.kingdom;
+            if (city.getPopulationPeople() < 1)
+            {
+                _status = "城市没有人口，不能设为王都";
+            }
+            else if (kingdom.capital == city)
+            {
+                _status = city.name + " 已是王都，未重复执行";
+            }
+            else
+            {
+                try
+                {
+                    kingdom.setCapital(city);
+                    _status = kingdom.capital == city
+                        ? "原版国家已将 " + city.name + " 设为王都"
+                        : "原版对象未确认王都变化";
+                    LogInfo("LordWar native capital result city=" + city.getID() +
+                        " success=" + (kingdom.capital == city));
+                }
+                catch (Exception error)
+                {
+                    _status = "王都命令失败：" + error.Message;
+                    LogInfo("LordWar native capital FAILED: " + error);
+                }
+            }
+            RefreshCityWindow();
         }
 
-        private static void AddInboxText(Transform parent, string value, float height)
+        private static void AddText(Transform parent, string value, float height)
         {
-            var item = new GameObject("LordWarInboxText");
+            var item = new GameObject("LordWarCityText", typeof(RectTransform));
             item.transform.SetParent(parent, false);
             var layout = item.AddComponent<LayoutElement>();
             layout.preferredHeight = height;
             var label = item.AddComponent<Text>();
             label.font = LocalizedTextManager.current_font;
-            label.fontSize = 12;
-            label.color = Color.black;
+            label.fontSize = 13;
+            label.color = Color.white;
             label.alignment = TextAnchor.MiddleLeft;
             label.text = value;
         }
 
-        private static void AddInboxAction(Transform parent, string label, Action action)
+        private static void AddAction(Transform parent, string label, Action action)
         {
-            var item = new GameObject("LordWarInboxAction");
+            var item = new GameObject("LordWarCityAction", typeof(RectTransform));
             item.transform.SetParent(parent, false);
             var layout = item.AddComponent<LayoutElement>();
-            layout.preferredHeight = 36f;
+            layout.preferredHeight = 42f;
             var image = item.AddComponent<Image>();
             image.sprite = Resources.Load<Sprite>("ui/special/windowInnerSliced");
-            image.type = Image.Type.Sliced;
+            if (image.sprite != null) image.type = Image.Type.Sliced;
+            image.color = new Color(0.26f, 0.32f, 0.26f, 1f);
             var button = item.AddComponent<Button>();
             button.onClick.AddListener(() => action());
-            var labelObject = new GameObject("Label");
-            labelObject.transform.SetParent(item.transform, false);
-            var text = labelObject.AddComponent<Text>();
+
+            var textObject = new GameObject("Label", typeof(RectTransform));
+            textObject.transform.SetParent(item.transform, false);
+            var text = textObject.AddComponent<Text>();
             text.font = LocalizedTextManager.current_font;
-            text.fontSize = 12;
-            text.color = Color.black;
+            text.fontSize = 13;
+            text.color = Color.white;
             text.alignment = TextAnchor.MiddleCenter;
             text.text = label;
-            var rect = labelObject.GetComponent<RectTransform>();
+            var rect = textObject.GetComponent<RectTransform>();
             rect.anchorMin = Vector2.zero;
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-        }
-
-        private sealed class FolderDataProvider : ITextDataProvider
-        {
-            private readonly string _folder;
-            public FolderDataProvider(string folder) { _folder = folder; }
-            public string Load(string key)
-            {
-                string path = Path.Combine(_folder, "Data", key + ".csv");
-                if (!File.Exists(path)) throw new FileNotFoundException("缺少领主战争数据", path);
-                return File.ReadAllText(path);
-            }
         }
     }
 }

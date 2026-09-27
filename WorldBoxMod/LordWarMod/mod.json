@@ -2,8 +2,8 @@
   "name": "LordWar",
   "GUID": "LordWar.Android.Core",
   "author": "LordWar",
-  "version": "0.1.0",
-  "description": "领主战争 R30 核心运行链的 Android NeoModLoader 接入验证",
+  "version": "0.2.0",
+  "description": "领主战争原生 WorldBox 选城与王都命令接入",
   "Dependencies": [],
   "OptionalDependencies": [],
   "IncompatibleWith": []

@@ -9,18 +9,18 @@
 |0.22.21|`e4b37e1ffdc27fba37e1fcd9390787a248dcdc5764d123da5a47df0681ab6bd5`|152,904,263 字节；arm64-v8a/armeabi-v7a；IL2CPP|保留资源对照，画面与目标不符|
 |0.50.6|`77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`|322,027,494 字节；arm64-v8a；IL2CPP；内嵌 `assets/hook.apk` 和第三方宿主|当前唯一施工基线|
 
-旧的内层候选包在用户视频中黑屏退回桌面。修正后的外层宿主候选包仅通过 ZIP、对齐和签名静态检查，**设备安装、WorldBox 启动、LemonLoader/NML 加载、模组界面及原生玩法均未验收**。此分支目前会创建自己的 `GameWorld`、推进时间、另绘地图并部分回写城市，仍不是用户要求的原生玩法模组。后续应沿本分支改动，将规则逐项作用在 WorldBox 当前地图、城市、人物、资源、军队和存档上，取消并行世界的权威状态；不能把当前 APK 称为完成版。
+旧的内层候选包在用户视频中黑屏退回桌面。修正后的外层宿主候选包仅通过 ZIP、对齐和签名静态检查，**设备安装、WorldBox 启动、LemonLoader/NML 加载、模组界面及原生玩法均未验收**。当前入口源码已删除创建独立 `GameWorld`、另绘地图和独立推进时间的执行链；第一条原生命令是读取选中城市和城内真实人物、校验城市及归属，然后调用 `Kingdom.setCapital(city)`，结果直接留在 WorldBox 对象里。源码编译和手机操作仍须分别验收；不能把当前 APK 称为完成版。
 
 ## 本包是什么
 
-`LordWarMod/` 是针对 NeoModLoader Android 的**源码模组目录**。它移入用户提供的 R30 Unity 工程中 44 个纯 C# 游戏核心文件和 23 个原始数据文件，并新增 `LordWarMod.cs` 作为移动端入口。`Core/` 保留 R30 游戏逻辑；为通过独立编译，修复了 3 处原始源码错误，并将 7 个文件中的 `WorldTile` 引用明确限定为领主战争类型，避免与 WorldBox 的同名类型冲突。
+`LordWarMod/` 是针对 NeoModLoader Android 的**源码模组目录**。现有 44 个 R30 纯 C# 核心文件和 23 个数据文件保留为后续逐项迁移的来源；当前 `LordWarMod.cs` 不实例化或推进其中的 `GameWorld`。编译历史中修复了 3 处 R30 原始源码错误，并将 7 个文件中的 `WorldTile` 引用明确限定为领主战争类型。
 
-接入的可见操作是在 NeoModLoader 的 WorldBox 底部功能栏创建“领主战争”标签、面板按钮和提交箱按钮（同时保留浮动入口）。入口只从当前 WorldBox 地图采样地形，使用原生城市位置与国家分组初始化《领主战争》的地图和政治实体；不再提供脱离 WorldBox 地图的独立世界创建按钮。空白 WorldBox 地图上可通过原生 `Actor.buildCityAndStartCivilization()` 建立对应城市和国家；已有城市的地图会按位置关联原生城市。在 R30 模拟日推进后，会把受《领主战争》接管的城市名称和归属国家写回原生 WorldBox 城市。提交箱接入 R30 `GameWorld.ApproveProposal` / `RejectProposal`，使用 WorldBox 原有的 `ScrollWindow` 空窗口预制件承载列表，并保留 IMGUI 回退入口。原生标签接法参考用户提供的 `Supower.rar` 的公开接口使用方式，入口代码独立编写。世界的政策、兵种、人物、经济和战争模拟走 R30 `GameWorld` 及其 Owner 链。当前面板尚未暴露所有原版操作；WorldBox 本体单位、建筑、战斗和存档与《领主战争》世界的完整双向同步尚未实现。
+运行入口通过 NeoModLoader 创建原版底部“领主战争”标签，提供选城地图工具和原生城市窗口。窗口显示实际城市、国家、金币、人口及最多三名真实城内人物；“设为王都”先检查城市存在、国家未改变、人口大于零和重复点击，再修改原版 `Kingdom` 的王都。旧 IMGUI 浮动入口、R30 并行地图和自动城市归属回写已经从运行入口移除。此条原生闭环需要在实际 Android 目标上核对按钮、读档和异常状态；建设、征募、军队、战争及其余清单仍未移植。
 
 ## 已完成的检查
 
 - 使用 .NET 8 的 C# 编译器编译纯游戏核心，并实际运行生成世界、推进一天、存档校验和恢复：`CORE_SMOKE_PASS skills=360 units=156 map=160x120 kingdoms=4 cities=4 people=220 day=1`。
-- 使用公开的 `NeoModLoader_mobile.dll` 2.0 与 AndroidModLoader 仓库提供的 WorldBox/Unity 程序集，对全部模组 C# 源码完成编译。程序集目标版本不同，编译器发出 `CS1701` 版本匹配警告；设备端加载尚待验证。
+- 旧入口曾使用公开的 `NeoModLoader_mobile.dll` 2.0 与 AndroidModLoader 仓库提供的 WorldBox/Unity 程序集完成编译；程序集目标版本不同，编译器发出 `CS1701` 警告。新原生入口必须重新编译，旧结果不代表本次通过。
 - 2026-09-27，GitHub Actions run `36293519434`：纯核心编译、含导入地图、原生城市分组和四国的 smoke test、Android NML 参考程序集编译均通过。上一候选 APK 的 69 个模组文件已与当时源码逐字节比对；ZIP、16 KiB 对齐和 v1/v2/v3 签名静态检查通过。新增原生城市创建、现存城市关联和城市归属同步代码尚需重封 APK 和设备验收。游戏运行时的按钮显示、触摸响应和模组实际加载仍待设备验证。
 - `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流位于仓库分支的 `.github/workflows/`。
 
@@ -34,7 +34,7 @@
 
 1. 先用对应 WorldBox 0.50.6 的 Android LemonLoader/NeoModLoader 环境验证加载器启动和日志。社区 Android 仓库已归档，不能仅凭桌面版的 0.50.6 适配公告推定手机兼容。
 2. 将完整 `LordWarMod/` 目录放在 NeoModLoader Android 的 `NMLMods/` 中，保持 `mod.json`、`LordWarMod.cs`、`Core/` 和 `Data/` 的相对路径。加载器的 `ModCompileLoadService` 会搜索模组目录中的 C# 源码并编译。
-3. 确认模组出现在模组列表，日志出现 `LordWar R30 core source loaded into NML`，打开面板后按“接入当前 WorldBox 地图”，核对数据加载、地图、日期变化与战争事件。
+3. 确认模组出现在模组列表，日志出现 `LordWar native city entry registered`，在原版地图选城或按“领主战争”按钮读取当前城市，再执行“设为王都”，观察国家王都改变、重复点击不重复执行和重启读档恢复。
 4. 若失败，保留设备日志和编译报错，对照实际 IL2CPP 包装程序集修正。这份源码**没有运行过手机编译与实机验收**。
 
 ## 来源
