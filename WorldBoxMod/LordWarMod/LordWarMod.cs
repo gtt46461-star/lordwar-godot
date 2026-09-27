@@ -172,6 +172,11 @@ namespace LordWar.AndroidMod
                         try { MaterializeNativeCities(); }
                         catch (Exception error) { _status = "原生城市建立失败: " + error.Message; LogInfo(_status); }
                     }
+                    else if (MapBox.instance != null && MapBox.instance.cities != null && MapBox.instance.cities.Count > 0)
+                    {
+                        try { BindExistingNativeCities(); }
+                        catch (Exception error) { _status = "原生城市关联失败: " + error.Message; LogInfo(_status); }
+                    }
                     LogInfo("LordWar world initialized: " + _world.Map.Width + "×" + _world.Map.Height);
                 }
             }
@@ -183,6 +188,26 @@ namespace LordWar.AndroidMod
                 _status = "运行暂停: " + error.Message;
                 LogInfo(_status);
             }
+        }
+
+        private void BindExistingNativeCities()
+        {
+            MapBox native = MapBox.instance;
+            native.cities.checkLists();
+            foreach (City city in _world.Cities.Values)
+            {
+                int x = (int)((city.X + .5) * MapBox.width / _world.Map.Width);
+                int y = (int)((city.Y + .5) * MapBox.height / _world.Map.Height);
+                for (int i = 0; i < native.cities.list.Count; i++)
+                {
+                    global::City target = native.cities.list[i];
+                    global::WorldTile tile = target == null ? null : target.getTile();
+                    if (tile == null || Math.Abs(tile.x - x) > 2 || Math.Abs(tile.y - y) > 2) continue;
+                    _nativeCities[city.Id] = target;
+                    break;
+                }
+            }
+            _status = "已关联 WorldBox 原生城市 " + _nativeCities.Count + " / " + _world.Cities.Count;
         }
 
         private void MaterializeNativeCities()
