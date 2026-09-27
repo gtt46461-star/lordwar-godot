@@ -284,12 +284,26 @@
     "mod_zip_sha256": "e0666797b50ec7d038403cb7c55980b7ab212fcb610d3a20e9d53c56e6672cf3",
     "inner_apk_sha256": "b117c10ebd32170ba110aaf084ce1b45dcec5ffdef68f04528eb66dda71f32fa",
     "outer_apk_sha256": "6addd309e94ae6a1e25ead96e1592453cee04ffc58bcd382a5e0e27819e4057b",
-    "native_leader_and_captain": "COMPILED against public Android reference assemblies, runtime NOT_RUN",
+    "native_leader_and_captain": "COMPILED against public Android references; user reports mod UI absent, actual operation FAIL/not reached",
     "native_city_and_capital": "COMPILED against public Android reference assemblies, runtime NOT_RUN",
     "static_zip_signature_alignment_manifest_and_entry_hashes": "PASS",
-    "device_install_launch_ui_state_save_restart": "NOT_RUN: adb devices empty; no applicable arm64 emulator",
+    "device_install_launch_ui_state_save_restart": "USER_REPORTED: APK opens original WorldBox; LordWar UI absent. Loader logs and save test NOT_RUN by agent.",
     "full_lord_war_requirements": "NOT_IMPLEMENTED; only native city selection/capital/leader/captain slice present",
     "ci_compile_run": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36326079559",
     "candidate_signer_can_cover_original": "NO: SHA-256 differs; retain original installation and save backup"
+  },
+  "android_candidate_0_2_3": {
+    "baseline": "WorldBox 0.50.6 original outer SHA-256 77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "user_feedback_on_previous_0_2_2": "USER_REPORTED: game launches but no LordWar UI or gameplay is visible; failure not yet localized by loader logs",
+    "changes": "correct lower-case ui/icons path with fallback; mirror NML DLL and two-file source mod to assets/copyToData/MelonLoader/...; preserve original host and game anchors",
+    "mod_zip_sha256": "25a270f03da553bd28098d0c6384bba34c956de6bc6cfbfecb7d5d051521d4f3",
+    "active_entry_sha256": "25b772352ef48970b7c6f2c35bedff50aa63d8f5adfa0529f23625016ca96d80",
+    "inner_apk_sha256": "afbd1eeedabffabf0e213833a45033af6b3fd43e8f886efb972e292bb20b2869",
+    "outer_apk_sha256": "c5a6747d53c1c6ba0ba9b8ed2b0df75a596d4551bae2f437e21d9cf56ee038ba",
+    "package_version": "com.mkarpenko.worldbox 0.50.6 versionCode 690",
+    "compile": "PASS: Android public reference GitHub Actions run 36327816423",
+    "apk_build_and_static_integrity": "PASS: build script exit 0, ZIP/signature/alignment/host-entry checks; independent verification pending",
+    "new_apk_install_launch_loader_mod_ui_commands_save": "NOT_RUN on device",
+    "complete_gameplay": "NOT_IMPLEMENTED"
   }
 }
