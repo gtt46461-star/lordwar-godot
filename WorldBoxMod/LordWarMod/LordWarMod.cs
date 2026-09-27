@@ -30,6 +30,8 @@ namespace LordWar.AndroidMod
         private string _selectedProposalId;
         private Texture2D _mapTexture;
         private ScrollWindow _nativeInbox;
+        private bool _foundNativeCivilizations;
+        private readonly Dictionary<string, global::City> _nativeCities = new Dictionary<string, global::City>();
 
         protected override void OnModLoad()
         {
@@ -61,6 +63,9 @@ namespace LordWar.AndroidMod
                 catch (Exception error) { _status = "读取当前地图失败: " + error.Message; LogInfo(_status); return; }
             }
             _world = null;
+            _nativeCities.Clear();
+            _foundNativeCivilizations = fromWorldBox && MapBox.instance != null &&
+                MapBox.instance.cities != null && MapBox.instance.cities.Count == 0;
             _showInbox = false;
             _selectedProposalId = null;
             if (_mapTexture != null) UnityEngine.Object.Destroy(_mapTexture);
@@ -140,6 +145,12 @@ namespace LordWar.AndroidMod
                     _world = completed.Result;
                     BuildMapTexture();
                     _status = "运行中";
+                    if (_foundNativeCivilizations)
+                    {
+                        _foundNativeCivilizations = false;
+                        try { MaterializeNativeCities(); }
+                        catch (Exception error) { _status = "原生城市建立失败: " + error.Message; LogInfo(_status); }
+                    }
                     LogInfo("LordWar world initialized: " + _world.Map.Width + "×" + _world.Map.Height);
                 }
             }
@@ -151,6 +162,34 @@ namespace LordWar.AndroidMod
                 _status = "运行暂停: " + error.Message;
                 LogInfo(_status);
             }
+        }
+
+        private void MaterializeNativeCities()
+        {
+            MapBox native = MapBox.instance;
+            if (native == null || native.cities.Count != 0)
+                throw new InvalidOperationException("当前地图已有原生城市，不能重复建立四国");
+            int created = 0;
+            foreach (City city in _world.Cities.Values)
+            {
+                int x = (int)((city.X + .5) * MapBox.width / _world.Map.Width);
+                int y = (int)((city.Y + .5) * MapBox.height / _world.Map.Height);
+                global::WorldTile tile = native.GetTileSimple(x, y);
+                if (tile == null || tile.is_liquid || tile.zone == null || tile.zone.hasCity()) continue;
+                global::Actor founder = native.units.spawnNewUnit("human", tile, false, true);
+                if (founder == null || !founder.buildCityAndStartCivilization()) continue;
+                founder.setName(city.Name + "开国者");
+                if (founder.city != null)
+                {
+                    founder.city.setName(city.Name);
+                    _nativeCities[city.Id] = founder.city;
+                }
+                Kingdom lordKingdom;
+                if (founder.kingdom != null && _world.Kingdoms.TryGetValue(city.KingdomId, out lordKingdom))
+                    founder.kingdom.setName(lordKingdom.Name);
+                created++;
+            }
+            _status = "已在 WorldBox 地图建立 " + created + " 个领主战争城市";
         }
 
         private void BuildMapTexture()
