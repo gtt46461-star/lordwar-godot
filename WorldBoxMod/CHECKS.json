@@ -343,11 +343,13 @@
     "game_alias_sha256": "afb0877bfa6814469d83c34952622e4d25aeef4a7a21c4af6dbc97a82dc23b7d",
     "static_alias_count": 239,
     "static_checks": "PASS: 239 aliases, code section unchanged, signed APKs aligned and identical overlay",
-    "local_mod_compile": "BLOCKED: dotnet CLI fails Process.get_StartTime in this container; GitHub Actions compilation pending",
+    "local_mod_compile": "BLOCKED locally: dotnet CLI Process.get_StartTime failure",
     "android_install_launch": "NOT_RUN: adb devices empty",
     "native_world_button_and_commands": "NOT_RUN",
     "all_gameplay_complete": "NO",
     "phone_feedback": "PENDING; previous APK failed before il2cpp_init",
-    "signing": "same candidate test certificate a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13; not original certificate"
+    "signing": "same candidate test certificate a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13; not original certificate",
+    "remote_mod_compile": "PASS: GitHub Actions run 36333047066 step Compile Android NML mod against published assemblies",
+    "remote_core_smoke": "PASS: GitHub Actions run 36333047066 steps Compile game core and Exercise creation, day tick, save and restore; only legacy core host smoke"
   }
 }
