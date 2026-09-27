@@ -24,6 +24,9 @@ namespace LordWar.AndroidMod
         private string _status = "等待创建世界";
         private bool _panel;
         private bool _showMap = true;
+        private bool _showInbox;
+        private Vector2 _inboxScroll;
+        private string _selectedProposalId;
         private Texture2D _mapTexture;
 
         protected override void OnModLoad()
@@ -36,6 +39,9 @@ namespace LordWar.AndroidMod
                 var open = PowerButtonCreator.CreateSimpleButton(
                     "lordwar_open", (Action)(() => _panel = true), icon, tab.transform);
                 PowerButtonCreator.AddButtonToTab(open, tab);
+                var inbox = PowerButtonCreator.CreateSimpleButton(
+                    "lordwar_inbox", (Action)(() => { _panel = true; _showInbox = true; }), icon, tab.transform);
+                PowerButtonCreator.AddButtonToTab(inbox, tab);
             }
             catch (Exception error)
             {
@@ -53,6 +59,8 @@ namespace LordWar.AndroidMod
                 catch (Exception error) { _status = "读取当前地图失败: " + error.Message; LogInfo(_status); return; }
             }
             _world = null;
+            _showInbox = false;
+            _selectedProposalId = null;
             if (_mapTexture != null) UnityEngine.Object.Destroy(_mapTexture);
             _mapTexture = null;
             _status = imported == null ? "正在后台生成 160×120 / 4 国世界" : "正在当前地图上创建 4 国世界";
@@ -190,7 +198,10 @@ namespace LordWar.AndroidMod
             if (GUI.Button(new Rect(x + 16f, top, 165f * scale, 48f * scale), "创建新世界")) StartWorld(false);
             if (GUI.Button(new Rect(x + 190f * scale, top, 220f * scale, 48f * scale), "使用当前地图")) StartWorld(true);
             if (_world == null) return;
+            if (GUI.Button(new Rect(x + width - 195f * scale, top, 178f * scale, 48f * scale),
+                "提交箱 (" + _world.PlayerPendingProposalCount + ")")) _showInbox = !_showInbox;
             top += 56f * scale;
+            if (_showInbox) { DrawInbox(x, y, width, height, top, scale); return; }
             if (GUI.Button(new Rect(x + 16f, top, 140f * scale, 48f * scale), _world.Paused ? "继续" : "暂停"))
                 _world.Paused = !_world.Paused;
             if (GUI.Button(new Rect(x + 166f * scale, top, 140f * scale, 48f * scale), "推进一天"))
@@ -251,6 +262,43 @@ namespace LordWar.AndroidMod
                 WorldEvent last = _world.Events[_world.Events.Count - 1];
                 GUI.Label(new Rect(x + 16f, y + height - 48f * scale, width - 32f, line),
                     "最新事件: " + last.Title);
+            }
+        }
+
+        private void DrawInbox(float x, float y, float width, float height, float top, float scale)
+        {
+            GUI.Label(new Rect(x + 16f, top, width - 32f, 34f * scale), "待处理申请：" + _world.PlayerPendingProposalCount);
+            top += 38f * scale;
+            float viewportHeight = Math.Max(100f * scale, height - (top - y) - 120f * scale);
+            var pending = _world.Proposals.Queue.Where(p => p.State == ProposalState.Pending &&
+                _world.IsPlayerProposal(p)).ToArray();
+            float row = 49f * scale;
+            _inboxScroll = GUI.BeginScrollView(new Rect(x + 16f, top, width - 32f, viewportHeight),
+                _inboxScroll, new Rect(0f, 0f, width - 58f, Math.Max(viewportHeight, pending.Length * row)));
+            for (int i = 0; i < pending.Length; i++)
+            {
+                Proposal proposal = pending[i];
+                if (GUI.Button(new Rect(0f, i * row, width - 60f, row - 3f * scale),
+                    proposal.Title + " · 第 " + proposal.SubmittedDay + " 天"))
+                    _selectedProposalId = proposal.Id;
+            }
+            GUI.EndScrollView();
+            top += viewportHeight + 8f * scale;
+            Proposal selected = pending.FirstOrDefault(p => p.Id == _selectedProposalId);
+            if (selected == null && pending.Length > 0) selected = pending[0];
+            if (selected == null) { GUI.Label(new Rect(x + 16f, top, width - 32f, row), "暂无待处理申请"); return; }
+            GUI.Label(new Rect(x + 16f, top, width - 32f, 44f * scale),
+                selected.Title + " | 金币 " + selected.CostGold + " | " + selected.Description);
+            top += 47f * scale;
+            if (GUI.Button(new Rect(x + 16f, top, 120f * scale, 43f * scale), "同意"))
+            {
+                _status = _world.ApproveProposal(selected.Id) ? "已同意：" + selected.Title : "申请未能执行：" + selected.Title;
+                _selectedProposalId = null;
+            }
+            if (GUI.Button(new Rect(x + 148f * scale, top, 120f * scale, 43f * scale), "拒绝"))
+            {
+                _status = _world.RejectProposal(selected.Id) ? "已拒绝：" + selected.Title : "拒绝失败：" + selected.Title;
+                _selectedProposalId = null;
             }
         }
 
