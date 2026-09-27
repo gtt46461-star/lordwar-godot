@@ -80,8 +80,18 @@ namespace LordWar.UnityRuntime {
       if(!p.IsWorldWalker||!p.Alive||p.Injury==InjuryState.Captured)continue;
       string key="resident|"+p.Id;_visiblePeople.Add(key);
       GameObject g;if(!_personMarkers.TryGetValue(key,out g)){g=Marker("居民_"+p.Name,frames[0],22,.7f);_personMarkers[key]=g;}
-      g.SetActive(true);SpriteRenderer sr=g.GetComponent<SpriteRenderer>();sr.sprite=frames[(int)((_world.Clock.TickIndex/3)%4)];
-      g.transform.position=WorldPos(p.X,p.Y,-2f);
+      g.SetActive(true);SpriteRenderer sr=g.GetComponent<SpriteRenderer>();
+      int nextIndex=p.WalkRouteIndex;
+      if(p.WalkRoute!=null&&p.WalkRoute.Count>1){
+        nextIndex+=p.WalkRouteIndex>=p.WalkRoute.Count-1?-1:(p.WalkRouteIndex<=0?1:(p.WalkForward?1:-1));
+        nextIndex=Mathf.Clamp(nextIndex,0,p.WalkRoute.Count-1);
+      }
+      float progress=Mathf.Clamp01(p.WalkProgress);
+      GridPoint target=p.WalkRoute!=null&&p.WalkRoute.Count>1?p.WalkRoute[nextIndex]:new GridPoint(p.X,p.Y);
+      bool walking=target.X!=p.X||target.Y!=p.Y;
+      sr.sprite=frames[walking?(int)((_world.Clock.TickIndex/3)%4):0];
+      if(walking)sr.flipX=target.X<p.X;
+      g.transform.position=WorldPos(Mathf.Lerp(p.X,target.X,progress),Mathf.Lerp(p.Y,target.Y,progress),-2f);
     }
   }
   void SyncConstructionWorkers(){Sprite workerSprite=_art.FindContains("builder","worker","unit_peasant","unit_warrior");HashSet<string> active=new HashSet<string>();foreach(ConstructionProject cp in _world.Projects.Values){if(cp==null||cp.Stage==ConstructionStage.Complete||cp.WorkerActions==null)continue;for(int i=0;i<cp.WorkerActions.Count;i++){ConstructionWorkerAction state=cp.WorkerActions[i];Person p;if(state==null||!_world.People.TryGetValue(state.WorkerId,out p)||!p.Alive)continue;string key=cp.Id+"|"+p.Id;active.Add(key);GameObject g;if(!_constructionWorkerMarkers.TryGetValue(key,out g)){g=Marker("施工_"+p.Name,workerSprite,18,.58f);_constructionWorkerMarkers[key]=g;}g.name="施工_"+p.Name+"_"+state.Action;g.SetActive(true);float phase=Time.unscaledTime*3.2f+i*.9f+state.Cycle*.18f;float dx=(i%3-1)*.28f,dy=(i/3)*.20f;if(state.Action=="搬运")dx+=Mathf.Sin(phase)*.24f;else if(state.Action=="锯木"||state.Action=="敲打")dy+=Mathf.Abs(Mathf.Sin(phase))*.16f;else if(state.Action=="砌筑")dy+=Mathf.PingPong(phase*.08f,.16f);else if(state.Action=="铺路")dx+=Mathf.PingPong(phase*.09f,.22f)-.11f;else if(state.Action=="测量")dx+=Mathf.Sin(phase*.45f)*.12f;g.transform.position=WorldPos(cp.X,cp.Y,-1.8f)+new Vector3(dx,dy,0);}}foreach(var pair in _constructionWorkerMarkers)if(!active.Contains(pair.Key))pair.Value.SetActive(false);}

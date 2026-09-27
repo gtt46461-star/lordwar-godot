@@ -13,6 +13,10 @@ namespace LordWar.EditorBuild {
                 string path="Assets/Resources/LordWarArt/N01/"+id+".png";
                 if(AssetDatabase.LoadAssetAtPath<Texture2D>(path)==null)throw new InvalidOperationException("N01真实资源缺失："+path);
             }
+            foreach(string file in new[]{"windowBig__resources.assets__852","buttonLong__e2122512b478b784b9d820a3167ca52e__1","special_buttonRed__resources.assets__513"}){
+                string path="Assets/Resources/LordWarArt/UI_界面/"+file+".png";
+                if(AssetDatabase.LoadAssetAtPath<Texture2D>(path)==null)throw new InvalidOperationException("N01界面资源缺失："+path);
+            }
             string data="Assets/Resources/LordWarData/policies_v8.csv";
             if(!File.Exists(data))throw new InvalidOperationException("运行数据缺失："+data);
             if(EditorBuildSettings.scenes.Length==0||!EditorBuildSettings.scenes[0].enabled)throw new InvalidOperationException("主场景未启用");

@@ -16,9 +16,11 @@ namespace LordWar.UnityRuntime {
         int newWorldSize=160, newWorldKingdoms=2; AiDifficulty newDifficulty=AiDifficulty.Hard;
         readonly WorldGenerationOptions newMapOptions=new WorldGenerationOptions();
         readonly HashSet<string> selectedArmyIds=new HashSet<string>();
+        GUISkin _gameSkin; GUIStyle _primaryButton; Font _chineseFont;
         public bool BlocksWorldInput {get{return showNewWorldSetup||LordWarBootstrap.World==null;}}
 
         void OnGUI(){
+            ApplyGameSkin();
             GameWorld w=LordWarBootstrap.World;if(w==null){DrawMainMenu();if(showNewWorldSetup)DrawNewWorldSetup(null);return;}
             CleanupArmySelection(w);
             DrawTop(w);
@@ -34,13 +36,43 @@ namespace LordWar.UnityRuntime {
             DrawConstruction(w);
         }
 
+        void ApplyGameSkin(){
+            if(_gameSkin==null){
+                _gameSkin=Instantiate(GUI.skin);
+                Texture2D panel=Resources.Load<Texture2D>("LordWarArt/UI_界面/windowBig__resources.assets__852");
+                Texture2D button=Resources.Load<Texture2D>("LordWarArt/UI_界面/buttonLong__e2122512b478b784b9d820a3167ca52e__1");
+                Texture2D action=Resources.Load<Texture2D>("LordWarArt/UI_界面/special_buttonRed__resources.assets__513");
+                if(panel!=null){_gameSkin.box.normal.background=panel;_gameSkin.box.border=new RectOffset(12,12,12,12);}
+                if(button!=null){_gameSkin.button.normal.background=button;_gameSkin.button.hover.background=button;_gameSkin.button.active.background=button;_gameSkin.button.border=new RectOffset(9,9,9,9);}
+                Color ink=new Color(.94f,.93f,.84f,1f);
+                _gameSkin.box.normal.textColor=ink;_gameSkin.label.normal.textColor=ink;
+                _gameSkin.button.normal.textColor=ink;_gameSkin.button.hover.textColor=Color.white;_gameSkin.button.active.textColor=Color.white;
+                _gameSkin.textField.normal.textColor=ink;
+                _primaryButton=new GUIStyle(_gameSkin.button);
+                if(action!=null){_primaryButton.normal.background=action;_primaryButton.hover.background=action;_primaryButton.active.background=action;}
+                _primaryButton.normal.textColor=Color.white;
+                try{
+                    string[] installed=Font.GetOSInstalledFontNames();var fonts=new List<string>();
+                    foreach(string name in installed){string lower=name.ToLowerInvariant();
+                        if(lower.Contains("cjk")||lower.Contains("han")||lower.Contains("chinese")||lower.Contains("yahei")||lower.Contains("pingfang")||lower.Contains("droid sans fallback"))fonts.Add(name);
+                    }
+                    foreach(string name in installed)if(!fonts.Contains(name))fonts.Add(name);
+                    if(fonts.Count>0)_chineseFont=Font.CreateDynamicFontFromOSFont(fonts.ToArray(),18);
+                    if(_chineseFont!=null)_gameSkin.font=_chineseFont;
+                }catch(Exception e){Debug.LogWarning("无法从设备系统字体建立中文字形："+e.Message);}
+            }
+            GUI.skin=_gameSkin;
+        }
+
+        void OnDestroy(){if(_chineseFont!=null)Destroy(_chineseFont);if(_gameSkin!=null)Destroy(_gameSkin);}
+
         void DrawMainMenu(){
             float panelWidth=Mathf.Min(440f,Screen.width-32f),panelHeight=Mathf.Min(360f,Screen.height-32f);
             Rect area=new Rect((Screen.width-panelWidth)*.5f,(Screen.height-panelHeight)*.5f,panelWidth,panelHeight);
             GUI.Box(area,"领主战争 · "+BuildInfo.Batch);
             GUILayout.BeginArea(new Rect(area.x+24f,area.y+38f,area.width-48f,area.height-52f));
             GUILayout.Label("建立一个世界，观察居民、地形与城市。",GUILayout.Height(36));
-            if(GUILayout.Button("创建新世界",GUILayout.Height(48)))showNewWorldSetup=true;
+            if(GUILayout.Button("创建新世界",_primaryButton,GUILayout.Height(48)))showNewWorldSetup=true;
             bool canLoad=UnitySaveService.HasSave;bool old=GUI.enabled;GUI.enabled=canLoad;
             if(GUILayout.Button("读取存档",GUILayout.Height(48))){status=LordWarBootstrap.LoadSavedWorld()?"读档成功":"存档损坏或不兼容";}
             GUI.enabled=old;
@@ -87,8 +119,9 @@ namespace LordWar.UnityRuntime {
             newMapOptions.ResourcePercent=MapSlider("资源",newMapOptions.ResourcePercent,0,100);
             GUILayout.Space(8);GUILayout.Label("国家数量："+newWorldKingdoms);GUILayout.BeginHorizontal();for(int count=2;count<=6;count++)if(GUILayout.Button(count+"国"))newWorldKingdoms=count;GUILayout.EndHorizontal();
             GUILayout.Space(8);GUILayout.Label("电脑难度："+ChineseText.Difficulty(newDifficulty)+"（只改变决策质量，不额外加金币、人口、粮食或战斗属性）");GUILayout.BeginHorizontal();if(GUILayout.Button("简单"))newDifficulty=AiDifficulty.Easy;if(GUILayout.Button("中等"))newDifficulty=AiDifficulty.Normal;if(GUILayout.Button("困难"))newDifficulty=AiDifficulty.Hard;if(GUILayout.Button("噩梦"))newDifficulty=AiDifficulty.Nightmare;GUILayout.EndHorizontal();
-            GUILayout.Space(12);GUILayout.BeginHorizontal();if(GUILayout.Button("取消")){showNewWorldSetup=false;}if(GUILayout.Button("创建世界")){int seedValue;if(!string.IsNullOrEmpty(newSeedText)&&!int.TryParse(newSeedText,out seedValue)){status="种子必须是32位整数";}else{seedValue=string.IsNullOrEmpty(newSeedText)?Guid.NewGuid().GetHashCode():int.Parse(newSeedText);try{LordWarBootstrap.CreateConfiguredWorld(seedValue,newWorldSize,newWorldSize,newWorldKingdoms,newDifficulty,newMapOptions);selectedArmyIds.Clear();selectedPersonId="";selectedEquipmentId="";showNewWorldSetup=false;status="新世界已创建：Seed "+seedValue+"，"+newWorldSize+"×"+newWorldSize+"，陆地"+newMapOptions.LandPercent+"%";}catch(Exception e){status="创建失败："+e.Message;}}}GUILayout.EndHorizontal();
-            GUILayout.Space(8);GUILayout.Label("当前世界：Seed "+w.Seed+"　电脑"+ChineseText.Difficulty(w.ComputerDifficulty));GUILayout.EndArea();
+            GUILayout.Space(12);GUILayout.BeginHorizontal();if(GUILayout.Button("取消")){showNewWorldSetup=false;}if(GUILayout.Button("创建世界",_primaryButton)){int seedValue;if(!string.IsNullOrEmpty(newSeedText)&&!int.TryParse(newSeedText,out seedValue)){status="种子必须是32位整数";}else{seedValue=string.IsNullOrEmpty(newSeedText)?Guid.NewGuid().GetHashCode():int.Parse(newSeedText);try{LordWarBootstrap.CreateConfiguredWorld(seedValue,newWorldSize,newWorldSize,newWorldKingdoms,newDifficulty,newMapOptions);selectedArmyIds.Clear();selectedPersonId="";selectedEquipmentId="";showNewWorldSetup=false;status="新世界已创建：Seed "+seedValue+"，"+newWorldSize+"×"+newWorldSize+"，陆地"+newMapOptions.LandPercent+"%";}catch(Exception e){status="创建失败："+e.Message;}}}GUILayout.EndHorizontal();
+            if(w!=null)GUILayout.Label("当前世界：Seed "+w.Seed+"　电脑"+ChineseText.Difficulty(w.ComputerDifficulty));
+            GUILayout.EndArea();
         }
 
         static int MapSlider(string label,int value,int min,int max){GUILayout.Label(label+"："+value+"%");return Mathf.RoundToInt(GUILayout.HorizontalSlider(value,min,max));}
@@ -151,8 +184,7 @@ namespace LordWar.UnityRuntime {
             GUILayout.Space(6);GUILayout.Label("【家族】");foreach(Family f in w.Families.Values){City home;if(string.IsNullOrEmpty(f.HomeCityId)||!w.Cities.TryGetValue(f.HomeCityId,out home)||home.KingdomId!=k.Id)continue;GUILayout.BeginVertical(GUI.skin.box);GUILayout.Label(f.Name+"｜"+f.FamilyType+"｜"+f.MilitaryTradition);GUILayout.Label("财富 "+f.Wealth+"　声望 "+f.Prestige+"　忠诚 "+f.Loyalty+"　野心 "+f.Ambition+"　影响力 "+f.Influence);int members=0;foreach(string pid in f.MemberIds){if(members++>=3)break;Person member;if(w.People.TryGetValue(pid,out member)&&GUILayout.Button("成员："+member.Name+"｜"+ChineseText.Social(member.Class)))selectedPersonId=member.Id;}GUILayout.EndVertical();}
             GUILayout.Space(6);GUILayout.Label("【商人及军资投资】");int merchants=0;foreach(Person m in w.People.Values){if(m.KingdomId!=k.Id||!m.Alive||!m.Merchant)continue;merchants++;bool invested=w.Merchants.HasActiveInvestment(m.Id);if(GUILayout.Button(m.Name+"｜财富 "+m.Wealth+(invested?"｜已投资军队":"｜未投资")))selectedPersonId=m.Id;}if(merchants==0)GUILayout.Label("暂无达到财富门槛的商人");foreach(MerchantInvestment inv in w.Merchants.Investments){if(inv==null||!inv.Active)continue;Person m,g;if(!w.People.TryGetValue(inv.MerchantId,out m)||m.KingdomId!=k.Id)continue;w.People.TryGetValue(inv.GeneralId,out g);GUILayout.Label("投资："+m.Name+" → "+(g==null?"未知将军":g.Name)+"　月供 "+inv.MonthlySupport+"　减税 "+Mathf.RoundToInt(inv.TaxReductionPct*100f)+"%");}
             GUILayout.Space(6);GUILayout.Label("【占领城市处置】");int occupations=0;foreach(City occupied in w.Cities.Values){if(occupied.KingdomId!=k.Id||occupied.Occupation!=OccupationPolicy.Pending)continue;occupations++;GUILayout.BeginVertical(GUI.skin.box);Kingdom former=null;if(!string.IsNullOrEmpty(occupied.PreviousKingdomId))w.Kingdoms.TryGetValue(occupied.PreviousKingdomId,out former);GUILayout.Label(occupied.Name+"｜第"+occupied.LastCapturedDay+"日攻占｜原属 "+(former==null?"未知国家":former.Name));GUILayout.Label("必须选择占领政策：安抚保护民产、有限军需征发，或全面掠夺；不同选择真实改变国库、资源、建筑与民众忠诚。");GUILayout.BeginHorizontal();if(GUILayout.Button("安抚"))status=w.ResolveOccupation(occupied.Id,OccupationPolicy.Conciliate)?"已在"+occupied.Name+"实施安抚":"处置失败";if(GUILayout.Button("有限掠夺"))status=w.ResolveOccupation(occupied.Id,OccupationPolicy.LimitedPlunder)?"已在"+occupied.Name+"有限征发":"处置失败";if(GUILayout.Button("全面掠夺"))status=w.ResolveOccupation(occupied.Id,OccupationPolicy.FullPlunder)?"已在"+occupied.Name+"全面掠夺":"处置失败";GUILayout.EndHorizontal();GUILayout.EndVertical();}if(occupations==0)GUILayout.Label("暂无待处置的占领城市");
-            GUILayout.Space(8);GUILayout.Label("【世界大事记】");if(w.Events.Count==0)GUILayout.Label("暂无历史事件");else {int start=Math.Max(0,w.Events.Count-16);for(int i=w.Events.Count-1;i>=start;i--){WorldEvent e=w.Events[i];if(e==null)continue;GUILayout.Label("第"+e.Day+"日｜"+e.Category+"｜"+e.Title+"
-"+e.Detail);}}
+            GUILayout.Space(8);GUILayout.Label("【世界大事记】");if(w.Events.Count==0)GUILayout.Label("暂无历史事件");else {int start=Math.Max(0,w.Events.Count-16);for(int i=w.Events.Count-1;i>=start;i--){WorldEvent e=w.Events[i];if(e==null)continue;GUILayout.Label("第"+e.Day+"日｜"+e.Category+"｜"+e.Title+"\n"+e.Detail);}}
             GUILayout.EndScrollView();GUILayout.EndArea();
         }
 

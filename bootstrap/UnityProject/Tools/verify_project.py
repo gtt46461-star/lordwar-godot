@@ -72,6 +72,40 @@ for f in ['map_params_v9.json','construction_params_v9.json','population_economy
 # Source static checks
 cs=list(SRC.rglob('*.cs'))
 add('C#源文件数量','PASS' if len(cs)>=35 else 'FAIL',str(len(cs)))
+
+# Pygments accepts a raw newline inside some C# string tokens, but Unity's C# compiler does not.
+# Scan quoted literals while ignoring comments and verbatim strings that may legally span lines.
+def ordinary_literal_newlines(path):
+    source=path.read_text(encoding='utf-8',errors='replace')
+    errors=[];state='code';line=1;started=1;i=0
+    while i<len(source):
+        ch=source[i];next_ch=source[i+1] if i+1<len(source) else ''
+        if state=='code':
+            if ch=='/' and next_ch=='/':state='line-comment';i+=2;continue
+            if ch=='/' and next_ch=='*':state='block-comment';i+=2;continue
+            if ch=='"':
+                state='verbatim' if i>0 and source[i-1]=='@' else 'string'
+                started=line
+            elif ch=="'":state='char';started=line
+        elif state=='line-comment':
+            if ch=='\n':state='code'
+        elif state=='block-comment':
+            if ch=='*' and next_ch=='/':state='code';i+=2;continue
+        elif state=='verbatim':
+            if ch=='"' and next_ch=='"':i+=2;continue
+            if ch=='"':state='code'
+        else:
+            if ch=='\\':i+=2;continue
+            if ch=='"' and state=='string':state='code'
+            elif ch=="'" and state=='char':state='code'
+            elif ch=='\n':errors.append(f'{path.relative_to(ROOT)}:{started}');state='code'
+        if ch=='\n':line+=1
+        i+=1
+    return errors
+
+literal_errors=[item for path in cs for item in ordinary_literal_newlines(path)]
+add('C#普通字符串/字符无非法跨行','PASS' if not literal_errors else 'FAIL',
+    '未发现' if not literal_errors else '; '.join(literal_errors[:20]))
 joined='\n'.join(p.read_text(encoding='utf-8',errors='replace') for p in cs)
 for marker in ['NotImplementedException','TODO','FIXME']:
     hits=joined.count(marker); add('禁止占位 '+marker,'PASS' if hits==0 else 'FAIL',str(hits))
