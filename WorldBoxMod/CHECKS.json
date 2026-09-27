@@ -205,7 +205,7 @@
     "on_device": "NOT_RUN"
   },
   "device_test": "NOT_RUN (no connected arm64 Android device or emulator; loader, native UI, WorldBox state, save/restart unverified)",
-  "apk_build": "NOT_RUN (source-only mod package; no newly built APK)",
+  "apk_build": "SIGNED_STATIC_CANDIDATE (0.50.6 outer and inner APKs built, signature/content verified; installation and runtime NOT_RUN)",
   "source_file_hashes_mean": "Original uploaded R30 hashes; modified_files gives ported hashes.",
   "modified_files": [
     {
@@ -250,6 +250,19 @@
     }
   ],
   "runtime_smoke": "PASS only for dormant standalone R30 CoreSmoke; does not exercise current native mod entry",
+  "android_candidate_20260927": {
+    "original_outer_sha256": "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "loader_seed_inner_sha256": "b869f6dcba05879b67bf9b493d5f557c1608ddb7721cfacdc71ad984fef0ee6a",
+    "active_mod_zip_sha256": "68b854014e5b3dd57555a7524aa068a39a9f94f222ade665908f3b6179190c2b",
+    "inner_apk_sha256": "ae210dabe266fe19402e7e29081d35c97c581fc1d9df780eff1dc56d0ae1df6e",
+    "outer_apk_sha256": "dab32f3b9bb691867de062beed29c8e9626bc408460047d3b19584edeb80de6e",
+    "package_version": "com.mkarpenko.worldbox 0.50.6 (688)",
+    "signer_sha256": "a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13",
+    "original_signer_sha256": "37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b",
+    "static_inner_and_outer": "PASS: zip, current mod exact bytes, all retained host entries SHA256 equal original, zipalign and apksigner v1/v2/v3",
+    "device_install_launch_gameplay": "NOT_RUN: adb devices empty; no applicable arm64 emulator",
+    "worldbox_full_gameplay": "NOT_IMPLEMENTED"
+  },
   "native_entry_20260927": {
     "github_branch": "construction/worldbox-android-mod",
     "commit_verified": "0768e96a168d31786d5107e66da6a5399165a3bd",
