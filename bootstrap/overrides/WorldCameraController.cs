@@ -65,7 +65,7 @@ namespace LordWar.GodotRuntime {
                 _world.Cities.TryGetValue(capitalOwner.CapitalCityId,out capital))
                 Position = WorldView.WorldToCanvas(capital.X,capital.Y);
             else Position = new Vector2(_world.Map.Width * WorldView.TileSize * .5f, _world.Map.Height * WorldView.TileSize * .5f);
-            Zoom = new Vector2(1.65f,1.65f);
+            Zoom = new Vector2(2.2f,2.2f);
             ClampToWorld();
         }
 
@@ -96,7 +96,10 @@ namespace LordWar.GodotRuntime {
             float worldW = _world.Map.Width * WorldView.TileSize;
             float worldH = _world.Map.Height * WorldView.TileSize;
             float x = worldW <= halfW * 2 ? worldW * .5f : Mathf.Clamp(Position.X, halfW, worldW - halfW);
-            float y = worldH <= halfH * 2 ? worldH * .5f : Mathf.Clamp(Position.Y, halfH, worldH - halfH);
+            // The lower 21% is occupied by the compact toolbar, so keep the subject
+            // in the unobstructed viewport when a capital lies near the map edge.
+            float visibleLowerWorld = view.Y * .29f / Math.Max(.01f, Zoom.Y);
+            float y = worldH <= halfH + visibleLowerWorld ? worldH * .5f : Mathf.Clamp(Position.Y, halfH, worldH - visibleLowerWorld);
             Position = new Vector2(x, y);
         }
     }

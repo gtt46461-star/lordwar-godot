@@ -69,6 +69,7 @@ namespace LordWar.GodotRuntime {
             AddButton(timeRow, "推进一日", AdvanceDay);
             AddButton(timeRow, "保存", SaveGame); AddButton(timeRow, "读取", LoadGame);
             AddButton(timeRow, "更多", () => SetExpanded(!_expanded));
+            AddButton(timeRow, "关于", () => { _page=8; SetExpanded(true); BuildActions(); Refresh(); });
 
             var tabs1 = new HFlowContainer(); main.AddChild(tabs1); _tabs1 = tabs1;
             AddTab(tabs1, "总览", 0); AddTab(tabs1, "城市规划", 1); AddTab(tabs1, "军事", 2); AddTab(tabs1, "人事任命", 3);
@@ -115,6 +116,7 @@ namespace LordWar.GodotRuntime {
             else if(_page==5)BuildPolicyActions();
             else if(_page==6)BuildWarActions();
             else if(_page==7)BuildReportActions();
+            else if(_page==8)return;
             else BuildOverviewActions();
         }
 
@@ -224,7 +226,7 @@ namespace LordWar.GodotRuntime {
             Kingdom player=PlayerKingdom();City capital=SelectedCity();
             _summary.Text="第 "+w.Day+" 日｜"+ChineseText.Season(w.Weather.Season)+"｜"+ChineseText.Weather(w.Weather.Weather)+"｜"+(w.Paused?"暂停":"运行")+" ×"+w.TimeScale.ToString("0.#")+"\n国家 "+w.Kingdoms.Count+"｜城市 "+w.Cities.Count+"｜人口 "+w.People.Count+"｜待批 "+w.PlayerPendingProposalCount;
             var sb=new StringBuilder();
-            if(_page==1)BuildCity(sb,w,capital);else if(_page==2)BuildMilitary(sb,w,player,capital);else if(_page==3)BuildPersonnel(sb,w,player,capital);else if(_page==4)BuildDiplomacy(sb,w,player);else if(_page==5)BuildPolicies(sb,w,player);else if(_page==6)BuildWar(sb,w,player);else if(_page==7)BuildReports(sb,w);else BuildOverview(sb,w,player,capital);
+            if(_page==1)BuildCity(sb,w,capital);else if(_page==2)BuildMilitary(sb,w,player,capital);else if(_page==3)BuildPersonnel(sb,w,player,capital);else if(_page==4)BuildDiplomacy(sb,w,player);else if(_page==5)BuildPolicies(sb,w,player);else if(_page==6)BuildWar(sb,w,player);else if(_page==7)BuildReports(sb,w);else if(_page==8)sb.AppendLine("【关于本批】\n领主战争 "+BuildInfo.VersionName+"\n批次 N01｜"+BuildInfo.BuildId+"\n本批范围：新建与读取世界、海陆地图、房屋树木、真实人口行走、暂停与倍速、存档恢复。\n后续批次按施工总包验收，当前不代表全游戏完成。");else BuildOverview(sb,w,player,capital);
             _details.Text=sb.ToString();
         }
 

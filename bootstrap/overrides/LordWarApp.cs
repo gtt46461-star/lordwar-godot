@@ -162,6 +162,10 @@ namespace LordWar.GodotRuntime {
             AddMenuButton(box, "标准战役｜112×84｜四国", () => BeginWorldGeneration(0, 112, 84, 4, AiDifficulty.Hard, "标准战役"));
             AddMenuButton(box, "大型世界｜160×120｜四国", () => BeginWorldGeneration(0, 160, 120, 4, AiDifficulty.Hard, "大型世界"));
             AddMenuButton(box, "继续已有世界", LoadSavedWorld);
+            AddMenuButton(box, "关于本批", () => {
+                if (_menuStatus != null) _menuStatus.Text = "N01 · " + BuildInfo.BuildId + " · 版本 " + BuildInfo.VersionName +
+                    "\n本批可新建/读取、观察地图和居民行走、暂停、倍速及保存；后续系统按 N02–N21 逐批验收。";
+            });
             _menuStatus = new Label { Text = "N01 · " + BuildInfo.BuildId, HorizontalAlignment = HorizontalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
             _menuStatus.AddThemeFontSizeOverride("font_size", 16);
             box.AddChild(_menuStatus);

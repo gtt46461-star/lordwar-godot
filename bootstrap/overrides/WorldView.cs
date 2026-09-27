@@ -98,6 +98,8 @@ namespace LordWar.GodotRuntime {
                         DrawTextureRect(_house,new Rect2(foot.X+6,foot.Y-7,11,10),false);
                     }
                 }
+                // A small town garden uses the tree sheet at the city's actual position.
+                if(_tree!=null)DrawTextureRect(_tree,new Rect2(foot.X+10,foot.Y-11,8,9),false);
             }
             if(_walker!=null){
                 foreach(Person p in _world.People.Values){
