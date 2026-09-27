@@ -21,12 +21,12 @@
 
 - 使用 .NET 8 的 C# 编译器编译纯游戏核心，并实际运行生成世界、推进一天、存档校验和恢复：`CORE_SMOKE_PASS skills=360 units=156 map=160x120 kingdoms=4 cities=4 people=220 day=1`。
 - 当前含地图选城工具的原生入口在 GitHub Actions [run 36322350671](https://github.com/gtt46461-star/lordwar-godot/actions/runs/36322350671) 编译通过：`dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release`，`0 Warning(s), 0 Error(s)`。参考件来自 AndroidModLoader 的公开程序集和 `NeoModLoader_mobile.dll` 2.0；并非从用户目标 APK 提取的同一版本运行时程序集，不能据此推定目标 APK 已兼容。
-- 旧 run `36293519434` 和上一候选 APK 属于已弃用的并行地图实现，仅作历史记录。本次没有生成、安装或启动新的 APK。当前 NML 模组目录可单独打包，必须先在真实目标上验证加载器和首个原生命令。
+- 旧 run `36293519434` 的候选 APK 属于已弃用的并行地图实现。现在 `Build/build_candidate_apk.py` 可从用户提供的原始外层包、既有 LemonLoader/NML 内层种子和本仓库当前入口重建签名候选；当前静态候选的外层 SHA-256 是 `dab32f3b9bb691867de062beed29c8e9626bc408460047d3b19584edeb80de6e`，模组 ZIP SHA-256 是 `68b854014e5b3dd57555a7524aa068a39a9f94f222ade665908f3b6179190c2b`。两层 APK 的 v1/v2/v3 签名、对齐、内容校验通过。尚无安卓安装和启动验证，因此不是已完成的游戏 APK。
 - `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流位于仓库分支的 `.github/workflows/`。
 
 ## 为什么候选 APK 不是成品
 
-用户 2026-09-27 的启动视频显示旧候选 APK 黑屏后数秒退回桌面，游戏主界面未出现。复查发现旧候选包是把原始 322 MB `base.apk` 内嵌的 `assets/hook.apk` 作为独立 APK 重打包，丢失了外层宿主的额外 DEX、`libmod.so`、`libEncryptorC.so` 等启动结构。`Build/repack_outer_hook.py` 现在只替换原始外层包的 `assets/hook.apk`，保留其他 12073 个非签名条目并重签外层包。修正了已确认的包层级错误，但还没有设备启动、加载器或模组运行的成功证据；外壳可能校验内嵌包，必须用设备日志定位下一步。
+用户 2026-09-27 的启动视频显示旧内层候选 APK 黑屏后数秒退回桌面，游戏主界面未出现。复查发现旧候选包是把原始 322 MB `base.apk` 内嵌的 `assets/hook.apk` 作为独立 APK 重打包，丢失了外层宿主的额外 DEX、`libmod.so`、`libEncryptorC.so` 等启动结构。`Build/repack_outer_hook.py` 现在只替换原始外层包的 `assets/hook.apk`，保留其他所有非签名条目，包括运行时的 `META-INF/services`，并重新签名两层 APK。逐个外层条目的 SHA-256 已与原始包核对，内嵌 APK 与新签内层逐字节一致。包层级错误已修正，但没有设备启动、加载器或模组运行的成功证据；外壳可能校验内嵌包，仍须用设备日志定位下一步。
 
 上传的 `base.apk` 为 WorldBox 0.50.6 的 IL2CPP 构建，外加第三方运行层。已重新使用原始外层宿主封入修改后的内层包，产出 `LordWar-WorldBox-0.50.6-host-candidate.apk`，但 NeoModLoader/LemonLoader 是否能在这个母体上启动仍无实机证据。安卓包 `global-metadata.dat` 开头不含标准 IL2CPP 元数据魔数，Cpp2IL 2022.0.7 直接解析失败。用户提供的 Windows `worldbox.exe` 包含可反编译的 Mono `Assembly-CSharp.dll`（2441 个 C# 文件）及 firstpass（86 个文件），可用于接口研究，但不能直接替换安卓 IL2CPP 逻辑，也不是官方 Unity 原工程。单位、建筑、士兵、国策、技能、特性的 WorldBox 原生实体映射和规则替换均未完成。候选 APK 不可宣称为完整游戏。
 
