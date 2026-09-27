@@ -18,6 +18,7 @@ from pathlib import Path
 
 from package_mod import MOD_DIR, package
 from axml_version import patch_version
+from inspect_il2cpp import require_compatible
 
 
 EXPECTED_OUTER = "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
@@ -92,6 +93,9 @@ def verify_game_anchors(original_inner, loader_seed):
         for name in GAME_ANCHORS:
             if sha_entry(original, name) != sha_entry(seeded, name):
                 raise ValueError("Loader seed contains a different game anchor: " + name)
+    # The seed is copied byte for byte, so a missing dynamic API cannot be
+    # repaired by changing a mod ZIP or re-signing the APK.
+    require_compatible(original_inner)
 
 
 def replace_mod(loader_seed, mod_zip, unsigned_inner):

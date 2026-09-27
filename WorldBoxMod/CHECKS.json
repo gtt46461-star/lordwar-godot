@@ -318,7 +318,17 @@
     "cause_found": "Prior installed outer APK carried original libmain.so and no libBootstrap.so, while only embedded hook.apk contained the patched loader. UnityPlayer reads Context ApplicationInfo.nativeLibraryDir and loads libmain.so there; np.App rewrites sourceDir/publicSourceDir only.",
     "repair": "Mirror patched arm64 libmain.so, Bootstrap/native dependencies, MelonLoader/dotnet/copyToData assets into outer host from the same signed inner APK, plus bump embedded hook ZIP timestamp.",
     "static_build_sign_alignment_overlay": "PASS: builder exit 0, both APKs version 691, zipalign, apksigner v1/v2/v3, overlay SHA-256 equality with inner; outer native libmain differs from original.",
-    "on_device_install_start_loader_native_tab_commands_save": "NOT_RUN: no connected arm64 device or applicable emulator; user has not tested 0.2.4.",
+    "on_device_install_start_loader_native_tab_commands_save": "FAIL: user 16.23s recording shows white screen and exit; uploaded Latest-Bootstrap.log reports Failed to get function pointer: il2cpp_init. Native mod entry was not reached; native commands and save remain NOT_RUN.",
     "complete_gameplay": "NOT_IMPLEMENTED: only selected original city/person, capital, leader, captain code present; native runtime unverified."
+  },
+  "android_candidate_0_2_4_incident": {
+    "uploaded_log": "com.mkarpenko.worldbox/MelonLoader/Latest-Bootstrap.log; JNI initialized, APK assets copied, then il2cpp_init lookup failed",
+    "uploaded_video": "1000248698.mp4; 16.23 seconds, white screen and return to phone desktop",
+    "libil2cpp_sha256": "88a9d6e7af066e77de1a60426e8e77f331ec3b4f26c3e2044201f45dbb4a08d3",
+    "required_bootstrap_symbols": "FAIL: il2cpp_init, il2cpp_domain_get, il2cpp_thread_attach, il2cpp_runtime_invoke, il2cpp_string_new and il2cpp_add_internal_call absent from .dynsym",
+    "builder_gate": "PASS: inspect_il2cpp.py returns BLOCKED_LOADER_API on the 0.50.6 host; verify_game_anchors rejects the previous loader/game pair before APK output",
+    "other_version_control": "0.22.21 exports all six symbols but is a different game version; export preflight pass is not evidence that this NML source or loader supports it",
+    "new_apk": "NOT_BUILT: no verified compatible game/loader pair; old candidate must not be reissued as playable",
+    "device_for_agent": "NOT_CONNECTED; direct installation/launch still NOT_RUN by agent"
   }
 }

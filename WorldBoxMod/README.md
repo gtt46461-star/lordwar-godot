@@ -9,7 +9,7 @@
 |0.22.21|`e4b37e1ffdc27fba37e1fcd9390787a248dcdc5764d123da5a47df0681ab6bd5`|152,904,263 字节；arm64-v8a/armeabi-v7a；IL2CPP|保留资源对照，画面与目标不符|
 |0.50.6|`77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`|322,027,494 字节；arm64-v8a；IL2CPP；内嵌 `assets/hook.apk` 和第三方宿主|当前唯一施工基线|
 
-旧的内层候选包在用户视频中黑屏退回桌面。随后手机录像显示外层候选可进入原版 WorldBox，底部标签和菜单均无“领主战争”；录像不能证明具体安装的是 0.2.2 还是 0.2.3，但入口验收明确失败。检查发现旧构建脚本只将补丁启动库放在内嵌 `assets/hook.apk`：外层真正安装的包中 `libmain.so` 仍是原版 SHA-256 前缀 `0933fb04`，且没有 `libBootstrap.so`。0.2.4 在原有打包链中把内层已签名 APK 的启动库、Bootstrap、本机依赖和加载器资产一并映射到外层，静态核对外层与内层字节一致。手机是否真正加载还需设备日志和入口画面证实。当前入口没有实例化并行 `GameWorld`；已写入的王都、城主和军队长命令直接调用 WorldBox 原版对象，但在手机上未证明执行成功。
+旧的内层候选包在用户视频中黑屏退回桌面。随后手机录像显示外层候选可进入原版 WorldBox，底部标签和菜单均无“领主战争”；录像不能证明具体安装的是 0.2.2 还是 0.2.3，但入口验收明确失败。0.2.4 补齐了外层加载器启动文件；用户 2026-09-27 再次录屏显示白屏后退出，并提供 `Latest-Bootstrap.log`：`Failed to get function pointer: il2cpp_init`。已核实原始外层、内层和 0.2.4 候选包中的 arm64 `libil2cpp.so` SHA-256 均为 `88a9d6e7af066e77de1a60426e8e77f331ec3b4f26c3e2044201f45dbb4a08d3`，其动态导出表无 `il2cpp_init` 等加载器所需的六个 API。**0.2.4 手机启动验收为 FAIL，模组代码尚未执行。**当前入口没有实例化并行 `GameWorld`；已写入的王都、城主和军队长命令仍未在手机上证明执行成功。
 
 ## 本包是什么
 
@@ -21,12 +21,12 @@
 
 - 使用 .NET 8 的 C# 编译器编译纯游戏核心，并实际运行生成世界、推进一天、存档校验和恢复：`CORE_SMOKE_PASS skills=360 units=156 map=160x120 kingdoms=4 cities=4 people=220 day=1`。
 - 当前含入口图标回退的源码在 GitHub Actions [run 36327816423](https://github.com/gtt46461-star/lordwar-godot/actions/runs/36327816423) 编译通过：`dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release`；参考件来自 AndroidModLoader 的公开程序集和 `NeoModLoader_mobile.dll` 2.0，并非用户目标 APK 运行时。`Build/ApiProbe/` 可提取公开参考程序集类型签名。编译通过不代表入口已在手机出现。
-- 旧 run `36293519434` 的候选 APK 属于已弃用的并行地图实现。`Build/build_candidate_apk.py` 从用户原始外层包、已有 LemonLoader/NML 内层种子和当前模组入口重建签名候选。0.2.4 的外层 SHA-256 是 `453ed637d6c65d2f7eddc91e6461891f06274aa5cc6da1e4c6a9e661e5d75290`，模组 ZIP SHA-256 是 `5d843ecee98b4813c0cd7a8bd73edb1286ccb7048a27fd61c0add498b249d7d9`，内外层 versionCode 为 `691`。两层 APK 签名、对齐和内容核对通过，外层补齐了实际启动库和加载器资产。0.2.4 未经手机运行验证，不能称为完成版。
+- 旧 run `36293519434` 的候选 APK 属于已弃用的并行地图实现。0.2.4 的外层 SHA-256 是 `453ed637d6c65d2f7eddc91e6461891f06274aa5cc6da1e4c6a9e661e5d75290`，模组 ZIP SHA-256 是 `5d843ecee98b4813c0cd7a8bd73edb1286ccb7048a27fd61c0add498b249d7d9`，内外层 versionCode 为 `691`。两层 APK 签名、对齐和内容核对通过，但设备日志证明加载失败。`Build/build_candidate_apk.py` 现在调用 `Build/inspect_il2cpp.py` 检查这条加载链所需的动态导出，缺失时在打包前拒绝生成下一份必失败的候选。
 - `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流位于仓库分支的 `.github/workflows/`。
 
 ## 为什么候选 APK 不是成品
 
-用户 2026-09-27 的启动视频显示旧内层候选 APK 黑屏后数秒退回桌面，游戏主界面未出现。复查发现旧候选包是把原始 322 MB `base.apk` 内嵌的 `assets/hook.apk` 作为独立 APK 重打包，丢失了外层宿主的额外 DEX、`libmod.so`、`libEncryptorC.so` 等启动结构。此前外层候选虽然保留了宿主，却只替换内层 `hook.apk`，使外层原生启动库继续走无模组的链路。0.2.4 改为保留宿主其余字节，同时把内层加载器的启动库、`MelonLoader`、`dotnet` 和 `copyToData` 映射到外层，并给内嵌包新的时间戳，避免旧缓存误判。还须核对手机日志和画面。
+用户 2026-09-27 的启动视频显示旧内层候选 APK 黑屏后数秒退回桌面。0.2.4 保留第三方外层宿主并映射了加载器启动库，但最新 16.23 秒用户录像与设备日志证明仍在 IL2CPP 初始化之前失败。这个游戏二进制没有导出加载器需要查找的 `il2cpp_init`。重签、改 `mod.json`、复制更多模组文件不能解决这个首个失败点；必须取得与所选游戏版本一致且实际可加载的 IL2CPP/加载器组合，或者完成有运行证据的专门符号适配。
 
 上传的 `base.apk` 为 WorldBox 0.50.6 的 IL2CPP 构建，外加第三方运行层。已重新使用原始外层宿主封入修改后的内层包，产出 `LordWar-WorldBox-0.50.6-host-candidate.apk`，但 NeoModLoader/LemonLoader 是否能在这个母体上启动仍无实机证据。安卓包 `global-metadata.dat` 开头不含标准 IL2CPP 元数据魔数，Cpp2IL 2022.0.7 直接解析失败。用户提供的 Windows `worldbox.exe` 包含可反编译的 Mono `Assembly-CSharp.dll`（2441 个 C# 文件）及 firstpass（86 个文件），可用于接口研究，但不能直接替换安卓 IL2CPP 逻辑，也不是官方 Unity 原工程。单位、建筑、士兵、国策、技能、特性的 WorldBox 原生实体映射和规则替换均未完成。候选 APK 不可宣称为完整游戏。
 
