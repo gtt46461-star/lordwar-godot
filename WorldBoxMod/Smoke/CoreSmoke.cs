@@ -10,6 +10,19 @@ var data = new GameDataCatalog();
 data.LoadAll(new FileData(folder));
 var world = new GameWorld(20260926, data, AiDifficulty.Hard);
 world.CreateNewWorld(160, 120, 4);
+var imported = new LordWar.World.WorldMap(80, 60, 1234);
+foreach (var tile in imported.Tiles) {
+    tile.Terrain = tile.X < 16 ? LordWar.World.TerrainKind.DeepWater : LordWar.World.TerrainKind.Grass;
+    tile.Height = tile.X < 16 ? .1f : .45f;
+    tile.Fertility = .75f;
+    tile.Moisture = .55f;
+    tile.Forest = .2f;
+    tile.Ore = .3f;
+}
+var importedWorld = new GameWorld(1234, data, AiDifficulty.Hard);
+importedWorld.CreateNewWorld(imported, 4);
+if (importedWorld.Kingdoms.Count != 4 || importedWorld.Cities.Count != 4 || importedWorld.Map.Get(0, 0).Terrain != LordWar.World.TerrainKind.DeepWater)
+    throw new Exception("Imported map failed to initialize four kingdoms and preserve water");
 if (world.Map.Width != 160 || world.Map.Height != 120 || world.Kingdoms.Count != 4)
     throw new Exception("world initialization invariant failed");
 if (world.People.Count == 0 || world.Cities.Count != 4)
