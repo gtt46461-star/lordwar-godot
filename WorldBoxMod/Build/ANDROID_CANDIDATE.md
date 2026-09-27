@@ -17,17 +17,18 @@
 python3 WorldBoxMod/Build/build_candidate_apk.py \
   --original-outer /private/original-base.apk \
   --loader-seed-inner /private/loader-seed-inner.apk \
+  --reference-apk /private/user-supplied-worldbox-0.22.21.apk \
   --keystore /private/lordwar-worldbox-candidate-signing.jks \
   --output-dir /private/build-output
 ```
 
 脚本校验原始 APK 身份、Unity 资源和 IL2CPP 游戏锚点、加载器种子、模组实际字节，
 重签内外两层并验证签名和对齐，还比较所有保留的外层条目内容。独立 ZIP
-`LordWarMod-0.2.4.zip` 只含 `LordWarMod/mod.json` 与
+`LordWarMod-0.2.5.zip` 只含 `LordWarMod/mod.json` 与
 `LordWarMod/LordWarMod.cs`。未运行的旧 Core/Data 仅作源码迁移依据。
 
-本次内外两层 APK 都是 `com.mkarpenko.worldbox`，versionName `0.50.6`、versionCode `691`；
-构建脚本直接定位二进制清单中的 `android:versionCode`，从原始 `688` 改为 `691`，
+本次内外两层 APK 都是 `com.mkarpenko.worldbox`，versionName `0.50.6`、versionCode `692`；
+构建脚本直接定位二进制清单中的 `android:versionCode`，从原始 `688` 改为 `692`，
 其余清单字节保留，并通过 `aapt dump badging` 逐层核对。
 当前签名证书 SHA-256 为
 `a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13`，
@@ -52,3 +53,9 @@ buildId，不能准确区分 0.2.2/0.2.3，入口验收为 `FAIL（用户手机�
 `adb install` 的结果、启动完整 `adb logcat`、原版世界截图、模组按钮操作和重启读档。
 若首个失败点在外层宿主、Bootstrap、MelonLoader、NML 或 C# 编译，应以当次
 日志逐层修复，不把静态通过推断为启动成功。
+
+## 0.2.5 符号适配和手机诊断
+
+另需用户已上传的 0.22.21 安卓 APK 作为未改名 API 导出参考，以及 `lief==1.0.0`、`readelf`。构建脚本核对两个游戏库 SHA-256、全部 239 项函数顺序与长度，在 0.50.6 保留随机名字的同时添加标准 IL2CPP 动态符号别名，确认代码段内容不变，再把同一份游戏库放入内外两层。ELF 布局仍有改动；静态通过不代表安卓启动通过。旧版仅用于分析，不放入安装包。
+
+模组管理代码若实际加载，会尝试写出 `startup-diagnostic.txt` 到 `/storage/emulated/0/MelonLoader/com.mkarpenko.worldbox/LordWar/` 和应用私有存储 `LordWar/`。管理代码没有启动时，应查看 MelonLoader 的 `Latest-Bootstrap.log`。诊断只包含模组阶段、包名与 Unity 版本，不会还原原版完整 C# 源码。

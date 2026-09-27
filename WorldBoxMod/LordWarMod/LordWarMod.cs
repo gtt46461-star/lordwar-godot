@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using NeoModLoader.api;
 using NeoModLoader.AndroidCompatibilityModule;
 using NeoModLoader.General;
@@ -21,6 +22,7 @@ namespace LordWar.AndroidMod
 
         protected override void OnModLoad()
         {
+            WriteDiagnostic("MANAGED_MOD_ENTERED");
             try
             {
                 Sprite cityIcon = null;
@@ -56,11 +58,41 @@ namespace LordWar.AndroidMod
                     "lordwar_open_city", (Action)OpenSelectedCity, cityIcon, tab.transform);
                 PowerButtonCreator.AddButtonToTab(open, tab);
                 LogInfo("LordWar native city entry registered");
+                WriteDiagnostic("NATIVE_CITY_ENTRY_REGISTERED");
             }
             catch (Exception error)
             {
                 LogInfo("LordWar native entry FAILED: " + error);
                 throw;
+            }
+        }
+
+        // This only runs after the native bootstrap and NML have loaded this
+        // mod. The loader's own Latest-Bootstrap.log covers earlier failures.
+        // It exports our build/runtime facts, never the game's proprietary code.
+        private void WriteDiagnostic(string phase)
+        {
+            string message = "LordWarMod 0.2.5\nphase=" + phase +
+                "\nutc=" + DateTime.UtcNow.ToString("o") +
+                "\npackage=" + Application.identifier +
+                "\nunity=" + Application.unityVersion +
+                "\npersistentDataPath=" + Application.persistentDataPath + "\n";
+            string[] roots = {
+                Path.Combine(Application.persistentDataPath, "LordWar"),
+                "/storage/emulated/0/MelonLoader/com.mkarpenko.worldbox/LordWar"
+            };
+            foreach (string root in roots)
+            {
+                try
+                {
+                    Directory.CreateDirectory(root);
+                    File.WriteAllText(Path.Combine(root, "startup-diagnostic.txt"), message);
+                    LogInfo("LordWar diagnostic written: " + root);
+                }
+                catch (Exception error)
+                {
+                    LogInfo("LordWar diagnostic path unavailable: " + root + ": " + error.Message);
+                }
             }
         }
 

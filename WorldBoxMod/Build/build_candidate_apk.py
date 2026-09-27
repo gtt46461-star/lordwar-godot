@@ -19,11 +19,12 @@ from pathlib import Path
 from package_mod import MOD_DIR, package
 from axml_version import patch_version
 from inspect_il2cpp import require_compatible
+from alias_il2cpp_exports import build_aliases, TARGET_LIB_SHA256
 
 
 EXPECTED_OUTER = "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
 SOURCE_VERSION_CODE = 688
-TARGET_VERSION_CODE = 691
+TARGET_VERSION_CODE = 692
 MOD_ROOT = "assets/MelonLoader/NMLMods/"
 DEPLOY_MOD_ROOT = "assets/copyToData/MelonLoader/NMLMods/"
 MOD_PREFIX = MOD_ROOT + "LordWarMod/"
@@ -37,6 +38,7 @@ GAME_ANCHORS = (
 )
 LOADER_ASSET_ROOTS = ("assets/MelonLoader/", "assets/dotnet/", "assets/copyToData/")
 LOADER_NATIVE_NAMES = {
+    "lib/arm64-v8a/libil2cpp.so",
     "lib/arm64-v8a/libmain.so",
     "lib/arm64-v8a/libBootstrap.so",
     "lib/arm64-v8a/libcrypto.so",
@@ -93,18 +95,21 @@ def verify_game_anchors(original_inner, loader_seed):
         for name in GAME_ANCHORS:
             if sha_entry(original, name) != sha_entry(seeded, name):
                 raise ValueError("Loader seed contains a different game anchor: " + name)
-    # The seed is copied byte for byte, so a missing dynamic API cannot be
-    # repaired by changing a mod ZIP or re-signing the APK.
-    require_compatible(original_inner)
+        if sha_entry(original, "lib/arm64-v8a/libil2cpp.so") != TARGET_LIB_SHA256:
+            raise ValueError("Unexpected game IL2CPP binary; aliases cannot be inferred")
 
 
-def replace_mod(loader_seed, mod_zip, unsigned_inner):
+def replace_mod(loader_seed, mod_zip, patched_il2cpp, unsigned_inner):
     with zipfile.ZipFile(loader_seed) as source, zipfile.ZipFile(mod_zip) as mod, zipfile.ZipFile(unsigned_inner, "w", allowZip64=True) as target:
         for info in source.infolist():
             if info.filename.startswith(MOD_PREFIX) or is_signature(info.filename):
                 continue
             if info.filename == "AndroidManifest.xml":
                 target.writestr(copy(info), patch_version(source.read(info), SOURCE_VERSION_CODE, TARGET_VERSION_CODE))
+                continue
+            if info.filename == "lib/arm64-v8a/libil2cpp.so":
+                with patched_il2cpp.open("rb") as content, target.open(copy(info), "w", force_zip64=True) as output:
+                    shutil.copyfileobj(content, output, 1024 * 1024)
                 continue
             with source.open(info) as content, target.open(copy(info), "w", force_zip64=info.file_size > 2**31) as output:
                 shutil.copyfileobj(content, output, 1024 * 1024)
@@ -116,7 +121,7 @@ def replace_mod(loader_seed, mod_zip, unsigned_inner):
             shutil.copyfileobj(content, output, 1024 * 1024)
 
 
-def verify_mod(inner_path, mod_zip):
+def verify_mod(inner_path, mod_zip, patched_il2cpp):
     with zipfile.ZipFile(inner_path) as inner, zipfile.ZipFile(mod_zip) as mod:
         assert inner.testzip() is None
         names = set(inner.namelist())
@@ -133,6 +138,9 @@ def verify_mod(inner_path, mod_zip):
                     raise ValueError("Packaged or deployment mod differs from the active source: " + name)
         if sha_entry(inner, NML_DLL) != sha_entry(inner, DEPLOY_NML_DLL):
             raise ValueError("Deployment NML loader differs from the packaged loader")
+        if sha_entry(inner, "lib/arm64-v8a/libil2cpp.so") != sha_file(patched_il2cpp):
+            raise ValueError("APK does not contain the checked game alias library")
+    require_compatible(inner_path)
 
 
 def verify_outer(original_path, candidate_path, inner_path):
@@ -179,6 +187,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--original-outer", type=Path, required=True)
     parser.add_argument("--loader-seed-inner", type=Path, required=True)
+    parser.add_argument("--reference-apk", type=Path, required=True,
+                        help="the user supplied 0.22.21 APK, solely for its unrenamed IL2CPP export list")
     parser.add_argument("--keystore", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
@@ -201,16 +211,22 @@ def main():
             shutil.copyfileobj(data, output, 1024 * 1024)
         badging(original_inner)
         verify_game_anchors(original_inner, args.loader_seed_inner)
+        source_so = temp / "game-original-libil2cpp.so"
+        patched_so = temp / "game-aliased-libil2cpp.so"
+        with zipfile.ZipFile(args.loader_seed_inner) as seed, seed.open("lib/arm64-v8a/libil2cpp.so") as stream, source_so.open("wb") as output:
+            shutil.copyfileobj(stream, output, 1024 * 1024)
+        alias_report = build_aliases(args.reference_apk, source_so, patched_so,
+                                     args.output_dir / "il2cpp-alias-evidence.json")
 
         unsigned_inner = temp / "inner-unsigned.apk"
         aligned_inner = temp / "inner-aligned.apk"
         signed_inner = args.output_dir / "LordWar-0.50.6-inner-mod-candidate.apk"
-        replace_mod(args.loader_seed_inner, mod_zip, unsigned_inner)
+        replace_mod(args.loader_seed_inner, mod_zip, patched_so, unsigned_inner)
         run("zipalign", "-f", "-p", "4", str(unsigned_inner), str(aligned_inner))
         run("apksigner", "sign", "--ks", str(args.keystore), "--ks-key-alias", "lordwar", "--ks-pass", "env:LORDWAR_KEYSTORE_PASS", "--key-pass", "env:LORDWAR_KEYSTORE_PASS", "--out", str(signed_inner), str(aligned_inner))
         run("apksigner", "verify", "--verbose", str(signed_inner))
         run("zipalign", "-c", "-p", "4", str(signed_inner))
-        verify_mod(signed_inner, mod_zip)
+        verify_mod(signed_inner, mod_zip, patched_so)
         badging(signed_inner, TARGET_VERSION_CODE)
 
         unsigned_outer = temp / "outer-unsigned.apk"
@@ -229,6 +245,8 @@ def main():
         "original_outer_sha256": EXPECTED_OUTER,
         "loader_seed_inner_sha256": sha_file(args.loader_seed_inner),
         "active_source_sha256": sha_file(MOD_DIR / "LordWarMod.cs"),
+        "game_alias_sha256": alias_report["patched_so_sha256"],
+        "game_alias_count": alias_report["mapped_count"],
         "mod_zip_sha256": sha_file(mod_zip),
         "inner_apk_sha256": sha_file(signed_inner),
         "outer_apk_sha256": sha_file(signed_outer),
@@ -236,7 +254,7 @@ def main():
         "versionCode": TARGET_VERSION_CODE,
         "versionName": "0.50.6",
         "signer": "lordwar candidate test certificate; does not match original",
-        "outer_loader_overlay": "verified: patched libmain.so, Bootstrap/native libs, MelonLoader/dotnet/copyToData assets mirror the signed inner APK",
+        "outer_loader_overlay": "verified: patched libmain.so, Bootstrap/native libs, aliased libil2cpp.so, MelonLoader/dotnet/copyToData assets mirror the signed inner APK",
         "device": "NOT_RUN: no adb connected Android arm64 device or applicable emulator",
     }
     (args.output_dir / "build-evidence.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")

@@ -330,5 +330,24 @@
     "other_version_control": "0.22.21 exports all six symbols but is a different game version; export preflight pass is not evidence that this NML source or loader supports it",
     "new_apk": "NOT_BUILT: no verified compatible game/loader pair; old candidate must not be reissued as playable",
     "device_for_agent": "NOT_CONNECTED; direct installation/launch still NOT_RUN by agent"
+  },
+  "android_candidate_0_2_5": {
+    "mod_version": "0.2.5",
+    "package": "com.mkarpenko.worldbox",
+    "version_code": 692,
+    "original_apk_sha256": "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "reference_old_apk_sha256": "e4b37e1ffdc27fba37e1fcd9390787a248dcdc5764d123da5a47df0681ab6bd5",
+    "mod_zip_sha256": "52db6ad82dec024cbfeca3fe7d4c0a5561c3f1b427edf1b0661f1a16c5319569",
+    "inner_apk_sha256": "ad62100885bb880359b78cb03000a6a850abbf63bbf39b1ba5b4a835aa657e6d",
+    "outer_apk_sha256": "7393781d0534737156081b87270105ecab5743abe0b0c3c37dc851273b1b8fbe",
+    "game_alias_sha256": "afb0877bfa6814469d83c34952622e4d25aeef4a7a21c4af6dbc97a82dc23b7d",
+    "static_alias_count": 239,
+    "static_checks": "PASS: 239 aliases, code section unchanged, signed APKs aligned and identical overlay",
+    "local_mod_compile": "BLOCKED: dotnet CLI fails Process.get_StartTime in this container; GitHub Actions compilation pending",
+    "android_install_launch": "NOT_RUN: adb devices empty",
+    "native_world_button_and_commands": "NOT_RUN",
+    "all_gameplay_complete": "NO",
+    "phone_feedback": "PENDING; previous APK failed before il2cpp_init",
+    "signing": "same candidate test certificate a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13; not original certificate"
   }
 }

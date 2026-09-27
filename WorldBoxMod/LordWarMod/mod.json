@@ -2,7 +2,7 @@
   "name": "LordWar",
   "GUID": "LordWar.Android.Core",
   "author": "LordWar",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "领主战争原生城市选城、王都、城主任命与军队长任命",
   "Dependencies": [],
   "OptionalDependencies": [],

@@ -17,6 +17,7 @@ target_version_code = int(sys.argv[4]) if len(sys.argv) > 4 else None
 hook_name = "assets/hook.apk"
 loader_asset_roots = ("assets/MelonLoader/", "assets/dotnet/", "assets/copyToData/")
 loader_native_names = {
+    "lib/arm64-v8a/libil2cpp.so",
     "lib/arm64-v8a/libmain.so",
     "lib/arm64-v8a/libBootstrap.so",
     "lib/arm64-v8a/libcrypto.so",
