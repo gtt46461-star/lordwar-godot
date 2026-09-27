@@ -2,3 +2,6 @@ dist/
 _deps/
 **/bin/
 **/obj/
+**/__pycache__/
+*.apk
+*.jks
