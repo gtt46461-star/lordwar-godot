@@ -62,6 +62,7 @@ public sealed class LordWarCoreTests {
             WorldMap b=new WorldGenerator(4812,options).Generate(160,160,2);
             int dry=0,forest=0,rivers=0,resources=0;
             foreach(WorldTile t in a.Tiles) {
+                Assert.AreEqual(0f,t.Forest,0.00001f);
                 if(t.Terrain!=TerrainKind.DeepWater&&t.Terrain!=TerrainKind.Coast&&t.Terrain!=TerrainKind.Lake)dry++;
                 if(t.Terrain==TerrainKind.Forest)forest++;
                 if(t.River)rivers++;
