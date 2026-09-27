@@ -55,26 +55,23 @@ namespace LordWar.AndroidMod
             }
         }
 
-        private void StartWorld(bool fromWorldBox)
+        private void StartWorld()
         {
             if (_creation != null && !_creation.IsCompleted) return;
-            WorldMap imported = null;
-            if (fromWorldBox)
-            {
-                try { imported = CaptureWorldBoxMap(); }
-                catch (Exception error) { _status = "读取当前地图失败: " + error.Message; LogInfo(_status); return; }
-            }
+            WorldMap imported;
+            try { imported = CaptureWorldBoxMap(); }
+            catch (Exception error) { _status = "读取当前地图失败: " + error.Message; LogInfo(_status); return; }
             _world = null;
             _nativeCities.Clear();
             _nativeKingdoms.Clear();
             _lastNativeSyncDay = -1;
-            _foundNativeCivilizations = fromWorldBox && MapBox.instance != null &&
+            _foundNativeCivilizations = MapBox.instance != null &&
                 MapBox.instance.cities != null && MapBox.instance.cities.Count == 0;
             _showInbox = false;
             _selectedProposalId = null;
             if (_mapTexture != null) UnityEngine.Object.Destroy(_mapTexture);
             _mapTexture = null;
-            _status = imported == null ? "正在后台生成 160×120 / 4 国世界" : "正在当前地图上创建 4 国世界";
+            _status = "正在接入当前 WorldBox 地图";
             string folder = GetDeclaration().FolderPath;
             WorldMap mapSnapshot = imported;
             _creation = Task.Run(() =>
@@ -82,8 +79,7 @@ namespace LordWar.AndroidMod
                 var data = new GameDataCatalog();
                 data.LoadAll(new FolderDataProvider(folder));
                 var world = new GameWorld(Environment.TickCount, data, AiDifficulty.Hard);
-                if (mapSnapshot == null) world.CreateNewWorld(160, 120, 4);
-                else world.CreateNewWorld(mapSnapshot, 4);
+                world.CreateNewWorld(mapSnapshot, 4);
                 return world;
             });
         }
@@ -316,8 +312,7 @@ namespace LordWar.AndroidMod
             GUI.Label(new Rect(x + 16f, top, width - 32f, line), _status);
             top += line;
 
-            if (GUI.Button(new Rect(x + 16f, top, 165f * scale, 48f * scale), "创建新世界")) StartWorld(false);
-            if (GUI.Button(new Rect(x + 190f * scale, top, 220f * scale, 48f * scale), "使用当前地图")) StartWorld(true);
+            if (GUI.Button(new Rect(x + 16f, top, 235f * scale, 48f * scale), "接入当前 WorldBox 地图")) StartWorld();
             if (_world == null) return;
             if (GUI.Button(new Rect(x + width - 195f * scale, top, 178f * scale, 48f * scale),
                 "提交箱 (" + _world.PlayerPendingProposalCount + ")")) OpenInbox();
