@@ -4,7 +4,7 @@
 
 `LordWarMod/` 是针对 NeoModLoader Android 的**源码模组目录**。它移入用户提供的 R30 Unity 工程中 44 个纯 C# 游戏核心文件和 23 个原始数据文件，并新增 `LordWarMod.cs` 作为移动端入口。`Core/` 保留 R30 游戏逻辑；为通过独立编译，修复了 3 处原始源码错误，并将 7 个文件中的 `WorldTile` 引用明确限定为领主战争类型，避免与 WorldBox 的同名类型冲突。
 
-接入的可见操作是在 NeoModLoader 的 WorldBox 底部功能栏创建“领主战争”标签、面板按钮和提交箱按钮（同时保留浮动入口）。它能异步创建 160×120/4 国世界，或从当前 WorldBox 地图采样地形，使用原生城市位置与国家分组初始化《领主战争》的地图和政治实体。空白 WorldBox 地图上可通过原生 `Actor.buildCityAndStartCivilization()` 建立对应城市和国家；已有城市的地图会按位置关联原生城市。在 R30 模拟日推进后，会把受《领主战争》接管的城市名称和归属国家写回原生 WorldBox 城市。提交箱接入 R30 `GameWorld.ApproveProposal` / `RejectProposal`，使用 WorldBox 原有的 `ScrollWindow` 空窗口预制件承载列表，并保留 IMGUI 回退入口。原生标签接法参考用户提供的 `Supower.rar` 的公开接口使用方式，入口代码独立编写。世界的政策、兵种、人物、经济和战争模拟走 R30 `GameWorld` 及其 Owner 链。当前面板尚未暴露所有原版操作；WorldBox 本体单位、建筑、战斗和存档与《领主战争》世界的完整双向同步尚未实现。
+接入的可见操作是在 NeoModLoader 的 WorldBox 底部功能栏创建“领主战争”标签、面板按钮和提交箱按钮（同时保留浮动入口）。入口只从当前 WorldBox 地图采样地形，使用原生城市位置与国家分组初始化《领主战争》的地图和政治实体；不再提供脱离 WorldBox 地图的独立世界创建按钮。空白 WorldBox 地图上可通过原生 `Actor.buildCityAndStartCivilization()` 建立对应城市和国家；已有城市的地图会按位置关联原生城市。在 R30 模拟日推进后，会把受《领主战争》接管的城市名称和归属国家写回原生 WorldBox 城市。提交箱接入 R30 `GameWorld.ApproveProposal` / `RejectProposal`，使用 WorldBox 原有的 `ScrollWindow` 空窗口预制件承载列表，并保留 IMGUI 回退入口。原生标签接法参考用户提供的 `Supower.rar` 的公开接口使用方式，入口代码独立编写。世界的政策、兵种、人物、经济和战争模拟走 R30 `GameWorld` 及其 Owner 链。当前面板尚未暴露所有原版操作；WorldBox 本体单位、建筑、战斗和存档与《领主战争》世界的完整双向同步尚未实现。
 
 ## 已完成的检查
 
