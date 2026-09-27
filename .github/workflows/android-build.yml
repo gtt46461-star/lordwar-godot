@@ -44,6 +44,8 @@ jobs:
           cp bootstrap/overrides/LordWarApp.cs project/Scripts/Godot/LordWarApp.cs
           cp bootstrap/overrides/LordWarHud.cs project/Scripts/Godot/LordWarHud.cs
           cp bootstrap/overrides/WorldGenerator.cs project/Scripts/LordWar/World/WorldGenerator.cs
+          cp bootstrap/overrides/WorldMap.cs project/Scripts/LordWar/World/WorldMap.cs
+          cp bootstrap/overrides/GameWorld.cs project/Scripts/LordWar/Simulation/GameWorld.cs
           grep -F "LORDWAR_MENU_READY" project/Scripts/Godot/LordWarApp.cs
           grep -F "PriorityQueue<GridPoint, float>" project/Scripts/LordWar/World/WorldGenerator.cs
 

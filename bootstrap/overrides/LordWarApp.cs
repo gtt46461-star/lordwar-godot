@@ -6,6 +6,7 @@ using Godot;
 using LordWar.AI;
 using LordWar.Data;
 using LordWar.Simulation;
+using LordWar.World;
 
 namespace LordWar.GodotRuntime {
     /// <summary>
@@ -25,6 +26,7 @@ namespace LordWar.GodotRuntime {
         Label _loadingLabel;
         Task<GameWorld> _worldTask;
         int _pendingWidth;
+        WorldGenerationOptions _pendingOptions;
         int _pendingHeight;
         int _pendingKingdoms;
         AiDifficulty _pendingDifficulty;
@@ -49,7 +51,7 @@ namespace LordWar.GodotRuntime {
                 if (_menuFrames >= 45) {
                     _ciAutoStart = false;
                     GD.Print("LORDWAR_CI_AUTOSTART quick=80x60 kingdoms=3");
-                    BeginWorldGeneration(0, 80, 60, 3, AiDifficulty.Hard, "CI快速开局");
+                    BeginWorldGeneration(NewSeed(), 80, 60, 3, AiDifficulty.Hard, "CI快速开局");
                 }
             }
 
@@ -144,9 +146,35 @@ namespace LordWar.GodotRuntime {
             info.AddThemeFontSizeOverride("font_size", 19);
             box.AddChild(info);
 
-            AddMenuButton(box, "快速开局｜80×60｜三国", () => BeginWorldGeneration(0, 80, 60, 3, AiDifficulty.Hard, "快速开局"));
-            AddMenuButton(box, "标准战役｜112×84｜四国", () => BeginWorldGeneration(0, 112, 84, 4, AiDifficulty.Hard, "标准战役"));
-            AddMenuButton(box, "大型世界｜160×120｜四国", () => BeginWorldGeneration(0, 160, 120, 4, AiDifficulty.Hard, "大型世界"));
+            AddMenuButton(box, "快速开局｜80×60｜三国", () => BeginWorldGeneration(NewSeed(), 80, 60, 3, AiDifficulty.Hard, "快速开局"));
+            AddMenuButton(box, "标准战役｜112×84｜四国", () => BeginWorldGeneration(NewSeed(), 112, 84, 4, AiDifficulty.Hard, "标准战役"));
+            AddMenuButton(box, "大型世界｜160×120｜四国", () => BeginWorldGeneration(NewSeed(), 160, 120, 4, AiDifficulty.Hard, "大型世界"));
+
+            box.AddChild(new HSeparator());
+            var customTitle = new Label { Text = "自定义随机地图｜固定种子可复现" };
+            customTitle.AddThemeFontSizeOverride("font_size", 22); box.AddChild(customTitle);
+            var size = new OptionButton(); size.AddItem("160×160",160); size.AddItem("224×224",224); size.AddItem("320×320",320); size.Selected=1; box.AddChild(size);
+            var nations = AddIntOption(box,"国家数量",2,8,4);
+            var seedText = new LineEdit { PlaceholderText="输入整数种子；留空才随机", Text="20260927" }; box.AddChild(seedText);
+            var ratio = AddIntOption(box,"陆地比例 %",15,85,50);
+            var forest = AddIntOption(box,"森林强度",0,100,50);
+            var mountain = AddIntOption(box,"山脉强度",0,100,50);
+            var desert = AddIntOption(box,"沙漠强度",0,100,50);
+            var rivers = AddIntOption(box,"河流强度",0,100,50);
+            var resources = AddIntOption(box,"资源强度",0,100,50);
+            var validation = new Label { Text="种子可为 0；留空才生成随机种子。", AutowrapMode=TextServer.AutowrapMode.WordSmart };
+            box.AddChild(validation);
+            AddMenuButton(box,"按这些参数创建世界",() => {
+                int seed;
+                if (string.IsNullOrWhiteSpace(seedText.Text)) seed=NewSeed();
+                else if (!int.TryParse(seedText.Text.Trim(),out seed)) { validation.Text="种子必须是32位整数"; return; }
+                int dimension=size.GetSelectedId();
+                var options=new WorldGenerationOptions {LandRatio=(float)ratio.Value/100f,
+                    ForestIntensity=(int)forest.Value,MountainIntensity=(int)mountain.Value,
+                    DesertIntensity=(int)desert.Value,RiverIntensity=(int)rivers.Value,
+                    ResourceIntensity=(int)resources.Value};
+                BeginWorldGeneration(seed,dimension,dimension,(int)nations.Value,AiDifficulty.Hard,"自定义世界",options);
+            });
 
             var note = new Label {
                 Text = "软克制体系：兵种、将军、官员、地形、士气、体力与补给共同决定战果；单个神将或单一兵种不能直接碾压。",
@@ -158,6 +186,13 @@ namespace LordWar.GodotRuntime {
             box.AddChild(note);
 
             GD.Print("LORDWAR_MAIN_MENU_VISIBLE");
+        }
+
+        static SpinBox AddIntOption(Container parent,string label,int min,int max,int value) {
+            var row=new HBoxContainer();parent.AddChild(row);
+            row.AddChild(new Label { Text=label, CustomMinimumSize=new Vector2(195,0) });
+            var box=new SpinBox { MinValue=min,MaxValue=max,Step=1,Value=value,SizeFlagsHorizontal=Control.SizeFlags.ExpandFill };
+            row.AddChild(box);return box;
         }
 
         static void AddMenuButton(Container parent, string text, Action action) {
@@ -201,11 +236,15 @@ namespace LordWar.GodotRuntime {
         }
 
         void BeginWorldGeneration(int requestedSeed, int width, int height, int kingdoms, AiDifficulty difficulty, string label) {
+            BeginWorldGeneration(requestedSeed,width,height,kingdoms,difficulty,label,null);
+        }
+
+        void BeginWorldGeneration(int requestedSeed, int width, int height, int kingdoms, AiDifficulty difficulty, string label, WorldGenerationOptions options) {
             if (_worldTask != null) return;
-            width = Math.Max(64, Math.Min(192, width));
-            height = Math.Max(48, Math.Min(160, height));
-            kingdoms = Math.Max(2, Math.Min(4, kingdoms));
-            int seed = requestedSeed == 0 ? NewSeed() : requestedSeed;
+            width = Math.Max(64, Math.Min(320, width));
+            height = Math.Max(48, Math.Min(320, height));
+            kingdoms = Math.Max(2, Math.Min(8, kingdoms));
+            int seed = requestedSeed;
 
             try {
                 if (_data == null) {
@@ -220,14 +259,15 @@ namespace LordWar.GodotRuntime {
                 _pendingHeight = height;
                 _pendingKingdoms = kingdoms;
                 _pendingDifficulty = difficulty;
+                _pendingOptions=(options??new WorldGenerationOptions()).Validated();
                 BuildLoadingScreen(label, width, height, kingdoms);
                 _worldWatch.Restart();
-                GD.Print("LORDWAR_GAME_CREATE_BEGIN map=" + width + "x" + height + " kingdoms=" + kingdoms);
+                GD.Print("LORDWAR_GAME_CREATE_BEGIN map=" + width + "x" + height + " kingdoms=" + kingdoms + " seed=" + seed + " land=" + _pendingOptions.LandRatio);
 
                 GameDataCatalog data = _data;
                 _worldTask = Task.Run(() => {
                     var world = new GameWorld(seed, data, difficulty);
-                    world.CreateNewWorld(width, height, kingdoms);
+                    world.CreateNewWorld(width, height, kingdoms, _pendingOptions);
                     return world;
                 });
             } catch (Exception ex) {
