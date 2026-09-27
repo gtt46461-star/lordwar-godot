@@ -8,9 +8,9 @@ namespace LordWar.World {
         // The caller supplies a plain managed snapshot. Do not pass Unity/IL2CPP objects to the simulation thread.
         public void PrepareImportedMap(WorldMap map,int cityCount){
             if(map==null||map.Width<16||map.Height<16||map.Tiles==null||map.Tiles.Length!=map.Width*map.Height)throw new ArgumentException("地图数据无效");
-            map.CitySites.Clear();
+            bool hasNativeCities=map.CitySites.Count>0;
             AssignResourceZones(map);
-            PlaceCities(map,cityCount,Math.Max(8,Math.Min(map.Width,map.Height)/5));
+            if(!hasNativeCities)PlaceCities(map,cityCount,Math.Max(8,Math.Min(map.Width,map.Height)/5));
             if(map.CitySites.Count==0)throw new InvalidOperationException("地图上没有可建设城市的陆地");
             BuildRoadNetwork(map);
         }
