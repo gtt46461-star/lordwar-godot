@@ -16,5 +16,6 @@
     <Reference Include="UnityEngine.CoreModule"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.CoreModule.dll</HintPath></Reference>
     <Reference Include="UnityEngine.IMGUIModule"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.IMGUIModule.dll</HintPath></Reference>
     <Reference Include="UnityEngine.UI"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.UI.dll</HintPath></Reference>
+    <Reference Include="UnityEngine.TextRenderingModule"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/UnityEngine.TextRenderingModule.dll</HintPath></Reference>
   </ItemGroup>
 </Project>
