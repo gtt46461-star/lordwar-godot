@@ -22,7 +22,7 @@ from axml_version import patch_version
 
 EXPECTED_OUTER = "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
 SOURCE_VERSION_CODE = 688
-TARGET_VERSION_CODE = 690
+TARGET_VERSION_CODE = 691
 MOD_ROOT = "assets/MelonLoader/NMLMods/"
 DEPLOY_MOD_ROOT = "assets/copyToData/MelonLoader/NMLMods/"
 MOD_PREFIX = MOD_ROOT + "LordWarMod/"
@@ -34,6 +34,14 @@ GAME_ANCHORS = (
     "assets/bin/Data/globalgamemanagers",
     "assets/bin/Data/Managed/Metadata/global-metadata.dat",
 )
+LOADER_ASSET_ROOTS = ("assets/MelonLoader/", "assets/dotnet/", "assets/copyToData/")
+LOADER_NATIVE_NAMES = {
+    "lib/arm64-v8a/libmain.so",
+    "lib/arm64-v8a/libBootstrap.so",
+    "lib/arm64-v8a/libcrypto.so",
+    "lib/arm64-v8a/libdobby.so",
+    "lib/arm64-v8a/libssl.so",
+}
 SIGNATURE_NAMES = ("META-INF/MANIFEST.MF",)
 
 
@@ -57,6 +65,10 @@ def is_signature(name):
     return name in SIGNATURE_NAMES or (
         name.startswith("META-INF/") and name.rsplit("/", 1)[-1].upper().endswith((".SF", ".RSA", ".DSA", ".EC"))
     )
+
+
+def runtime_overlay(name):
+    return name.startswith(LOADER_ASSET_ROOTS) or name in LOADER_NATIVE_NAMES
 
 
 def run(*argv, env=None):
@@ -120,14 +132,21 @@ def verify_mod(inner_path, mod_zip):
 
 
 def verify_outer(original_path, candidate_path, inner_path):
-    with zipfile.ZipFile(original_path) as original, zipfile.ZipFile(candidate_path) as candidate:
+    with zipfile.ZipFile(original_path) as original, zipfile.ZipFile(candidate_path) as candidate, zipfile.ZipFile(inner_path) as inner:
         assert candidate.testzip() is None
         old = {n for n in original.namelist() if not is_signature(n)}
         new = {n for n in candidate.namelist() if not is_signature(n)}
-        if old != new:
-            raise ValueError("Outer host entries changed beyond signatures")
+        loader_entries = {n for n in inner.namelist() if runtime_overlay(n)}
+        if not LOADER_NATIVE_NAMES.issubset(loader_entries):
+            raise ValueError("The inner APK is missing loader native libraries")
+        if new != old | loader_entries:
+            raise ValueError("Outer host entries differ beyond the explicit loader overlay")
         for name in old:
             if name == "assets/hook.apk":
+                continue
+            if name in loader_entries:
+                if sha_entry(candidate, name) != sha_entry(inner, name):
+                    raise ValueError("Outer runtime library differs from the inner loader: " + name)
                 continue
             expected = (patch_version(original.read(name), SOURCE_VERSION_CODE, TARGET_VERSION_CODE)
                         if name == "AndroidManifest.xml" else None)
@@ -136,6 +155,13 @@ def verify_outer(original_path, candidate_path, inner_path):
                 or sha_entry(original, name) != sha_entry(candidate, name))
             ):
                 raise ValueError("Outer host file changed: " + name)
+        for name in loader_entries - old:
+            if sha_entry(candidate, name) != sha_entry(inner, name):
+                raise ValueError("Outer loader asset differs from the inner loader: " + name)
+        if sha_entry(candidate, "lib/arm64-v8a/libmain.so") == sha_entry(original, "lib/arm64-v8a/libmain.so"):
+            raise ValueError("Outer host still contains the unpatched game startup library")
+        if candidate.getinfo("assets/hook.apk").date_time == original.getinfo("assets/hook.apk").date_time:
+            raise ValueError("Host hook APK timestamp was not advanced")
         with candidate.open("assets/hook.apk") as stream, open(inner_path, "rb") as expected:
             while True:
                 a, b = stream.read(1024 * 1024), expected.read(1024 * 1024)
@@ -206,6 +232,7 @@ def main():
         "versionCode": TARGET_VERSION_CODE,
         "versionName": "0.50.6",
         "signer": "lordwar candidate test certificate; does not match original",
+        "outer_loader_overlay": "verified: patched libmain.so, Bootstrap/native libs, MelonLoader/dotnet/copyToData assets mirror the signed inner APK",
         "device": "NOT_RUN: no adb connected Android arm64 device or applicable emulator",
     }
     (args.output_dir / "build-evidence.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
