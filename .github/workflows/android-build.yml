@@ -9,7 +9,7 @@ on:
       - ".github/workflows/android-build.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-android:
@@ -25,6 +25,22 @@ jobs:
     steps:
       - name: Checkout bootstrap
         uses: actions/checkout@v4
+
+      - name: Record N01 run ID for artifact retrieval
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/$GITHUB_REPOSITORY/contents/ci/n01-latest-run.json"
+          PREVIOUS=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$API?ref=ci/n01-run-pointer" | jq -r '.sha // empty')
+          CONTENT=$(printf '{"run_id":%s,"commit":"%s","started_utc":"%s"}\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" "$(date -u +%FT%TZ)" | base64 -w0)
+          if [ -n "$PREVIOUS" ]; then
+            PAYLOAD=$(jq -n --arg c "$CONTENT" --arg s "$PREVIOUS" '{message:"CI: update N01 run pointer",content:$c,branch:"ci/n01-run-pointer",sha:$s}')
+          else
+            PAYLOAD=$(jq -n --arg c "$CONTENT" '{message:"CI: record N01 run pointer",content:$c,branch:"ci/n01-run-pointer"}')
+          fi
+          curl -fsS -X PUT -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" -d "$PAYLOAD" "$API" | jq -r '.commit.sha'
 
       - name: Reconstruct R32 source archive
         shell: bash
