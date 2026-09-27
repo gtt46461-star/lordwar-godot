@@ -8,6 +8,9 @@ namespace LordWar.World {
     }
     [Serializable] public sealed class WorldMap {
         public int Width,Height,Seed; public WorldTile[] Tiles; public List<GridPoint> CitySites=new List<GridPoint>();
+        // Optional parallel data populated from native WorldBox cities before core world creation.
+        public List<string> CitySiteNames=new List<string>();
+        public List<string> CitySiteKingdomKeys=new List<string>();
         public WorldMap(int w,int h,int seed){Width=w;Height=h;Seed=seed;Tiles=new WorldTile[w*h];for(int y=0;y<h;y++)for(int x=0;x<w;x++)Tiles[y*w+x]=new WorldTile{X=x,Y=y};}
         public WorldTile Get(int x,int y){if(x<0||y<0||x>=Width||y>=Height)return null;return Tiles[y*Width+x];}
         public IEnumerable<WorldTile> Neighbors4(int x,int y){WorldTile t;if((t=Get(x-1,y))!=null)yield return t;if((t=Get(x+1,y))!=null)yield return t;if((t=Get(x,y-1))!=null)yield return t;if((t=Get(x,y+1))!=null)yield return t;}
