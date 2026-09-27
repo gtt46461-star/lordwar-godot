@@ -16,6 +16,9 @@ namespace LordWar.GodotRuntime {
         RichTextLabel _details;
         Label _status;
         VBoxContainer _actionBox;
+        PanelContainer _rootPanel;
+        Control _tabs1, _tabs2;
+        bool _expanded;
         double _refreshClock;
         int _page;
         int _cityIndex;
@@ -36,9 +39,10 @@ namespace LordWar.GodotRuntime {
 
         void BuildUi() {
             var root = new PanelContainer {
-                AnchorLeft = .01f, AnchorTop = .57f, AnchorRight = .99f, AnchorBottom = .995f,
+                AnchorLeft = .01f, AnchorTop = .79f, AnchorRight = .99f, AnchorBottom = .995f,
                 OffsetLeft = 0, OffsetTop = 0, OffsetRight = 0, OffsetBottom = 0
             };
+            _rootPanel = root;
             var frame = new StyleBoxTexture { Texture = GD.Load<Texture2D>("res://Art/LordWarArt/UI_界面/windowBig__resources.assets__852.png") };
             frame.TextureMarginLeft = 12; frame.TextureMarginRight = 12; frame.TextureMarginTop = 12; frame.TextureMarginBottom = 12;
             root.AddThemeStyleboxOverride("panel", frame);
@@ -64,10 +68,11 @@ namespace LordWar.GodotRuntime {
             AddButton(timeRow, "×1", () => SetSpeed(1)); AddButton(timeRow, "×2", () => SetSpeed(2)); AddButton(timeRow, "×4", () => SetSpeed(4));
             AddButton(timeRow, "推进一日", AdvanceDay);
             AddButton(timeRow, "保存", SaveGame); AddButton(timeRow, "读取", LoadGame);
+            AddButton(timeRow, "更多", () => SetExpanded(!_expanded));
 
-            var tabs1 = new HFlowContainer(); main.AddChild(tabs1);
+            var tabs1 = new HFlowContainer(); main.AddChild(tabs1); _tabs1 = tabs1;
             AddTab(tabs1, "总览", 0); AddTab(tabs1, "城市规划", 1); AddTab(tabs1, "军事", 2); AddTab(tabs1, "人事任命", 3);
-            var tabs2 = new HFlowContainer(); main.AddChild(tabs2);
+            var tabs2 = new HFlowContainer(); main.AddChild(tabs2); _tabs2 = tabs2;
             AddTab(tabs2, "外交", 4); AddTab(tabs2, "政策", 5); AddTab(tabs2, "战争战役", 6); AddTab(tabs2, "战报", 7); AddButton(tabs2, "主菜单", ReturnMenu);
 
             _actionBox = new VBoxContainer(); _actionBox.AddThemeConstantOverride("separation", 5); main.AddChild(_actionBox);
@@ -79,6 +84,16 @@ namespace LordWar.GodotRuntime {
             _details = new RichTextLabel { BbcodeEnabled = false, FitContent = false, ScrollActive = true, SizeFlagsVertical = Control.SizeFlags.ExpandFill };
             _details.AddThemeFontSizeOverride("normal_font_size", 15);
             main.AddChild(_details);
+            SetExpanded(false);
+        }
+
+        void SetExpanded(bool expanded) {
+            _expanded = expanded;
+            if (_rootPanel != null) _rootPanel.AnchorTop = expanded ? .28f : .79f;
+            if (_tabs1 != null) _tabs1.Visible = expanded;
+            if (_tabs2 != null) _tabs2.Visible = expanded;
+            if (_actionBox != null) _actionBox.Visible = expanded;
+            if (_details != null) _details.Visible = expanded;
         }
 
         void AddButton(Container parent, string text, Action action) {

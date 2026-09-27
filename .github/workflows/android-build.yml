@@ -80,8 +80,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90112/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1-n01"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90113/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1-n01-r2"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
           sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=1/' project.godot
@@ -341,10 +341,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-N01-Godot-90112-device-validated.apk" \
+            "Builds/Android/LordWar-N01-Godot-90113-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-N01-Godot-90112-device-validated.apk
-          sha256sum Builds/Android/LordWar-N01-Godot-90112-device-validated.apk | tee Builds/Android/LordWar-N01-Godot-90112-device-validated.apk.sha256
+          test -s Builds/Android/LordWar-N01-Godot-90113-device-validated.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90113-device-validated.apk | tee Builds/Android/LordWar-N01-Godot-90113-device-validated.apk.sha256
           ls -lh Builds/Android/
 
       - name: Export signed Android N01 release APK
@@ -354,20 +354,20 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-N01-Godot-90112.apk" \
+            "Builds/Android/LordWar-N01-Godot-90113.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-N01-Godot-90112.apk
-          sha256sum Builds/Android/LordWar-N01-Godot-90112.apk | tee Builds/Android/LordWar-N01-Godot-90112.apk.sha256
+          test -s Builds/Android/LordWar-N01-Godot-90113.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90113.apk | tee Builds/Android/LordWar-N01-Godot-90113.apk.sha256
 
       - name: Archive exact final source used by release
         shell: bash
         working-directory: project
         run: |
           set -euo pipefail
-          rm -f ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz
-          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz .
-          test -s ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz
-          sha256sum ../_buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
+          rm -f ../_buildsrc/LordWar-N01-Godot-90113-FinalSource.tar.gz
+          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-N01-Godot-90113-FinalSource.tar.gz .
+          test -s ../_buildsrc/LordWar-N01-Godot-90113-FinalSource.tar.gz
+          sha256sum ../_buildsrc/LordWar-N01-Godot-90113-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
 
       - name: Install Pillow for screenshot validation
         shell: bash
@@ -381,7 +381,7 @@ jobs:
           mkdir -p Evidence
           sudo chmod 666 /dev/kvm 2>/dev/null || true
           echo "no" | avdmanager create avd -n LordWarApi35 -k "system-images;android-35;google_apis;x86_64" --force
-          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu swiftshader -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
+          nohup emulator -avd LordWarApi35 -no-window -noaudio -no-boot-anim -gpu angle_indirect -memory 2048 > Evidence/CI_EMULATOR_BOOT.log 2>&1 &
           adb wait-for-device
           BOOT_OK=0
           for i in $(seq 1 120); do
@@ -405,8 +405,8 @@ jobs:
           adb shell input keyevent 82 || true
           sleep 2
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90112-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-N01-Godot-90112-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90113-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-N01-Godot-90113-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -c
           ACTIVITY="$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER com.lordwar.game 2>/dev/null | tr -d '\r' | tail -n 1)"
@@ -459,18 +459,12 @@ jobs:
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
-          SWIFTSHADER=$(grep -c "SwiftShader" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
-          KNOWN_SWIFTSHADER_UNIFORM=$(grep -Ec "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS" Evidence/CI_ANDROID_DEVICE_LOGCAT.log || true)
           EFFECTIVE_PRESENT_ERRORS=$PRESENT_ERRORS
-          if [ "$SWIFTSHADER" -gt 0 ] && [ "$KNOWN_SWIFTSHADER_UNIFORM" -gt 0 ] && [ "$FATALS" -eq 0 ]; then
-            EFFECTIVE_PRESENT_ERRORS=0
-            echo "emulator_visual_gate=WAIVED_KNOWN_SWIFTSHADER_UNIFORM_LIMIT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          fi
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
-          echo "present_errors=$PRESENT_ERRORS effective_present_errors=$EFFECTIVE_PRESENT_ERRORS swiftshader=$SWIFTSHADER known_uniform=$KNOWN_SWIFTSHADER_UNIFORM" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+          echo "present_errors=$PRESENT_ERRORS effective_present_errors=$EFFECTIVE_PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           grep -E "OpenGL API|Vulkan API|Compatibility|Forward Mobile" Evidence/CI_ANDROID_DEVICE_LOGCAT.log | tail -n 20 | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt || true
           test -s Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png
           SCREEN_STATS=$(python3 - <<'PY'
@@ -498,6 +492,7 @@ jobs:
             echo "visual_capture_has_variance=yes" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
           else
             echo "visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
+            exit 1
           fi
           if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$EFFECTIVE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_DEVICE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_DEVICE_STATUS.txt
@@ -514,7 +509,7 @@ jobs:
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90112.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90113.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 0 || true
           adb shell wm size 360x640 || true
@@ -565,18 +560,12 @@ jobs:
           ALIVE_COUNT=$(grep -c "LORDWAR_RUNTIME_ALIVE" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           FATALS=$(grep -Ec "FATAL EXCEPTION|Fatal signal|SIGSEGV|SIGABRT|LORDWAR_STARTUP_FATAL" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_PRESENT_ERRORS=$(grep -Ec "Couldn't present to Vulkan queue|VK_ERROR_DEVICE_LOST|EGL_BAD|OpenGL.*ERROR|GL_INVALID|Program linking failed|shader failed to compile|CanvasShaderGLES3|SceneShaderGLES3" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
-          RELEASE_SWIFTSHADER=$(grep -c "SwiftShader" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
-          RELEASE_KNOWN_SWIFTSHADER_UNIFORM=$(grep -Ec "active uniforms exceed GL_MAX_FRAGMENT_UNIFORM_VECTORS" Evidence/CI_ANDROID_RELEASE_LOGCAT.log || true)
           RELEASE_EFFECTIVE_PRESENT_ERRORS=$RELEASE_PRESENT_ERRORS
-          if [ "$RELEASE_SWIFTSHADER" -gt 0 ] && [ "$RELEASE_KNOWN_SWIFTSHADER_UNIFORM" -gt 0 ] && [ "$FATALS" -eq 0 ]; then
-            RELEASE_EFFECTIVE_PRESENT_ERRORS=0
-            echo "emulator_visual_gate=WAIVED_KNOWN_SWIFTSHADER_UNIFORM_LIMIT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          fi
           echo "menu_ok=$MENU_OK" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "game_ready=$GAME_READY" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "alive_count=$ALIVE_COUNT" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "fatal_markers=$FATALS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
-          echo "present_errors=$RELEASE_PRESENT_ERRORS effective_present_errors=$RELEASE_EFFECTIVE_PRESENT_ERRORS swiftshader=$RELEASE_SWIFTSHADER known_uniform=$RELEASE_KNOWN_SWIFTSHADER_UNIFORM" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+          echo "present_errors=$RELEASE_PRESENT_ERRORS effective_present_errors=$RELEASE_EFFECTIVE_PRESENT_ERRORS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           grep -E "OpenGL API|Vulkan API|Compatibility|Forward Mobile" Evidence/CI_ANDROID_RELEASE_LOGCAT.log | tail -n 20 | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt || true
           RELEASE_STATS=$(python3 - <<'PY'
           from PIL import Image, ImageStat
@@ -593,11 +582,28 @@ jobs:
             echo "release_visual_capture_has_variance=yes" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           else
             echo "release_visual_capture_has_variance=no" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
+            exit 1
           fi
           if [ -z "$PID" ] || [ "$MENU_OK" -lt 1 ] || [ "$GAME_READY" -lt 1 ] || [ "$ALIVE_COUNT" -lt 4 ] || [ "$FATALS" -gt 0 ] || [ "$RELEASE_EFFECTIVE_PRESENT_ERRORS" -gt 0 ]; then
             echo "ANDROID_RELEASE_SMOKE=FAIL" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
             exit 1
           fi
+          echo "cold_start_attempts=10" | tee Evidence/CI_N01_COLD_STARTS.txt
+          for attempt in $(seq 1 10); do
+            adb shell am force-stop com.lordwar.game
+            adb logcat -c
+            adb shell am start -W -n "$RELEASE_ACTIVITY" >/dev/null
+            READY=0
+            for wait_round in $(seq 1 30); do
+              adb logcat -d -v brief > Evidence/CI_N01_COLD_START_${attempt}.log
+              if grep -F "LORDWAR_SAVE_RESTORED" Evidence/CI_N01_COLD_START_${attempt}.log >/dev/null &&
+                 grep -F "LORDWAR_GAME_READY restored" Evidence/CI_N01_COLD_START_${attempt}.log >/dev/null; then READY=1; break; fi
+              sleep 1
+            done
+            test "$READY" = "1"
+            test -n "$(adb shell pidof com.lordwar.game | tr -d '\r')"
+            echo "cold_start_${attempt}=PASS" | tee -a Evidence/CI_N01_COLD_STARTS.txt
+          done
           echo "ANDROID_RELEASE_RUNTIME=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
@@ -612,15 +618,15 @@ jobs:
             echo "godot_version=$GODOT_VERSION"
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-N01-Godot-90112-device-validated.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90113-device-validated.apk ]; then
               echo "debug_apk_present=yes"
-              sha256sum Builds/Android/LordWar-N01-Godot-90112-device-validated.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90113-device-validated.apk
             else
               echo "debug_apk_present=no"
             fi
-            if [ -f Builds/Android/LordWar-N01-Godot-90112.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90113.apk ]; then
               echo "release_apk_present=yes"
-              sha256sum Builds/Android/LordWar-N01-Godot-90112.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90113.apk
             else
               echo "release_apk_present=no"
             fi
@@ -647,4 +653,4 @@ jobs:
             bootstrap/overrides/*.cs
             project/Scripts/LordWar/World/WorldGenerator.cs
             _buildsrc/lordwar-r32.tar.gz
-            _buildsrc/LordWar-N01-Godot-90112-FinalSource.tar.gz
+            _buildsrc/LordWar-N01-Godot-90113-FinalSource.tar.gz

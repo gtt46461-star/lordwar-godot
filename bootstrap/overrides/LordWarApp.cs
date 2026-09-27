@@ -52,8 +52,14 @@ namespace LordWar.GodotRuntime {
                 _menuFrames++;
                 if (_menuFrames >= 45) {
                     _ciAutoStart = false;
-                    GD.Print("LORDWAR_CI_AUTOSTART quick=80x60 kingdoms=3");
-                    BeginWorldGeneration(0, 80, 60, 3, AiDifficulty.Hard, "CI快速开局");
+                    GameSave candidate; string state;
+                    if (GodotSaveService.TryRead(out candidate,out state)) {
+                        GD.Print("LORDWAR_CI_AUTOLOAD existing-save");
+                        LoadSavedWorld();
+                    } else {
+                        GD.Print("LORDWAR_CI_AUTOSTART quick=80x60 kingdoms=3");
+                        BeginWorldGeneration(0, 80, 60, 3, AiDifficulty.Hard, "CI快速开局");
+                    }
                 }
             }
 
@@ -316,6 +322,7 @@ namespace LordWar.GodotRuntime {
                 GameSaveService.Restore(restored, save);
                 InstallWorld(restored);
                 GD.Print("LORDWAR_SAVE_RESTORED day=" + World.Day + " tick=" + World.Clock.TickIndex);
+                GD.Print("LORDWAR_GAME_READY restored map=" + World.Map.Width + "x" + World.Map.Height + " kingdoms=" + World.Kingdoms.Count);
             } catch (Exception ex) {
                 if (_menuStatus != null) _menuStatus.Text = "读档失败：" + ex.Message;
                 GD.PushError("LORDWAR_SAVE_RESTORE_FAIL " + ex);
