@@ -28,6 +28,10 @@ jobs:
         run: dotnet run --no-build -c Release --project WorldBoxMod/Smoke/CoreSmoke.csproj -- "$GITHUB_WORKSPACE/WorldBoxMod/LordWarMod"
       - name: Compile Android NML mod against published assemblies
         run: dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release
+      - name: Inspect Android reference type signatures
+        run: |
+          mkdir -p WorldBoxMod/dist
+          dotnet run -c Release --project WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -- WorldBoxMod/_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll > WorldBoxMod/dist/native-api-probe.txt
       - name: Compile pinned Android loader construction tools
         run: |
           git clone https://github.com/LemonLoader/MelonLoaderInstaller.git WorldBoxMod/_deps/MelonLoaderInstaller
@@ -46,3 +50,7 @@ jobs:
           path: |
             WorldBoxMod/dist/LordWarMod-0.2.1.zip
             WorldBoxMod/dist/LordWarMod-0.2.1.manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WorldBox-Android-reference-signatures
+          path: WorldBoxMod/dist/native-api-probe.txt
