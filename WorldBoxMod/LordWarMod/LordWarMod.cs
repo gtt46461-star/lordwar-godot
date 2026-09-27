@@ -16,6 +16,7 @@ namespace LordWar.AndroidMod
         private ScrollWindow _cityWindow;
         private long _cityId = -1;
         private long _kingdomId = -1;
+        private long _actorId = -1;
         private string _status = "请选择原版城市";
 
         protected override void OnModLoad()
@@ -69,9 +70,12 @@ namespace LordWar.AndroidMod
             {
                 _cityId = -1;
                 _kingdomId = -1;
+                _actorId = -1;
                 _status = "请在原版地图选择一座仍属于国家的城市";
                 return false;
             }
+            if (_cityId != city.getID() || _kingdomId != city.kingdom.getID())
+                _actorId = -1;
             _cityId = city.getID();
             _kingdomId = city.kingdom.getID();
             SelectedMetas.selected_city = city;
@@ -95,6 +99,33 @@ namespace LordWar.AndroidMod
                 return city;
             }
             return null;
+        }
+
+        private static bool BelongsToCity(global::Actor actor, global::City city)
+        {
+            if (actor == null || actor.isRekt() || !actor.isSapient() || !actor.isAdult())
+                return false;
+            global::City home = actor.getCity();
+            return home != null && home.getID() == city.getID();
+        }
+
+        private global::Actor ResolveActor(global::City city)
+        {
+            if (city == null || _actorId < 0) return null;
+            foreach (global::Actor actor in city.units)
+                if (BelongsToCity(actor, city) && actor.getID() == _actorId)
+                    return actor;
+            return null;
+        }
+
+        private void SelectActor(long actorId)
+        {
+            _actorId = actorId;
+            global::City city = ResolveCity();
+            global::Actor actor = ResolveActor(city);
+            _status = actor == null ? "人物已死亡、离城或城市易主；请选择其他人物"
+                : "已选择原版人物 " + actor.getName();
+            RefreshCityWindow();
         }
 
         private void ShowCityWindow()
@@ -147,16 +178,99 @@ namespace LordWar.AndroidMod
                 "    城市金币：" + city.getResourcesAmount("gold") +
                 "    王都：" + (kingdom.capital == city ? "是" : "否"), 56f);
 
+            global::Army army = city.army;
+            AddText(content, "原版城主：" + (city.leader == null ? "未任命" : city.leader.getName()) +
+                "    军队长：" + (army == null || army.getCaptain() == null
+                    ? "没有可任命的原版军队长" : army.getCaptain().getName()), 56f);
+            global::Actor selected = ResolveActor(city);
+            AddText(content, "当前人物：" + (selected == null ? "未选择" : selected.getName()) +
+                "（仅从原版城市居民中选择）", 42f);
+
+            AddText(content, "原版人物（优先显示士兵，最多 16 位）：", 35f);
             int shown = 0;
-            foreach (global::Actor actor in city.units)
+            for (int pass = 0; pass < 2 && shown < 16; pass++)
             {
-                if (actor == null || actor.isRekt() || !actor.isSapient()) continue;
-                AddText(content, "城内人物：" + actor.getName() + "  ID：" + actor.getID(), 35f);
-                if (++shown == 3) break;
+                foreach (global::Actor actor in city.units)
+                {
+                    if (!BelongsToCity(actor, city) || actor.isWarrior() != (pass == 0)) continue;
+                    long id = actor.getID();
+                    AddAction(content, actor.getName() + (actor.isWarrior() ? " · 原版士兵" : " · 居民") +
+                        (_actorId == id ? " ✓" : ""), () => SelectActor(id));
+                    if (++shown == 16) break;
+                }
             }
-            if (shown == 0) AddText(content, "城内没有可用人物", 35f);
+            if (shown == 0) AddText(content, "城内没有可任命的成年人物", 35f);
             AddAction(content, "设为王都", SetCapital);
+            AddAction(content, "任命所选人物为城主", AppointCityLeader);
+            AddAction(content, "任命所选士兵为军队长", AppointArmyCaptain);
             AddText(content, _status, 65f);
+        }
+
+        private void AppointCityLeader()
+        {
+            global::City city = ResolveCity();
+            global::Actor actor = ResolveActor(city);
+            if (city == null || actor == null)
+                _status = "城市或人物状态已改变，任命未执行";
+            else if (actor.isKing())
+                _status = "国王不能兼任此处城主，任命未执行";
+            else if (city.leader != null && city.leader.getID() == actor.getID())
+                _status = actor.getName() + " 已是原版城主，未重复任命";
+            else
+            {
+                try
+                {
+                    city.setLeader(actor, true);
+                    bool applied = city.leader != null && city.leader.getID() == actor.getID();
+                    _status = applied ? "原版城市已任命 " + actor.getName() + " 为城主"
+                        : "原版城市未确认城主任命";
+                    LogInfo("LordWar native leader result city=" + city.getID() +
+                        " actor=" + actor.getID() + " success=" + applied);
+                }
+                catch (Exception error)
+                {
+                    _status = "城主任命失败：" + error.Message;
+                    LogInfo("LordWar native leader FAILED: " + error);
+                }
+            }
+            RefreshCityWindow();
+        }
+
+        private void AppointArmyCaptain()
+        {
+            global::City city = ResolveCity();
+            global::Actor actor = ResolveActor(city);
+            if (city == null || actor == null)
+                _status = "城市或人物状态已改变，任命未执行";
+            else
+            {
+                global::Army army = city.army;
+                global::Army actorArmy = actor.army;
+                if (army == null || army.getCity() == null || army.getCity().getID() != city.getID())
+                    _status = "此城没有有效的原版军队，任命未执行";
+                else if (!actor.isWarrior() || actorArmy == null || actorArmy.getID() != army.getID())
+                    _status = "所选人物不是这支原版军队的士兵，任命未执行";
+                else if (army.getCaptain() != null && army.getCaptain().getID() == actor.getID())
+                    _status = actor.getName() + " 已是军队长，未重复任命";
+                else
+                {
+                    try
+                    {
+                        army.setCaptain(actor, false);
+                        bool applied = army.getCaptain() != null && army.getCaptain().getID() == actor.getID();
+                        _status = applied ? "原版军队已任命 " + actor.getName() + " 为军队长"
+                            : "原版军队未确认军队长任命";
+                        LogInfo("LordWar native captain result army=" + army.getID() +
+                            " actor=" + actor.getID() + " success=" + applied);
+                    }
+                    catch (Exception error)
+                    {
+                        _status = "军队长任命失败：" + error.Message;
+                        LogInfo("LordWar native captain FAILED: " + error);
+                    }
+                }
+            }
+            RefreshCityWindow();
         }
 
         private void SetCapital()
