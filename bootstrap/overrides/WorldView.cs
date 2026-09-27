@@ -10,21 +10,23 @@ namespace LordWar.GodotRuntime {
         public const float TileSize = 10f;
         const int Detail = 4;
         const string Root = "res://Art/LordWarArt/";
-        const string HouseAssetId = "house_human__resources.assets__755";
+        const string HouseAssetId = "小住宅";
+        const string VillaAssetId = "别墅";
         const string TreeAssetId = "tree#0__4b53b25ac82f6834d8e48815e8b61851__46";
         const string WalkerAssetId = "unit_warrior__resources.assets__504";
         GameWorld _world;
-        Texture2D _terrain, _house, _tree, _walker;
+        Texture2D _terrain, _house, _villa, _tree, _walker;
         double _redrawClock;
 
         public void Bind(GameWorld world) {
             _world = world;
             TextureFilter = TextureFilterEnum.Nearest;
-            _house = GD.Load<Texture2D>(Root + "恢复_同源替代/" + HouseAssetId + ".png");
+            _house = GD.Load<Texture2D>(Root + "V31新增/城市建筑扩展/" + HouseAssetId + ".png");
+            _villa = GD.Load<Texture2D>(Root + "V31新增/城市建筑扩展/" + VillaAssetId + ".png");
             _tree = GD.Load<Texture2D>(Root + "植物_资源/" + TreeAssetId + ".png");
             _walker = GD.Load<Texture2D>(Root + "人物_动作/" + WalkerAssetId + ".png");
-            if (_house == null || _tree == null || _walker == null)
-                GD.PushError("N01_REQUIRED_ART_MISSING house=" + (_house != null) + " tree=" + (_tree != null) + " walker=" + (_walker != null));
+            if (_house == null || _villa == null || _tree == null || _walker == null)
+                GD.PushError("N01_REQUIRED_ART_MISSING house=" + (_house != null) + " villa=" + (_villa != null) + " tree=" + (_tree != null) + " walker=" + (_walker != null));
             _terrain = world?.Map == null ? null : BuildTerrain(world.Map);
             QueueRedraw();
         }
@@ -91,11 +93,11 @@ namespace LordWar.GodotRuntime {
             foreach(City city in _world.Cities.Values){
                 Vector2 foot=WorldToCanvas(city.X,city.Y);
                 if(_house!=null){
-                    DrawTextureRect(_house,new Rect2(foot.X-7,foot.Y-13,14,13),false);
+                    DrawTextureRectRegion(_house,new Rect2(foot.X-9,foot.Y-18,18,18),new Rect2(7,8,18,18));
                     // A city's inhabited block is rendered from its real population, never a circle marker.
                     if(city.PersonIds.Count>24){
-                        DrawTextureRect(_house,new Rect2(foot.X-17,foot.Y-8,11,10),false);
-                        DrawTextureRect(_house,new Rect2(foot.X+6,foot.Y-7,11,10),false);
+                        if(_villa!=null)DrawTextureRectRegion(_villa,new Rect2(foot.X-28,foot.Y-16,22,18),new Rect2(5,8,22,18));
+                        DrawTextureRectRegion(_house,new Rect2(foot.X+8,foot.Y-16,18,18),new Rect2(7,8,18,18));
                     }
                 }
                 // A small town garden uses the tree sheet at the city's actual position.

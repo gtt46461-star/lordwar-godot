@@ -161,7 +161,7 @@ namespace LordWar.GodotRuntime {
         Kingdom FirstOtherKingdom(bool requireWar){return SelectedOtherKingdom(requireWar);}
 
         void SetStatus(string text){if(_status!=null)_status.Text=text??"";}
-        void ClockAction(WorldCommandKind kind,float value=0f){GameWorld w=W();if(w==null)return;string reason;bool ok=w.ExecuteClockCommand(new WorldCommand(Guid.NewGuid().ToString("N"),kind,value),out reason);SetStatus(ok?(kind==WorldCommandKind.Pause?"已暂停":kind==WorldCommandKind.Resume?"继续运行":kind==WorldCommandKind.AdvanceDay?"已推进一日":"速度 ×"+value.ToString("0.#")):reason);Refresh();}
+        void ClockAction(WorldCommandKind kind,float value=0f){GameWorld w=W();if(w==null)return;string reason;bool ok=w.ExecuteClockCommand(new WorldCommand(Guid.NewGuid().ToString("N"),kind,value),out reason);SetStatus(ok?(kind==WorldCommandKind.Pause?"已暂停":kind==WorldCommandKind.Resume?"继续运行":kind==WorldCommandKind.AdvanceDay?"已推进一日":"速度 ×"+value.ToString("0.#")):reason);Person walker=null;foreach(Person p in w.People.Values)if(p.IsWorldWalker){walker=p;break;}GD.Print("LORDWAR_UI_CLOCK kind="+kind+" accepted="+ok+" tick="+w.Clock.TickIndex+" walker="+(walker==null?"none":walker.Id+":"+walker.X+","+walker.Y+":"+walker.WalkProgress.ToString("0.000")));Refresh();}
         void TogglePause(){GameWorld w=W();if(w!=null)ClockAction(w.Paused?WorldCommandKind.Resume:WorldCommandKind.Pause);}
         void SetSpeed(float speed){ClockAction(WorldCommandKind.SetSpeed,speed);}
         void AdvanceDay(){ClockAction(WorldCommandKind.AdvanceDay);}
