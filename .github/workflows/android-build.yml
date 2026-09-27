@@ -84,8 +84,8 @@ jobs:
         shell: bash
         working-directory: project
         run: |
-          sed -i -E 's/version\/code=[0-9]+/version\/code=90121/' export_presets.cfg
-          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1-n01-r10"/' export_presets.cfg
+          sed -i -E 's/version\/code=[0-9]+/version\/code=90122/' export_presets.cfg
+          sed -i -E 's/version\/name="[^"]*"/version\/name="1.0.1-n01-r11"/' export_presets.cfg
           sed -i 's/architectures\/x86_64=false/architectures\/x86_64=true/' export_presets.cfg
           grep -E 'version/(code|name)|architectures/(arm64-v8a|x86_64)' export_presets.cfg
           sed -i 's/handheld\/orientation=[0-9]/handheld\/orientation=1/' project.godot
@@ -345,10 +345,10 @@ jobs:
           mkdir -p Builds/Android
           godot --headless --path . \
             --export-debug "Android Debug" \
-            "Builds/Android/LordWar-N01-Godot-90121-device-validated.apk" \
+            "Builds/Android/LordWar-N01-Godot-90122-device-validated.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_EXPORT.log
-          test -s Builds/Android/LordWar-N01-Godot-90121-device-validated.apk
-          sha256sum Builds/Android/LordWar-N01-Godot-90121-device-validated.apk | tee Builds/Android/LordWar-N01-Godot-90121-device-validated.apk.sha256
+          test -s Builds/Android/LordWar-N01-Godot-90122-device-validated.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90122-device-validated.apk | tee Builds/Android/LordWar-N01-Godot-90122-device-validated.apk.sha256
           ls -lh Builds/Android/
 
       - name: Export signed Android N01 release APK
@@ -358,10 +358,10 @@ jobs:
           set -euo pipefail
           "$HOME/bin/godot" --headless --path . \
             --export-release "Android Debug" \
-            "Builds/Android/LordWar-N01-Godot-90121.apk" \
+            "Builds/Android/LordWar-N01-Godot-90122.apk" \
             --verbose 2>&1 | tee Evidence/CI_ANDROID_RELEASE_EXPORT.log
-          test -s Builds/Android/LordWar-N01-Godot-90121.apk
-          sha256sum Builds/Android/LordWar-N01-Godot-90121.apk | tee Builds/Android/LordWar-N01-Godot-90121.apk.sha256
+          test -s Builds/Android/LordWar-N01-Godot-90122.apk
+          sha256sum Builds/Android/LordWar-N01-Godot-90122.apk | tee Builds/Android/LordWar-N01-Godot-90122.apk.sha256
 
       - name: Archive exact final source used by release
         shell: bash
@@ -371,29 +371,29 @@ jobs:
           cp -a ../bootstrap ./bootstrap
           cp ../.github/workflows/android-build.yml ./.github/workflows/android-build.yml
           python3 Tools/n01_source_manifest.py | tee Evidence/CI_BUILD_IDENTITY.log
-          rm -f ../_buildsrc/LordWar-N01-Godot-90121-FinalSource.tar.gz
-          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-N01-Godot-90121-FinalSource.tar.gz .
-          test -s ../_buildsrc/LordWar-N01-Godot-90121-FinalSource.tar.gz
-          sha256sum ../_buildsrc/LordWar-N01-Godot-90121-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
+          rm -f ../_buildsrc/LordWar-N01-Godot-90122-FinalSource.tar.gz
+          tar --exclude='./.godot' --exclude='./Builds' --exclude='./Evidence' -czf ../_buildsrc/LordWar-N01-Godot-90122-FinalSource.tar.gz .
+          test -s ../_buildsrc/LordWar-N01-Godot-90122-FinalSource.tar.gz
+          sha256sum ../_buildsrc/LordWar-N01-Godot-90122-FinalSource.tar.gz | tee Evidence/CI_FINAL_SOURCE_SHA256.txt
           mkdir -p ../_buildsrc/clean_source
-          tar -xzf ../_buildsrc/LordWar-N01-Godot-90121-FinalSource.tar.gz -C ../_buildsrc/clean_source
-          (cd ../_buildsrc/clean_source && zip -qr ../LordWar-N01-Godot-90121-SOURCE.zip .)
-          test -s ../_buildsrc/LordWar-N01-Godot-90121-SOURCE.zip
-          sha256sum ../_buildsrc/LordWar-N01-Godot-90121-SOURCE.zip | tee Evidence/CI_SOURCE_ZIP_SHA256.txt
+          tar -xzf ../_buildsrc/LordWar-N01-Godot-90122-FinalSource.tar.gz -C ../_buildsrc/clean_source
+          (cd ../_buildsrc/clean_source && zip -qr ../LordWar-N01-Godot-90122-SOURCE.zip .)
+          test -s ../_buildsrc/LordWar-N01-Godot-90122-SOURCE.zip
+          sha256sum ../_buildsrc/LordWar-N01-Godot-90122-SOURCE.zip | tee Evidence/CI_SOURCE_ZIP_SHA256.txt
 
       - name: Build again from freshly unpacked complete SOURCE
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p _verify_source
-          unzip -q _buildsrc/LordWar-N01-Godot-90121-SOURCE.zip -d _verify_source
+          unzip -q _buildsrc/LordWar-N01-Godot-90122-SOURCE.zip -d _verify_source
           cd _verify_source
           python3 Tools/n01_source_manifest.py | tee ../project/Evidence/CI_FRESH_SOURCE_IDENTITY.log
           LORDWAR_GODOT_BIN="$HOME/bin/godot" \
             LORDWAR_APK_OUTPUT_DIR="Builds/Android/repro-$GITHUB_RUN_ID" \
             bash Tools/build_android_ci.sh 2>&1 | tee ../project/Evidence/CI_FRESH_SOURCE_BUILD.log
-          test -s "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90121.apk"
-          sha256sum "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90121.apk" | tee ../project/Evidence/CI_FRESH_SOURCE_APK_SHA256.txt
+          test -s "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90122.apk"
+          sha256sum "Builds/Android/repro-$GITHUB_RUN_ID/LordWar-N01-90122.apk" | tee ../project/Evidence/CI_FRESH_SOURCE_APK_SHA256.txt
           rm -rf Builds
 
       - name: Install Pillow for screenshot validation
@@ -433,8 +433,8 @@ jobs:
           adb shell am force-stop com.google.android.apps.nexuslauncher || true
           sleep 2
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90121-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-N01-Godot-90121-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90122-device-validated.apk | tee Evidence/CI_ADB_INSTALL.log
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging Builds/Android/LordWar-N01-Godot-90122-device-validated.apk > Evidence/CI_ANDROID_BADGING.txt
           adb shell am force-stop com.lordwar.game || true
           adb logcat -G 16M || true
           adb logcat -c
@@ -470,6 +470,11 @@ jobs:
           done
           adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | tee Evidence/CI_ANDROID_FOCUS_FINAL.txt
           grep -E 'mCurrentFocus.*com\.lordwar\.game' Evidence/CI_ANDROID_FOCUS_FINAL.txt
+          adb shell screenrecord --bit-rate 1200000 --time-limit 180 /sdcard/LordWar_N01_UI.mp4 > Evidence/CI_N01_UI_RECORDING.log 2>&1 &
+          UI_RECORD_HOST_PID=$!
+          sleep 2
+          UI_RECORD_DEVICE_PID="$(adb shell pidof screenrecord | tr -d '\r')"
+          test -n "$UI_RECORD_DEVICE_PID"
           sleep 2
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN_BEFORE.png
           read W H < <(python3 - <<'PY'
@@ -550,15 +555,24 @@ jobs:
           adb shell input tap $((W*85/100)) $((H*95/100))
           for i in $(seq 1 20); do
             adb logcat -b main -d -v brief -s godot:I > Evidence/CI_N01_UI_ABOUT.log
-            if grep -F 'LORDWAR_UI_ABOUT buildId=N01-GODOT-20260927-10' Evidence/CI_N01_UI_ABOUT.log >/dev/null; then break; fi
+            if grep -F 'LORDWAR_UI_ABOUT buildId=N01-GODOT-20260927-11' Evidence/CI_N01_UI_ABOUT.log >/dev/null; then break; fi
             sleep 1
           done
           adb exec-out screencap -p > Evidence/CI_N01_UI_ABOUT.png
-          grep -F 'LORDWAR_UI_ABOUT buildId=N01-GODOT-20260927-10' Evidence/CI_N01_UI_ABOUT.log
+          grep -F 'LORDWAR_UI_ABOUT buildId=N01-GODOT-20260927-11' Evidence/CI_N01_UI_ABOUT.log
           adb shell input swipe $((W*75/100)) $((H*35/100)) $((W*25/100)) $((H*35/100)) 350 || true
           adb shell input tap $((W*50/100)) $((H*50/100)) || true
           sleep 20
           adb exec-out screencap -p > Evidence/CI_ANDROID_DEVICE_SCREEN.png
+          adb shell kill -INT "$UI_RECORD_DEVICE_PID"
+          wait "$UI_RECORD_HOST_PID" || true
+          adb pull /sdcard/LordWar_N01_UI.mp4 Evidence/CI_N01_UI_RECORDING.mp4
+          python3 - <<'PY' | tee Evidence/CI_N01_UI_RECORDING_STATUS.txt
+          from pathlib import Path
+          p=Path('Evidence/CI_N01_UI_RECORDING.mp4')
+          assert p.stat().st_size>10000 and b'ftyp' in p.read_bytes()[:32]
+          print(f'N01_UI_RECORDING=PASS bytes={p.stat().st_size}')
+          PY
           adb exec-out run-as com.lordwar.game cat files/lordwar_ci_game.png > Evidence/CI_ANDROID_GAMEPLAY_CAPTURE.png || true
           echo "Waiting for four debug runtime heartbeats..."
           for i in $(seq 1 30); do
@@ -641,7 +655,7 @@ jobs:
           set -euo pipefail
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
           adb uninstall com.lordwar.game >/dev/null 2>&1 || true
-          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90121.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
+          adb install --no-incremental -r Builds/Android/LordWar-N01-Godot-90122.apk | tee Evidence/CI_ADB_RELEASE_INSTALL.log
           adb shell settings put system accelerometer_rotation 0 || true
           adb shell settings put system user_rotation 0 || true
           adb shell wm size 360x640 || true
@@ -721,6 +735,11 @@ jobs:
             exit 1
           fi
           echo "cold_start_attempts=10" | tee Evidence/CI_N01_COLD_STARTS.txt
+          adb shell screenrecord --bit-rate 900000 --time-limit 180 /sdcard/LordWar_N01_COLD_STARTS.mp4 > Evidence/CI_N01_COLD_START_RECORDING.log 2>&1 &
+          COLD_RECORD_HOST_PID=$!
+          sleep 2
+          COLD_RECORD_DEVICE_PID="$(adb shell pidof screenrecord | tr -d '\r')"
+          test -n "$COLD_RECORD_DEVICE_PID"
           for attempt in $(seq 1 10); do
             adb shell am force-stop com.lordwar.game
             adb logcat -c
@@ -736,6 +755,15 @@ jobs:
             test -n "$(adb shell pidof com.lordwar.game | tr -d '\r')"
             echo "cold_start_${attempt}=PASS" | tee -a Evidence/CI_N01_COLD_STARTS.txt
           done
+          adb shell kill -INT "$COLD_RECORD_DEVICE_PID"
+          wait "$COLD_RECORD_HOST_PID" || true
+          adb pull /sdcard/LordWar_N01_COLD_STARTS.mp4 Evidence/CI_N01_COLD_START_RECORDING.mp4
+          python3 - <<'PY' | tee Evidence/CI_N01_COLD_START_RECORDING_STATUS.txt
+          from pathlib import Path
+          p=Path('Evidence/CI_N01_COLD_START_RECORDING.mp4')
+          assert p.stat().st_size>10000 and b'ftyp' in p.read_bytes()[:32]
+          print(f'N01_COLD_START_RECORDING=PASS bytes={p.stat().st_size}')
+          PY
           echo "ANDROID_RELEASE_RUNTIME=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
           echo "ANDROID_RELEASE_SMOKE=PASS" | tee -a Evidence/CI_ANDROID_RELEASE_STATUS.txt
 
@@ -751,15 +779,15 @@ jobs:
             echo "source_sha256=$EXPECTED_SOURCE_SHA256"
             if [ -f build_identity.json ]; then cat build_identity.json; fi
             echo "timestamp_utc=$(date -u +%FT%TZ)"
-            if [ -f Builds/Android/LordWar-N01-Godot-90121-device-validated.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90122-device-validated.apk ]; then
               echo "debug_apk_present=yes"
-              sha256sum Builds/Android/LordWar-N01-Godot-90121-device-validated.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90122-device-validated.apk
             else
               echo "debug_apk_present=no"
             fi
-            if [ -f Builds/Android/LordWar-N01-Godot-90121.apk ]; then
+            if [ -f Builds/Android/LordWar-N01-Godot-90122.apk ]; then
               echo "release_apk_present=yes"
-              sha256sum Builds/Android/LordWar-N01-Godot-90121.apk
+              sha256sum Builds/Android/LordWar-N01-Godot-90122.apk
             else
               echo "release_apk_present=no"
             fi
@@ -779,6 +807,7 @@ jobs:
             project/Evidence/CI_*.log
             project/Evidence/CI_*.txt
             project/Evidence/CI_*.png
+            project/Evidence/CI_*.mp4
             project/Evidence/CI_BUILD_SUMMARY.txt
             project/Scripts/Godot/LordWarApp.cs
             project/LordWar.sln
@@ -786,6 +815,6 @@ jobs:
             bootstrap/overrides/*.cs
             project/Scripts/LordWar/World/WorldGenerator.cs
             _buildsrc/lordwar-r32.tar.gz
-            _buildsrc/LordWar-N01-Godot-90121-FinalSource.tar.gz
-            _buildsrc/LordWar-N01-Godot-90121-SOURCE.zip
+            _buildsrc/LordWar-N01-Godot-90122-FinalSource.tar.gz
+            _buildsrc/LordWar-N01-Godot-90122-SOURCE.zip
             project/build_identity.json
