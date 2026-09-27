@@ -15,7 +15,7 @@
 
 `LordWarMod/` 保留 44 个 R30 核心文件和 23 个数据文件，作为后续逐项迁移的源码依据；当前 `LordWarMod.cs` 不实例化或推进其中的 `GameWorld`。`Build/package_mod.py` 生成的手机安装包只放入当前真实入口 `LordWarMod.cs` 和 `mod.json`，避免把尚无原生消费者的模拟代码和 CSV 加载进游戏。完整源码总包另行包含 Core、Data、构建脚本和工作流。
 
-运行入口通过 NeoModLoader 创建原版底部“领主战争”标签；先用 WorldBox 原有界面选城，再按模组按钮打开原生城市窗口。窗口显示实际城市、国家、金币、人口及最多三名真实城内人物；“设为王都”先检查城市存在、国家未改变、人口大于零和重复点击，再修改原版 `Kingdom` 的王都。旧 IMGUI 浮动入口、R30 并行地图和自动城市归属回写已经从运行入口移除。此条原生闭环需要在实际 Android 目标上核对按钮、读档和异常状态；建设、征募、军队、战争及其余清单仍未移植。
+运行入口通过 NeoModLoader 创建原版底部“领主战争”标签；可使用模组地图选城工具点击原版城市，或先用 WorldBox 原有界面选城再按模组按钮打开原生城市窗口。地图事件委托经 NML 的 IL2CPP 转换器绑定。窗口显示实际城市、国家、金币、人口及最多三名真实城内人物；“设为王都”先检查城市存在、国家未改变、人口大于零和重复点击，再修改原版 `Kingdom` 的王都。旧 IMGUI 浮动入口、R30 并行地图和自动城市归属回写已经从运行入口移除。此条原生闭环需要在实际 Android 目标上核对按钮、读档和异常状态；建设、征募、军队、战争及其余清单仍未移植。
 
 ## 已完成的检查
 
@@ -33,7 +33,7 @@
 ## 运行链和待验收项
 
 1. 先用对应 WorldBox 0.50.6 的 Android LemonLoader/NeoModLoader 环境验证加载器启动和日志。社区 Android 仓库已归档，不能仅凭桌面版的 0.50.6 适配公告推定手机兼容。
-2. 在有权使用的 WorldBox 安装中按 AndroidModLoader 的说明安装 LemonLoader，并将其 2.0 发布的 `NeoModLoader_mobile.dll` 放入 `MelonLoader/com.mkarpenko.worldbox/Mods`；解压本批 `LordWarMod-0.2.0.zip` 到同一游戏根目录下的 `NMLMods/`，形成 `NMLMods/LordWarMod/mod.json` 和 `NMLMods/LordWarMod/LordWarMod.cs`。加载器的 `ModCompileLoadService` 会搜索模组目录中的 C# 源码并编译。实际游戏根目录由 LemonLoader 的 `MelonEnvironment.GameRootDirectory` 决定，不应猜测绝对路径。
+2. 在有权使用的 WorldBox 安装中按 AndroidModLoader 的说明安装 LemonLoader，并将其 2.0 发布的 `NeoModLoader_mobile.dll` 放入 `MelonLoader/com.mkarpenko.worldbox/Mods`；解压本批 `LordWarMod-0.2.1.zip` 到同一游戏根目录下的 `NMLMods/`，形成 `NMLMods/LordWarMod/mod.json` 和 `NMLMods/LordWarMod/LordWarMod.cs`。加载器的 `ModCompileLoadService` 会搜索模组目录中的 C# 源码并编译。实际游戏根目录由 LemonLoader 的 `MelonEnvironment.GameRootDirectory` 决定，不应猜测绝对路径。
 3. 确认模组出现在模组列表，日志出现 `LordWar native city entry registered`，在原版地图选城或按“领主战争”按钮读取当前城市，再执行“设为王都”，观察国家王都改变、重复点击不重复执行和重启读档恢复。
 4. 若失败，保留设备日志和编译报错，对照实际 IL2CPP 包装程序集修正。这份源码**没有运行过手机编译与实机验收**。
 

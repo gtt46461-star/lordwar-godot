@@ -2,7 +2,7 @@
   "name": "LordWar",
   "GUID": "LordWar.Android.Core",
   "author": "LordWar",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "领主战争原生 WorldBox 选城与王都命令接入",
   "Dependencies": [],
   "OptionalDependencies": [],

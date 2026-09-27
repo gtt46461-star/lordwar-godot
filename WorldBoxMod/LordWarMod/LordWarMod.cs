@@ -1,5 +1,6 @@
 using System;
 using NeoModLoader.api;
+using NeoModLoader.AndroidCompatibilityModule;
 using NeoModLoader.General;
 using NeoModLoader.General.UI.Tab;
 using UnityEngine;
@@ -11,6 +12,7 @@ namespace LordWar.AndroidMod
     public sealed class LordWarMod : BasicMod<LordWarMod>
     {
         private const string WindowId = "lordwar_city_window";
+        private const string SelectPowerId = "lordwar_select_city";
         private ScrollWindow _cityWindow;
         private long _cityId = -1;
         private long _kingdomId = -1;
@@ -23,6 +25,18 @@ namespace LordWar.AndroidMod
                 Sprite cityIcon = SpriteTextureLoader.getSprite("ui/Icons/iconCity");
                 var tab = TabManager.CreateTab("lordwar", "领主战争", "在原版城市中执行领主命令", cityIcon);
 
+                AssetManager.powers.add(new GodPower
+                {
+                    id = SelectPowerId,
+                    name = "领主战争 · 地图选城",
+                    force_map_mode = MetaType.City,
+                    click_special_action = IL2CPPHelper.C<PowerActionWithID>(
+                        (Func<global::WorldTile, string, bool>)SelectCityFromMap),
+                    unselect_when_window = true
+                });
+                var select = PowerButtonCreator.CreateGodPowerButton(SelectPowerId, cityIcon, tab.transform);
+                PowerButtonCreator.AddButtonToTab(select, tab);
+
                 var open = PowerButtonCreator.CreateSimpleButton(
                     "lordwar_open_city", (Action)OpenSelectedCity, cityIcon, tab.transform);
                 PowerButtonCreator.AddButtonToTab(open, tab);
@@ -33,6 +47,14 @@ namespace LordWar.AndroidMod
                 LogInfo("LordWar native entry FAILED: " + error);
                 throw;
             }
+        }
+
+        private bool SelectCityFromMap(global::WorldTile tile, string powerId)
+        {
+            global::City city = tile == null ? null : tile.zone_city;
+            if (!BindCity(city)) return false;
+            ShowCityWindow();
+            return true;
         }
 
         private void OpenSelectedCity()
