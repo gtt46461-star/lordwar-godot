@@ -12,6 +12,7 @@ using NeoModLoader.api;
 using NeoModLoader.General;
 using NeoModLoader.General.UI.Tab;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace LordWar.AndroidMod
 {
@@ -28,6 +29,7 @@ namespace LordWar.AndroidMod
         private Vector2 _inboxScroll;
         private string _selectedProposalId;
         private Texture2D _mapTexture;
+        private ScrollWindow _nativeInbox;
 
         protected override void OnModLoad()
         {
@@ -40,7 +42,7 @@ namespace LordWar.AndroidMod
                     "lordwar_open", (Action)(() => _panel = true), icon, tab.transform);
                 PowerButtonCreator.AddButtonToTab(open, tab);
                 var inbox = PowerButtonCreator.CreateSimpleButton(
-                    "lordwar_inbox", (Action)(() => { _panel = true; _showInbox = true; }), icon, tab.transform);
+                    "lordwar_inbox", (Action)OpenInbox, icon, tab.transform);
                 PowerButtonCreator.AddButtonToTab(inbox, tab);
             }
             catch (Exception error)
@@ -199,7 +201,7 @@ namespace LordWar.AndroidMod
             if (GUI.Button(new Rect(x + 190f * scale, top, 220f * scale, 48f * scale), "使用当前地图")) StartWorld(true);
             if (_world == null) return;
             if (GUI.Button(new Rect(x + width - 195f * scale, top, 178f * scale, 48f * scale),
-                "提交箱 (" + _world.PlayerPendingProposalCount + ")")) _showInbox = !_showInbox;
+                "提交箱 (" + _world.PlayerPendingProposalCount + ")")) OpenInbox();
             top += 56f * scale;
             if (_showInbox) { DrawInbox(x, y, width, height, top, scale); return; }
             if (GUI.Button(new Rect(x + 16f, top, 140f * scale, 48f * scale), _world.Paused ? "继续" : "暂停"))
@@ -300,6 +302,100 @@ namespace LordWar.AndroidMod
                 _status = _world.RejectProposal(selected.Id) ? "已拒绝：" + selected.Title : "拒绝失败：" + selected.Title;
                 _selectedProposalId = null;
             }
+        }
+
+        private void OpenInbox()
+        {
+            _panel = true;
+            _showInbox = true;
+            if (_world == null) return;
+            try
+            {
+                if (_nativeInbox == null)
+                {
+                    _nativeInbox = WindowCreator.CreateEmptyWindow("lordwar_inbox_window", "提交箱");
+                    Transform content = _nativeInbox.transform_content;
+                    var layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+                    layout.spacing = 4f;
+                    layout.padding = new RectOffset(8, 8, 8, 8);
+                    layout.childControlWidth = true;
+                    layout.childForceExpandWidth = true;
+                    layout.childControlHeight = false;
+                    layout.childForceExpandHeight = false;
+                    var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+                    fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                }
+                RefreshNativeInbox();
+                ScrollWindow.showWindow("lordwar_inbox_window");
+            }
+            catch (Exception error)
+            {
+                LogInfo("LordWar native inbox unavailable: " + error);
+            }
+        }
+
+        private void RefreshNativeInbox()
+        {
+            Transform content = _nativeInbox.transform_content;
+            for (int i = content.childCount - 1; i >= 0; i--)
+                UnityEngine.Object.Destroy(content.GetChild(i).gameObject);
+            AddInboxText(content, "提交箱 · 待处理 " + _world.PlayerPendingProposalCount, 30f);
+            foreach (Proposal proposal in _world.Proposals.Queue.ToArray())
+            {
+                if (proposal.State != ProposalState.Pending || !_world.IsPlayerProposal(proposal)) continue;
+                string id = proposal.Id;
+                AddInboxText(content, proposal.Title + "\n" + proposal.Description, 70f);
+                AddInboxAction(content, "同意 · " + proposal.Title, () => ResolveInbox(id, true));
+                AddInboxAction(content, "拒绝 · " + proposal.Title, () => ResolveInbox(id, false));
+            }
+            if (_world.PlayerPendingProposalCount == 0) AddInboxText(content, "暂无待处理申请", 36f);
+        }
+
+        private void ResolveInbox(string id, bool approve)
+        {
+            bool ok = approve ? _world.ApproveProposal(id) : _world.RejectProposal(id);
+            _status = ok ? (approve ? "申请已同意" : "申请已拒绝") : "申请处理失败";
+            RefreshNativeInbox();
+        }
+
+        private static void AddInboxText(Transform parent, string value, float height)
+        {
+            var item = new GameObject("LordWarInboxText");
+            item.transform.SetParent(parent, false);
+            var layout = item.AddComponent<LayoutElement>();
+            layout.preferredHeight = height;
+            var label = item.AddComponent<Text>();
+            label.font = LocalizedTextManager.current_font;
+            label.fontSize = 12;
+            label.color = Color.black;
+            label.alignment = TextAnchor.MiddleLeft;
+            label.text = value;
+        }
+
+        private static void AddInboxAction(Transform parent, string label, Action action)
+        {
+            var item = new GameObject("LordWarInboxAction");
+            item.transform.SetParent(parent, false);
+            var layout = item.AddComponent<LayoutElement>();
+            layout.preferredHeight = 36f;
+            var image = item.AddComponent<Image>();
+            image.sprite = Resources.Load<Sprite>("ui/special/windowInnerSliced");
+            image.type = Image.Type.Sliced;
+            var button = item.AddComponent<Button>();
+            button.onClick.AddListener(() => action());
+            var labelObject = new GameObject("Label");
+            labelObject.transform.SetParent(item.transform, false);
+            var text = labelObject.AddComponent<Text>();
+            text.font = LocalizedTextManager.current_font;
+            text.fontSize = 12;
+            text.color = Color.black;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.text = label;
+            var rect = labelObject.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
         }
 
         private sealed class FolderDataProvider : ITextDataProvider
