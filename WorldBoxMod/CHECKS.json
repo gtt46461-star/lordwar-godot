@@ -273,5 +273,23 @@
     "standalone_GameWorld_execution": "removed from current LordWarMod.cs entry; historical Core still included but dormant",
     "other_requirements": "NOT_IMPLEMENTED",
     "native_map_city_power": "COMPILED with IL2CPPHelper.C<PowerActionWithID>; device NOT_RUN"
+  },
+  "android_candidate_0_2_2": {
+    "baseline": "0.50.6+688 outer original SHA-256 77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "version": "0.2.2",
+    "package": "com.mkarpenko.worldbox",
+    "inner_outer_version_code": 689,
+    "candidate_certificate_sha256": "a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13",
+    "original_certificate_sha256": "37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b",
+    "mod_zip_sha256": "e0666797b50ec7d038403cb7c55980b7ab212fcb610d3a20e9d53c56e6672cf3",
+    "inner_apk_sha256": "b117c10ebd32170ba110aaf084ce1b45dcec5ffdef68f04528eb66dda71f32fa",
+    "outer_apk_sha256": "6addd309e94ae6a1e25ead96e1592453cee04ffc58bcd382a5e0e27819e4057b",
+    "native_leader_and_captain": "COMPILED against public Android reference assemblies, runtime NOT_RUN",
+    "native_city_and_capital": "COMPILED against public Android reference assemblies, runtime NOT_RUN",
+    "static_zip_signature_alignment_manifest_and_entry_hashes": "PASS",
+    "device_install_launch_ui_state_save_restart": "NOT_RUN: adb devices empty; no applicable arm64 emulator",
+    "full_lord_war_requirements": "NOT_IMPLEMENTED; only native city selection/capital/leader/captain slice present",
+    "ci_compile_run": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36326079559",
+    "candidate_signer_can_cover_original": "NO: SHA-256 differs; retain original installation and save backup"
   }
 }
