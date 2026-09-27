@@ -152,8 +152,10 @@ namespace LordWar.Simulation {
             WarAdministration = new WarAdministrationOwner(People, Kingdoms, Data);
 
             int i = 0;
+            var nativeKingdoms = new Dictionary<string,Kingdom>();
             foreach (GridPoint pt in Map.CitySites) {
-                string cname = Data.CityNames.Count > 0 ? Data.CityNames[i % Data.CityNames.Count] : "新城" + (i + 1);
+                string cname = Map.CitySiteNames != null && i < Map.CitySiteNames.Count && !string.IsNullOrEmpty(Map.CitySiteNames[i])
+                    ? Map.CitySiteNames[i] : Data.CityNames.Count > 0 ? Data.CityNames[i % Data.CityNames.Count] : "新城" + (i + 1);
                 City c = new City {
                     Id = Ids.Next("CITY"), Name = cname, KingdomId = "", X = pt.X, Y = pt.Y,
                     PopulationCapacity = 120, Food = 420, Wood = 180, Stone = 140, Iron = 80, Horses = 12,
@@ -163,12 +165,18 @@ namespace LordWar.Simulation {
                 Cities[c.Id] = c;
                 Planning.EnsureStarterZones(c,Day);
 
-                Kingdom k = new Kingdom { Id = Ids.Next("K"), Name = cname + "领", Treasury = 1800, CapitalCityId = c.Id, ColorHex = PaletteHex(i) };
-                Kingdoms[k.Id] = k;
+                string nativeKey = Map.CitySiteKingdomKeys != null && i < Map.CitySiteKingdomKeys.Count
+                    ? Map.CitySiteKingdomKeys[i] : null;
+                Kingdom k;
+                if (string.IsNullOrEmpty(nativeKey) || !nativeKingdoms.TryGetValue(nativeKey, out k)) {
+                    k = new Kingdom { Id = Ids.Next("K"), Name = cname + "领", Treasury = 1800, CapitalCityId = c.Id, ColorHex = PaletteHex(i) };
+                    Kingdoms[k.Id] = k;
+                    if (!string.IsNullOrEmpty(nativeKey)) nativeKingdoms[nativeKey] = k;
+                    _ai[k.Id] = new AiOwner(i == 0 ? AiDifficulty.Normal : ComputerDifficulty, Seed + i * 97);
+                }
                 k.CityIds.Add(c.Id);
                 c.KingdomId = k.Id;
                 if (i == 0) PlayerKingdomId = k.Id;
-                _ai[k.Id] = new AiOwner(i == 0 ? AiDifficulty.Normal : ComputerDifficulty, Seed + i * 97);
 
                 SeedPopulation(c, k, i);
                 SeedFamilies(c, i);
