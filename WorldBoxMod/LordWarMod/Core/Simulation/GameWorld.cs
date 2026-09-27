@@ -118,7 +118,17 @@ namespace LordWar.Simulation {
         public void CreateNewWorld(int width, int height, int kingdomCount) {
             _worldGenerator = new WorldGenerator(Seed);
             Map = _worldGenerator.Generate(width, height, kingdomCount);
+            InitializeNewWorld(kingdomCount);
+        }
 
+        public void CreateNewWorld(WorldMap importedMap, int kingdomCount) {
+            _worldGenerator = new WorldGenerator(Seed);
+            _worldGenerator.PrepareImportedMap(importedMap, kingdomCount);
+            Map = importedMap;
+            InitializeNewWorld(kingdomCount);
+        }
+
+        private void InitializeNewWorld(int kingdomCount) {
             Population = new PopulationOwner(People, Cities, Seed);
             Economy = new EconomyLedger(People, Kingdoms);
             Proposals = new ProposalSystem();
