@@ -1,5 +1,16 @@
 # 领主战争 × WorldBox Android 模组源码接入件
 
+## 目标版本裁决（2026-09-27）
+
+已核验文件库中的两个完整 Android 包。**仅选择 WorldBox 0.50.6 作为模组目标**；用户截图标记为 0.50.6+688，NeoModLoader 1.1.3 发布说明列出游戏 0.50.6 兼容。Android 组合在这个第三方宿主上的实际加载仍未通过。
+
+|版本|APK SHA-256|实测结构|决定|
+|---|---|---|---|
+|0.22.21|`e4b37e1ffdc27fba37e1fcd9390787a248dcdc5764d123da5a47df0681ab6bd5`|152,904,263 字节；arm64-v8a/armeabi-v7a；IL2CPP|保留资源对照，画面与目标不符|
+|0.50.6|`77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`|322,027,494 字节；arm64-v8a；IL2CPP；内嵌 `assets/hook.apk` 和第三方宿主|当前唯一施工基线|
+
+旧的内层候选包在用户视频中黑屏退回桌面。修正后的外层宿主候选包仅通过 ZIP、对齐和签名静态检查，**设备安装、WorldBox 启动、LemonLoader/NML 加载、模组界面及原生玩法均未验收**。此分支目前会创建自己的 `GameWorld`、推进时间、另绘地图并部分回写城市，仍不是用户要求的原生玩法模组。后续应沿本分支改动，将规则逐项作用在 WorldBox 当前地图、城市、人物、资源、军队和存档上，取消并行世界的权威状态；不能把当前 APK 称为完成版。
+
 ## 本包是什么
 
 `LordWarMod/` 是针对 NeoModLoader Android 的**源码模组目录**。它移入用户提供的 R30 Unity 工程中 44 个纯 C# 游戏核心文件和 23 个原始数据文件，并新增 `LordWarMod.cs` 作为移动端入口。`Core/` 保留 R30 游戏逻辑；为通过独立编译，修复了 3 处原始源码错误，并将 7 个文件中的 `WorldTile` 引用明确限定为领主战争类型，避免与 WorldBox 的同名类型冲突。
@@ -23,7 +34,7 @@
 
 1. 先用对应 WorldBox 0.50.6 的 Android LemonLoader/NeoModLoader 环境验证加载器启动和日志。社区 Android 仓库已归档，不能仅凭桌面版的 0.50.6 适配公告推定手机兼容。
 2. 将完整 `LordWarMod/` 目录放在 NeoModLoader Android 的 `NMLMods/` 中，保持 `mod.json`、`LordWarMod.cs`、`Core/` 和 `Data/` 的相对路径。加载器的 `ModCompileLoadService` 会搜索模组目录中的 C# 源码并编译。
-3. 确认模组出现在模组列表，日志出现 `LordWar R30 core source loaded into NML`，打开面板后按“创建新世界”，核对数据加载、地图、日期变化与战争事件。
+3. 确认模组出现在模组列表，日志出现 `LordWar R30 core source loaded into NML`，打开面板后按“接入当前 WorldBox 地图”，核对数据加载、地图、日期变化与战争事件。
 4. 若失败，保留设备日志和编译报错，对照实际 IL2CPP 包装程序集修正。这份源码**没有运行过手机编译与实机验收**。
 
 ## 来源
