@@ -4,13 +4,13 @@
 
 `LordWarMod/` 是针对 NeoModLoader Android 的**源码模组目录**。它移入用户提供的 R30 Unity 工程中 44 个纯 C# 游戏核心文件和 23 个原始数据文件，并新增 `LordWarMod.cs` 作为移动端入口。`Core/` 保留 R30 游戏逻辑；为通过独立编译，修复了 3 处原始源码错误，并将 7 个文件中的 `WorldTile` 引用明确限定为领主战争类型，避免与 WorldBox 的同名类型冲突。
 
-接入的可见操作是在 NeoModLoader 的 WorldBox 底部功能栏创建“领主战争”标签、面板按钮和提交箱按钮（同时保留浮动入口）。它能异步创建 160×120/4 国世界，或从当前 WorldBox 地图采样地形，建立《领主战争》的城市、道路与四国模拟；支持查看地图与国家、暂停、推进一天、宣战出征。提交箱接入 R30 `GameWorld.ApproveProposal` / `RejectProposal`，使用 WorldBox 原有的 `ScrollWindow` 空窗口预制件承载列表，并保留 IMGUI 回退入口。原生标签接法参考用户提供的 `Supower.rar` 的公开接口使用方式，入口代码独立编写。世界的政策、兵种、人物、经济和战争模拟走 R30 `GameWorld` 及其 Owner 链。当前面板尚未暴露所有原版操作；WorldBox 本体单位、建筑、国家、战斗和存档与《领主战争》世界的双向同步尚未实现。
+接入的可见操作是在 NeoModLoader 的 WorldBox 底部功能栏创建“领主战争”标签、面板按钮和提交箱按钮（同时保留浮动入口）。它能异步创建 160×120/4 国世界，或从当前 WorldBox 地图采样地形，使用原生城市位置与国家分组初始化《领主战争》的地图和政治实体。空白 WorldBox 地图上可通过原生 `Actor.buildCityAndStartCivilization()` 建立对应城市和国家；已有城市的地图会按位置关联原生城市。在 R30 模拟日推进后，会把受《领主战争》接管的城市名称和归属国家写回原生 WorldBox 城市。提交箱接入 R30 `GameWorld.ApproveProposal` / `RejectProposal`，使用 WorldBox 原有的 `ScrollWindow` 空窗口预制件承载列表，并保留 IMGUI 回退入口。原生标签接法参考用户提供的 `Supower.rar` 的公开接口使用方式，入口代码独立编写。世界的政策、兵种、人物、经济和战争模拟走 R30 `GameWorld` 及其 Owner 链。当前面板尚未暴露所有原版操作；WorldBox 本体单位、建筑、战斗和存档与《领主战争》世界的完整双向同步尚未实现。
 
 ## 已完成的检查
 
 - 使用 .NET 8 的 C# 编译器编译纯游戏核心，并实际运行生成世界、推进一天、存档校验和恢复：`CORE_SMOKE_PASS skills=360 units=156 map=160x120 kingdoms=4 cities=4 people=220 day=1`。
 - 使用公开的 `NeoModLoader_mobile.dll` 2.0 与 AndroidModLoader 仓库提供的 WorldBox/Unity 程序集，对全部模组 C# 源码完成编译。程序集目标版本不同，编译器发出 `CS1701` 版本匹配警告；设备端加载尚待验证。
-- 2026-09-27，GitHub Actions run `36291333733`：纯核心编译、含导入地图和四国的 smoke test、Android NML 参考程序集编译均通过。APK 构建候选包内 69 个模组文件已与源码逐字节比对；ZIP、16 KiB 对齐和 v1/v2/v3 签名静态检查通过。游戏运行时的按钮显示、触摸响应和模组实际加载仍待设备验证。
+- 2026-09-27，GitHub Actions run `36293519434`：纯核心编译、含导入地图、原生城市分组和四国的 smoke test、Android NML 参考程序集编译均通过。上一候选 APK 的 69 个模组文件已与当时源码逐字节比对；ZIP、16 KiB 对齐和 v1/v2/v3 签名静态检查通过。新增原生城市创建、现存城市关联和城市归属同步代码尚需重封 APK 和设备验收。游戏运行时的按钮显示、触摸响应和模组实际加载仍待设备验证。
 - `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流位于仓库分支的 `.github/workflows/`。
 
 ## 为什么候选 APK 不是成品
