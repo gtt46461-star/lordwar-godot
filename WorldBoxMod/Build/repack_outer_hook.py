@@ -21,8 +21,12 @@ with zipfile.ZipFile(outer_path) as source, zipfile.ZipFile(output_path, "w", al
     if hook_name not in source.namelist():
         raise ValueError("original outer APK has no embedded hook.apk")
     for info in source.infolist():
-        # Outer signatures are invalid after replacing hook.apk. Sign the result as a whole.
-        if info.filename.startswith("META-INF/"):
+        # Only remove invalid v1 signature files; META-INF/services entries
+        # are runtime metadata and must remain in the host.
+        entry = info.filename.rsplit("/", 1)[-1].upper()
+        if info.filename.startswith("META-INF/") and (
+            entry == "MANIFEST.MF" or entry.endswith((".SF", ".RSA", ".DSA", ".EC"))
+        ):
             continue
         if info.filename == hook_name:
             with open(inner_path, "rb") as replacement, target.open(info, "w", force_zip64=True) as dest:
