@@ -3,7 +3,7 @@ name: LordWar 1.0.0 Playable Release Gate
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, construction/** ]
     paths:
       - "bootstrap/**"
       - ".github/workflows/android-build.yml"
