@@ -43,22 +43,70 @@ namespace LordWar.AndroidMod
             }
         }
 
-        private void StartWorld()
+        private void StartWorld(bool fromWorldBox)
         {
             if (_creation != null && !_creation.IsCompleted) return;
+            WorldMap imported = null;
+            if (fromWorldBox)
+            {
+                try { imported = CaptureWorldBoxMap(); }
+                catch (Exception error) { _status = "读取当前地图失败: " + error.Message; LogInfo(_status); return; }
+            }
             _world = null;
             if (_mapTexture != null) UnityEngine.Object.Destroy(_mapTexture);
             _mapTexture = null;
-            _status = "正在后台生成 160×120 / 4 国世界";
+            _status = imported == null ? "正在后台生成 160×120 / 4 国世界" : "正在当前地图上创建 4 国世界";
             string folder = GetDeclaration().FolderPath;
+            WorldMap mapSnapshot = imported;
             _creation = Task.Run(() =>
             {
                 var data = new GameDataCatalog();
                 data.LoadAll(new FolderDataProvider(folder));
                 var world = new GameWorld(Environment.TickCount, data, AiDifficulty.Hard);
-                world.CreateNewWorld(160, 120, 4);
+                if (mapSnapshot == null) world.CreateNewWorld(160, 120, 4);
+                else world.CreateNewWorld(mapSnapshot, 4);
                 return world;
             });
+        }
+
+        private static WorldMap CaptureWorldBoxMap()
+        {
+            MapBox native = MapBox.instance;
+            if (native == null || MapBox.width < 16 || MapBox.height < 16)
+                throw new InvalidOperationException("请先在 WorldBox 中打开一张地图");
+            // Bound memory and simulation costs for large WorldBox worlds. Read IL2CPP tiles on Unity's main thread.
+            int width = Math.Min(160, MapBox.width);
+            int height = Math.Min(120, MapBox.height);
+            WorldMap map = new WorldMap(width, height, Environment.TickCount);
+            int land = 0;
+            for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                int nativeX = (int)((x + .5) * MapBox.width / width);
+                int nativeY = (int)((y + .5) * MapBox.height / height);
+                global::WorldTile source = native.GetTileSimple(nativeX, nativeY);
+                LordWar.World.WorldTile target = map.Get(x, y);
+                TileTypeBase type = source == null ? null : source.Type;
+                bool water = source == null || source.is_liquid;
+                float altitude = source == null ? 0f : Math.Max(0f, Math.Min(1f, source.Height / 255f));
+                string biome = type == null ? "" : (type.biome_id ?? "").ToLowerInvariant();
+                target.Height = water ? .10f : Math.Max(.30f, altitude);
+                target.Continental = target.Height;
+                target.Temperature = biome.Contains("snow") || biome.Contains("ice") ? .15f : .55f;
+                target.Moisture = biome.Contains("desert") ? .18f : .62f;
+                target.Fertility = biome.Contains("desert") ? .22f : .70f;
+                target.Forest = biome.Contains("forest") || biome.Contains("jungle") ? .82f : .40f;
+                target.Ore = type != null && type.mountains ? .86f : .42f;
+                target.Road = type != null && type.road;
+                target.Terrain = water ? TerrainKind.DeepWater :
+                    type != null && type.mountains ? TerrainKind.Mountain :
+                    biome.Contains("snow") || biome.Contains("ice") ? TerrainKind.Snow :
+                    biome.Contains("desert") ? TerrainKind.Desert :
+                    biome.Contains("forest") || biome.Contains("jungle") ? TerrainKind.Forest : TerrainKind.Grass;
+                if (!water) land++;
+            }
+            if (land < 16) throw new InvalidOperationException("地图陆地太少，无法建立领地");
+            return map;
         }
 
         private void Update()
@@ -139,11 +187,13 @@ namespace LordWar.AndroidMod
             GUI.Label(new Rect(x + 16f, top, width - 32f, line), _status);
             top += line;
 
-            if (GUI.Button(new Rect(x + 16f, top, 165f * scale, 48f * scale), "创建新世界")) StartWorld();
+            if (GUI.Button(new Rect(x + 16f, top, 165f * scale, 48f * scale), "创建新世界")) StartWorld(false);
+            if (GUI.Button(new Rect(x + 190f * scale, top, 220f * scale, 48f * scale), "使用当前地图")) StartWorld(true);
             if (_world == null) return;
-            if (GUI.Button(new Rect(x + 190f * scale, top, 140f * scale, 48f * scale), _world.Paused ? "继续" : "暂停"))
+            top += 56f * scale;
+            if (GUI.Button(new Rect(x + 16f, top, 140f * scale, 48f * scale), _world.Paused ? "继续" : "暂停"))
                 _world.Paused = !_world.Paused;
-            if (GUI.Button(new Rect(x + 340f * scale, top, 140f * scale, 48f * scale), "推进一天"))
+            if (GUI.Button(new Rect(x + 166f * scale, top, 140f * scale, 48f * scale), "推进一天"))
             {
                 try { _world.AdvanceDay(); }
                 catch (Exception error) { _status = "推进失败: " + error.Message; }
