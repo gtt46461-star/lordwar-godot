@@ -23,7 +23,21 @@ namespace LordWar.AndroidMod
         {
             try
             {
-                Sprite cityIcon = SpriteTextureLoader.getSprite("ui/Icons/iconCity");
+                Sprite cityIcon = null;
+                foreach (string iconPath in new[] { "ui/icons/iconCity", "ui/icons/iconSteam" })
+                {
+                    try
+                    {
+                        cityIcon = SpriteTextureLoader.getSprite(iconPath);
+                        if (cityIcon != null) break;
+                    }
+                    catch (Exception error)
+                    {
+                        LogInfo("LordWar icon unavailable " + iconPath + ": " + error.Message);
+                    }
+                }
+                if (cityIcon == null)
+                    throw new InvalidOperationException("WorldBox UI icons unavailable; LordWar tab cannot be registered");
                 var tab = TabManager.CreateTab("lordwar", "领主战争", "在原版城市中执行领主命令", cityIcon);
 
                 AssetManager.powers.add(new GodPower
@@ -332,7 +346,7 @@ namespace LordWar.AndroidMod
             var layout = item.AddComponent<LayoutElement>();
             layout.preferredHeight = 42f;
             var image = item.AddComponent<Image>();
-            image.sprite = Resources.Load<Sprite>("ui/special/windowInnerSliced");
+            image.sprite = SpriteTextureLoader.getSprite("ui/special/windowInnerSliced");
             if (image.sprite != null) image.type = Image.Type.Sliced;
             image.color = new Color(0.26f, 0.32f, 0.26f, 1f);
             var button = item.AddComponent<Button>();
