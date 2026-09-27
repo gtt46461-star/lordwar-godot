@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Mono.Cecil;
 
 if (args.Length != 1 || !File.Exists(args[0]))
@@ -6,7 +10,7 @@ if (args.Length != 1 || !File.Exists(args[0]))
     return 2;
 }
 
-using var assembly = AssemblyDefinition.ReadAssembly(args[0]);
+var assembly = AssemblyDefinition.ReadAssembly(args[0]);
 var names = new HashSet<string>(StringComparer.Ordinal)
 {
     "City", "CityData", "CityStorage", "Actor", "ActorData", "Kingdom", "KingdomData",
