@@ -703,9 +703,11 @@ namespace LordWar.AndroidMod
                 int goldAfterPayment = city.getResourcesAmount("gold");
                 if (goldAfterPayment != goldBefore - FirstMappedUnitGoldCost)
                 {
+                    int restored = 0;
                     if (goldAfterPayment < goldBefore)
-                        city.addResources("gold", goldBefore - goldAfterPayment);
-                    _proposalMessage = "审批失败：原版城市没有准确扣除乡兵费用，未发出征募命令";
+                        restored = RestoreCityGold(city, goldBefore - goldAfterPayment);
+                    _proposalMessage = "审批失败：原版城市没有准确扣除乡兵费用，未发出征募命令；" +
+                        "已回读返还 " + restored + "/" + (goldBefore - goldAfterPayment) + " 金币";
                     _status = _proposalMessage;
                     RefreshCityWindow();
                     return;
@@ -730,9 +732,7 @@ namespace LordWar.AndroidMod
                 }
                 else
                 {
-                    int goldBeforeRefund = city.getResourcesAmount("gold");
-                    city.addResources("gold", FirstMappedUnitGoldCost);
-                    int refunded = city.getResourcesAmount("gold") - goldBeforeRefund;
+                    int refunded = RestoreCityGold(city, FirstMappedUnitGoldCost);
                     _proposalMessage = "征募失败；原版费用返还 " + refunded + "/" +
                         FirstMappedUnitGoldCost + " 金币；申请仍保留";
                     _status = _proposalMessage;
@@ -752,14 +752,23 @@ namespace LordWar.AndroidMod
                 {
                     int goldCurrent = city.getResourcesAmount("gold");
                     int missing = Math.Max(0, goldBefore - goldCurrent);
-                    if (missing > 0) city.addResources("gold", missing);
-                    _proposalMessage = "原版征募抛出错误；尝试返还 " + missing + " 金币；请检查城市库存";
+                    int restored = missing > 0 ? RestoreCityGold(city, missing) : 0;
+                    _proposalMessage = "原版征募抛出错误；回读返还 " + restored + "/" + missing +
+                        " 金币；请检查城市库存";
                 }
                 _status = _proposalMessage;
                 LogInfo("LordWar native recruitment exception city=" + city.getID() +
                     " actor=" + actor.getID() + " error=" + error);
             }
             RefreshCityWindow();
+        }
+
+        private int RestoreCityGold(global::City city, int amount)
+        {
+            if (city == null || city.isRekt() || amount <= 0) return 0;
+            int before = city.getResourcesAmount("gold");
+            city.addResourcesToRandomStockpile("gold", amount);
+            return Math.Max(0, city.getResourcesAmount("gold") - before);
         }
 
         private void ClearPendingRecruitment()

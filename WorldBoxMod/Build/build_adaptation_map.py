@@ -92,7 +92,8 @@ def build(output):
                     runtime_callsite = (
                         "LordWarMod.SubmitRecruitmentRequest/ApproveRecruitmentRequest -> "
                         "public City.checkCanMakeWarrior(Actor), City.takeResource(String,Int32), "
-                        "public City.makeWarrior(Actor), Actor.isWarrior(), Actor.army.getCity().getID(); "
+                        "public City.makeWarrior(Actor), City.addResourcesToRandomStockpile(String,Int32) for verified refunds, "
+                        "Actor.isWarrior(), Actor.army.getCity().getID(); "
                         "private tryToMakeWarrior is not called directly; device NOT_RUN"
                     )
                 rows.append({

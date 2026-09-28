@@ -402,7 +402,7 @@
       "current_first_failure": "UNDETERMINED; next transition after .NET 8 startup is not evidenced",
       "old_il2cpp_init_report": "Historical only; not the failure established by the latest log"
     },
-    "compile_and_package": "PASS for base 12-entry source in GitHub Actions run 36372968185 (compile, syntax check, map inventory, mod ZIP and artifacts). Current U001 recruitment addition is not yet committed/compiled.",
+    "compile_and_package": "BASE_ENTRY_PASS in run 36372968185. U001 recruitment compile runs 36374187293 and 36374184452 failed because City.addResources does not exist; changed refunds to public City.addResourcesToRandomStockpile with post-call native gold readback; repaired compile retry pending.",
     "initial_compile_attempt": {
       "push_run": 36372720593,
       "pull_request_run": 36372723621,
@@ -415,17 +415,18 @@
     "device": "NOT_RUN; adb unavailable",
     "signing": "BLOCKED; local candidate JKS available but LORDWAR_KEYSTORE_PASS unavailable; candidate cert a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13 differs from original cert 37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b; cover install unverified",
     "modified_source_pre_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e",
-    "diff_review": "Current LordWarMod.cs and build_adaptation_map.py diffs reviewed. API probe from run 36372968185 showed tryToMakeWarrior is private; source corrected to public makeWarrior. Per-file before/after hashes, diff IDs, callsites and validation states are recorded in MODIFICATION_EVIDENCE.json.",
+    "diff_review": "Current source diff reviewed. API probe showed tryToMakeWarrior private; it was replaced with public makeWarrior. CI then rejected nonexistent City.addResources; source now uses public addResourcesToRandomStockpile with native balance readback. Retry pending. Per-file before/after hashes and callsites are in MODIFICATION_EVIDENCE.json.",
     "new_source_adaptation": {
       "unit_id": "U001",
       "old_rules": "27 recruitment gold; 3 training days",
-      "source_route": "SubmitRecruitmentRequest -> ApproveRecruitmentRequest -> public City.checkCanMakeWarrior(Actor) -> City.takeResource(String,Int32) -> public City.makeWarrior(Actor) -> Actor.isWarrior() and Actor.army.getCity().getID() readback",
+      "source_route": "SubmitRecruitmentRequest -> ApproveRecruitmentRequest -> public City.checkCanMakeWarrior(Actor) -> City.takeResource(String,Int32) -> public City.makeWarrior(Actor) -> Actor.isWarrior() / Actor.army.getCity().getID() readback; on failure restore with City.addResourcesToRandomStockpile(String,Int32) and verify native gold delta",
       "behavior_difference": "3 training days are compressed into immediate approval; vanilla profession, city equipment, weapon supply and Army membership remain authoritative. Proposal exists only in session memory.",
-      "compile": "PENDING",
+      "compile": "FAILED runs 36374187293/36374184452 on missing City.addResources; source corrected, retry PENDING",
       "device_runtime": "NOT_RUN",
       "scope_limit": "No native movement order, battle or result settlement yet; other 275 unit rows remain NOT_STARTED",
       "api_probe": "GitHub Actions run 36372968185 native-api-probe.txt: City.checkCanMakeWarrior(Actor) public Boolean; City.makeWarrior(Actor) public Void; City.tryToMakeWarrior(Actor) private Boolean and therefore not called directly",
-      "direct_private_method_call": "NO"
+      "direct_private_method_call": "NO",
+      "refund_api": "City.addResources is absent (compile failure); City.addResourcesToRandomStockpile(String,Int32) is public in the pinned API probe and now used with getResourcesAmount readback"
     },
     "compile_and_package_history": {
       "initial_failure_runs": [
@@ -436,7 +437,21 @@
       "repair": "Copy IL2CPP button list element-by-element for rollback snapshot",
       "repair_ci_pass_run": 36372968185,
       "repair_ci_scope": "pre-recruitment 12-entry integration only",
-      "current_change_ci": "PENDING"
+      "current_change_ci": "PENDING",
+      "recruitment_attempts": [
+        {
+          "run": 36374187293,
+          "result": "FAIL",
+          "first_error": "CS1061 City has no addResources method at refund sites"
+        },
+        {
+          "run": 36374184452,
+          "result": "FAIL",
+          "first_error": "CS1061 City has no addResources method at refund sites"
+        }
+      ],
+      "repair_after_failure": "Use public City.addResourcesToRandomStockpile(String,Int32), verify restored balance through City.getResourcesAmount",
+      "current_retry": "PENDING"
     }
   }
 }

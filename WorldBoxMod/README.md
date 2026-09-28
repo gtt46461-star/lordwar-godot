@@ -4,7 +4,7 @@
 
 当前工作分支为 `construction/worldbox-android-mod`，目标母体为用户的 WorldBox Android 0.50.6（外层 APK SHA-256 `77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`）。源码版本从 0.2.5 提升到 0.3.0，实际运行入口 `LordWarMod.OnModLoad()` 会创建12个主入口，读取原版炸弹分类图标，并尝试把原版 `destruction` 分类的按钮、回调和注册键重绑到该12项面板。反射契约缺失时会隐藏临时分类并保留原版炸弹工具；被任命居民必须是原版 `human` asset 且仍是该原版城市成年居民，领主起始城市必须属于人类国家。任命后仍直接检查 WorldBox `City`、`Kingdom`、`Army` 字段。
 
-这是正在施工的源码，不是已验证的 APK。此前版本的 12 主入口与炸弹分类重绑定代码已在 GitHub Actions run `36372968185` 编译和打包通过；本次新增的单一政务申请槽及原版征募调用尚待下一轮 CI。入口当前新增 U001 乡兵路径：原版人类居民申请、审批、按 27 金币扣原版城市资源，再调用目标 API 签名公开的 `City.makeWarrior(Actor)`，以原版 Actor/Army 回读为准。目标 API 清单确认相近的 `tryToMakeWarrior(Actor)` 是 private，代码不直接调用它。源方案 3 天训练被折叠为批准时即时执行。这项代码尚未实机验证，兵种映射表其他 3,919 项也未接入。当前候选 693 仍装载旧版 0.2.5。
+这是正在施工的源码，不是已验证的 APK。此前版本的 12 主入口与炸弹分类重绑定代码已在 GitHub Actions run `36372968185` 编译和打包通过。征募代码的第一次 CI 发现 `City` 没有 `addResources`；已改用目标 API 探针确认存在的 `addResourcesToRandomStockpile(String,Int32)` 做失败返还和金币回读，修正后的编译待重跑。U001 乡兵路径是：原版人类居民申请、审批、扣 27 原版城市金币，再调用公开的 `City.makeWarrior(Actor)` 并回读原版 Actor/Army。签名清单确认 `tryToMakeWarrior(Actor)` 是 private，代码不直接调用。旧方案的 3 天训练被折叠为批准时即时执行。这项代码尚未实机验证，兵种映射表其他 3,919 项也未接入。当前候选 693 仍装载旧版 0.2.5。
 
 最新设备日志可见 MelonLoader 0.6.5 的 .NET 8 启动阶段，然后记录结束；没有异常栈、游戏信息或模组进入标记，且没有精确的已安装 APK build ID，所以 .NET 8 之后的第一个失败调用仍未定位。旧日志的 `il2cpp_init` 缺失不能代替当前诊断。当前环境没有 `adb`，本地也没有 .NET CLI。不得用未验证的同一加载器重发 APK。见 [`Build/ANDROID_CANDIDATE.md`](Build/ANDROID_CANDIDATE.md)。
 
