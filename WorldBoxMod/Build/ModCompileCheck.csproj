@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="../LordWarMod/LordWarMod.cs" />
     <Reference Include="NeoModLoader_mobile"><HintPath>../_deps/NeoModLoader_mobile.dll</HintPath></Reference>
+    <Reference Include="0Harmony"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/0Harmony.dll</HintPath></Reference>
     <Reference Include="Assembly-CSharp"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll</HintPath></Reference>
     <Reference Include="Il2CppInterop.Runtime"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2CppInterop.Runtime.dll</HintPath></Reference>
     <Reference Include="Il2Cppmscorlib"><HintPath>../_deps/AndroidModLoader/android-assembly-dependencies/Il2Cppmscorlib.dll</HintPath></Reference>
