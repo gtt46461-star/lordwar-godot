@@ -1,0 +1,209 @@
+{
+  "title": "LordWar WorldBox Android source modification evidence",
+  "date": "2026-09-28",
+  "review_baseline_local_commit": "af2c9d3f5b1f92243c237fae5e22fddac60ff866",
+  "remote_baseline_commit": "9f28a0d65bf8ddc27aff1898ba287af19d4630be",
+  "remote_baseline_tree": "1e03a05abee3d4e6c8bbfd36297769105ba3dc40",
+  "current_remote_parent": "cad8218d24dd3adcbc4dca9965bec2558e85d6ac",
+  "target": "WorldBox Android 0.50.6 / 0.50.6+688 / ARM64 IL2CPP",
+  "current_status": "SOURCE_CI_PASS; APK_NOT_BUILT; DEVICE_NOT_RUN; GAMEPLAY_INCOMPLETE",
+  "ci_evidence": {
+    "run_id": 36379955527,
+    "url": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36379955527",
+    "conclusion": "success",
+    "checks": [
+      "core compile and save/restore smoke",
+      "Android NML reference compile",
+      "loader syntax check",
+      "Android reference API probe",
+      "3,920-row mapping check",
+      "loader-tool compile",
+      "NML source-mod ZIP package"
+    ]
+  },
+  "api_reference_evidence": {
+    "artifact_id": 10952188442,
+    "artifact_digest": "sha256:72410695df93b146ed81c2f033d018682f306eb8f7196c2b83f25280f1cd5f56",
+    "pinned_android_mod_loader": "165fe841f832b7e64dd54cef815ab2b9d5ffed7b",
+    "method_signatures": [
+      "City.checkCanMakeWarrior(Actor): public Boolean",
+      "City.makeWarrior(Actor): public Void",
+      "City.addResourcesToRandomStockpile(String,Int32): public Int32",
+      "SaveManager.saveMapData(String,Boolean): public static SavedMap",
+      "SaveManager.saveWorldToDirectory(String,Boolean,Boolean): public static SavedMap",
+      "SaveManager.saveToCurrentPath(): public SavedMap",
+      "SaveManager.getSavePath(String): public static String",
+      "SaveManager.loadData(SavedMap,String): public instance Void"
+    ],
+    "caveat": "Reference assembly signatures only; do not treat as proof they match the submitted WorldBox 0.50.6 IL2CPP target."
+  },
+  "source_input": {
+    "path": "WorldBoxMod/LordWarMod/Data/units_v8.csv",
+    "sha256": "f5c9e4ca008f050c454712eb182989eda641ce7a2124017ef1158489d0e9ebe8",
+    "record": "U001",
+    "old_rule": "27 recruitment gold; 3 training days",
+    "adaptation": "27 native city gold; 3-day training folded into approval; original Actor, equipment, City and Army authoritative."
+  },
+  "verified_artifacts": {
+    "source_mod_artifact_id": 10952855010,
+    "source_mod_outer_sha256": "a2a5dd8c5186c160b10bf3e3ee3afb8b18dc979c6f1c1ff96c7bf807be7df42c",
+    "inner_mod_sha256": "0462bd28d2578d155e392cb77f67d1aa06ae206d8a7dfb5b36dda20f2a23d96f",
+    "active_source_sha256": "1081dc3a9a36c9c5e6a256174afe6afd8c207b5475cecb596dbe22e8d4141898",
+    "compile_check_artifact_id": 10952855008,
+    "compile_check_artifact_digest": "sha256:2420d2288f43d3b4e1a29b4d4dbaeb61a1651431c0a80251fea034e98cf29ab1",
+    "adaptation_map_artifact_id": 10951954922,
+    "adaptation_map_artifact_digest": "sha256:031922a77a4ed032abdd1f050cc79723b68789e7d0af4ccf9b4a1da2a913cc30",
+    "api_artifact_digest": "sha256:72410695df93b146ed81c2f033d018682f306eb8f7196c2b83f25280f1cd5f56",
+    "packaging_tools_artifact_digest": "sha256:35f9040910b31e3b58b2526128392b5b43c1d5acb53db7b5a3b6df95c2dbe757",
+    "map_csv_rows": 3920,
+    "map_status_counts": {
+      "NOT_STARTED": 3919,
+      "SOURCE_ADAPTED_RUNTIME_UNVERIFIED": 1
+    },
+    "active_files": [
+      "LordWarMod/mod.json",
+      "LordWarMod/LordWarMod.cs"
+    ]
+  },
+  "modified_files": [
+    {
+      "path": "WorldBoxMod/LordWarMod/LordWarMod.cs",
+      "before_read": "git show HEAD:WorldBoxMod/LordWarMod/LordWarMod.cs",
+      "before_sha256": "324431bc2a1762d8bbc28d1108d5a11974fae4990b13fd077222f74de15cb458",
+      "edit": "Adds one in-memory U001 request slot and native recruit path: human eligibility, 27 city gold, public conversion method, and stockpile refund/readback.",
+      "after_read": "workspace file reread after edits",
+      "after_sha256": "f9c6bb9bbe729f24e3d94b3bb558196dc9c08eb9770f9414fad5454af48804b4",
+      "git_diff_sha256": "48a710094eedbef54ad3cce3ffe8df50e2bc91318ed53b8adc1df858afdfaa8b",
+      "git_diff_bytes": 15623,
+      "real_callsite_or_applicability": "RefreshCityWindow section 8 at line 568 -> SubmitRecruitmentRequest line 603; proposal buttons at 597 -> ApproveRecruitmentRequest line 670 -> checkCanMakeWarrior at 683, takeResource at 702, makeWarrior at 716, actor/army readback at 717-725, RestoreCityGold at 766 -> addResourcesToRandomStockpile at 770.",
+      "validation": "PASS compile in CI run 36374557691; active ZIP file hash matches source f9c6bb9bbe729f24e3d94b3bb558196dc9c08eb9770f9414fad5454af48804b4. Device runtime NOT_RUN."
+    },
+    {
+      "path": "WorldBoxMod/Build/build_adaptation_map.py",
+      "before_read": "git show HEAD:WorldBoxMod/Build/build_adaptation_map.py",
+      "before_sha256": "92f6b2a0c1e229282c52d2b04e2562e4c54d43bb0102d18e8e19c0028a236961",
+      "edit": "Adds behavior-difference and callsite columns; marks U001 source-adapted/runtime-unverified, all remaining records not started.",
+      "after_read": "workspace file reread after edits",
+      "after_sha256": "23f78a00b020fe8575f84e05f8b0dbab3aca1ba3f83ddd23acaa7049f4986ab1",
+      "git_diff_sha256": "759ab20d6faed44c8ada1b013ee81e4f34b083b2adbcbf3e56f5902426a64a13",
+      "git_diff_bytes": 3905,
+      "real_callsite_or_applicability": "GitHub workflow invokes generator; output has 3920 rows, one U001 adapted-unverified, 3919 NOT_STARTED.",
+      "validation": "PASS py_compile, inventory assertions, and CI artifact in run 36374557691."
+    },
+    {
+      "path": "WorldBoxMod/README.md",
+      "before_read": "git show HEAD:WorldBoxMod/README.md",
+      "before_sha256": "2460bb6b26fdea3b5dcff723c9c26879b7bf17fa072d666a46c9c404bdd7d3a7",
+      "edit": "Updates source compile pass, actual method-accessibility corrections, scope and limits.",
+      "after_read": "workspace file reread after edits",
+      "after_sha256": "31164e677c5c41be7bdd6daf6a4a4400d61854a75b49bf339ccb6fa51299620e",
+      "git_diff_sha256": "f8e66ea81a96ff6a759a0eaa5ccbbea23ac23c3ffb177da04aad33cb025f6206",
+      "git_diff_bytes": 4724,
+      "real_callsite_or_applicability": "Documentation only; links claims to source, API probe, build artifact and acceptance ledger.",
+      "validation": "Readback and diff check PASS; source run PASS; device remains NOT_RUN."
+    },
+    {
+      "path": "WorldBoxMod/Build/ANDROID_CANDIDATE.md",
+      "before_read": "git show HEAD:WorldBoxMod/Build/ANDROID_CANDIDATE.md",
+      "before_sha256": "d258250c7b012a74454ead219afa8b9e22bf89d7e6f73192e44a703d892234d0",
+      "edit": "Records full CI pass for current source and distinguishes APK/device status.",
+      "after_read": "workspace file reread after edits",
+      "after_sha256": "3bc2ed74c047d640ed98aad4d68657e600022ebd21357803520453cb484307e4",
+      "git_diff_sha256": "20c08b14a2827b528f2338f65529645d234897f927af9e5858dc648892fbd270",
+      "git_diff_bytes": 3900,
+      "real_callsite_or_applicability": "Documentation only; points to exact run/artifact and startup trace.",
+      "validation": "Readback and diff check PASS; no APK/device success claimed."
+    },
+    {
+      "path": "WorldBoxMod/CORE_ACCEPTANCE.csv",
+      "before_read": "git show HEAD:WorldBoxMod/CORE_ACCEPTANCE.csv",
+      "before_sha256": "487d2219e5d9981f803fcb592cc32e404c035462e80939400db194e2713715a6",
+      "edit": "Updates stage 6 from absent source to compiled partial recruitment, while leaving end-to-end gate blocked.",
+      "after_read": "workspace file reread after edits",
+      "after_sha256": "c0ed8b7cb089939e958c41025195cb0a93b78f51e262c50503dfeec3aa752514",
+      "git_diff_sha256": "0a39f14aad36d58032b0fa7965accf58f310e2f8f2c072e9d72573a52fdc00de",
+      "git_diff_bytes": 3220,
+      "real_callsite_or_applicability": "Acceptance record; stages 1-5 remain NOT_RUN and stage 6 BLOCKED.",
+      "validation": "CSV parse PASS; current native CI evidence cross-checked."
+    },
+    {
+      "path": "WorldBoxMod/CHECKS.json",
+      "before_read": "git show HEAD:WorldBoxMod/CHECKS.json",
+      "before_sha256": "df1fee9860b9fe491f6ac5d59353ae2b05d129b9605afdc16d4d88cae638df15",
+      "edit": "Records CI pass, API signatures, artifact hashes, incomplete gameplay, and current runtime unknown.",
+      "after_read": "workspace file reread after edits",
+      "after_sha256": "1308047b14ce659674f121f7a8fcd0f809da8784bdd05b959f94cccf23763256",
+      "git_diff_sha256": "9c79146a745ad9b75bdc8c453601bc9d47c3ca5ab063ef176d08dac3d248b203",
+      "git_diff_bytes": 8738,
+      "real_callsite_or_applicability": "Audit evidence file; no game code.",
+      "validation": "JSON parse PASS; package and artifact IDs checked."
+    },
+    {
+      "path": "WorldBoxMod/README.md",
+      "before_read": "GitHub branch file read before this update",
+      "before_sha256": "31164e677c5c41be7bdd6daf6a4a4400d61854a75b49bf339ccb6fa51299620e",
+      "edit": "Updates current source/CI status, save-hook implementation and runtime limits.",
+      "after_read": "GitHub source file readback / CI package manifest",
+      "after_sha256": "4c3e718ac2955aaaddaba85ac543791fcfa87c909102b7706f036b295e02ce8f",
+      "git_diff_sha256": "ac034ffffc160325dfa218d5f1cce6575f8b2c5861a8a6acf72d32eedbba0fcf",
+      "git_diff_bytes": 7052,
+      "real_callsite_or_applicability": "Documentation; links source integration and current acceptance gates.",
+      "validation": "Readback and diff PASS; CI run 36379955527 PASS; device remains NOT_RUN."
+    },
+    {
+      "path": "WorldBoxMod/CORE_ACCEPTANCE.csv",
+      "before_read": "GitHub branch file read before this update",
+      "before_sha256": "c0ed8b7cb089939e958c41025195cb0a93b78f51e262c50503dfeec3aa752514",
+      "edit": "Records save-hook source implementation while keeping device gates NOT_RUN and stage 6 BLOCKED.",
+      "after_read": "GitHub source file readback / CI package manifest",
+      "after_sha256": "a45679c7ef98c0d6ab704a16b5384ffdee610757564f649803a850548bf6969b",
+      "git_diff_sha256": "fc0ca7eab4f972427aa84bc94ba5a19277275e5e3941ebb704d04ae029b1877b",
+      "git_diff_bytes": 3981,
+      "real_callsite_or_applicability": "Acceptance ledger for stages 1-6.",
+      "validation": "CSV updated from current source and CI evidence; runtime statuses preserved."
+    },
+    {
+      "path": "WorldBoxMod/CHECKS.json",
+      "before_read": "GitHub branch file read before this update",
+      "before_sha256": "1308047b14ce659674f121f7a8fcd0f809da8784bdd05b959f94cccf23763256",
+      "edit": "Updates current CI artifacts and per-stage status; adds the native save sidecar route and its compile/runtime distinction.",
+      "after_read": "GitHub source file readback / CI package manifest",
+      "after_sha256": "26bc8df44fd1aea19ec414c6ff59e19586a1202e88a1071ca13ed68ee9c0d649",
+      "git_diff_sha256": "bde0a41b514bb00ea1300538ab5b7dee08ad57399e8b1f2ac4a2b045183e107c",
+      "git_diff_bytes": 7073,
+      "real_callsite_or_applicability": "Audit record, not runtime product code.",
+      "validation": "JSON parse and artifact digest cross-check; run 36379955527 PASS."
+    },
+    {
+      "path": "WorldBoxMod/Build/ANDROID_CANDIDATE.md",
+      "before_read": "GitHub candidate note at source commit cc5ba0f5262278420b97ada6672548a82e96f348",
+      "before_sha256": "e87fa84af08040b2a27870267af315873cccf4140ee332c7691dbd441c5909f7",
+      "edit": "Documents sidecar fields/path, actual source call chain, current CI pass and exact remaining device gate.",
+      "after_read": "GitHub candidate note after update",
+      "after_sha256": "8f41113b3b14f05741a48083970b85c7ded3eac38bc0900cd89dc34d76f203fa",
+      "git_diff_sha256": "4eb6ca6985926aadaf8552d83425b2f47b9638f628c8b8f619faa01c7e762790",
+      "git_diff_bytes": 8269,
+      "real_callsite_or_applicability": "Documentation only; ties evidence to LordWarMod.OnModLoad and Harmony save/load postfixes.",
+      "validation": "Readback PASS; CI compile/package pass; runtime save/reload remains NOT_RUN."
+    },
+    {
+      "path": "WorldBoxMod/LordWarMod/LordWarMod.cs",
+      "before_read": "GitHub source read at commit 49a0d37e9d356fa829314b57ebea83c7fed1588d; local SHA-256 recorded before edit",
+      "before_sha256": "f9c6bb9bbe729f24e3d94b3bb558196dc9c08eb9770f9414fad5454af48804b4",
+      "edit": "Adds SaveManager Harmony postfixes for saveMapData, saveWorldToDirectory, saveToCurrentPath and loadData; writes/checksums save-path keyed extension sidecars and restores native-ID references only after native load.",
+      "after_read": "GitHub source readback and active NML ZIP manifest",
+      "after_sha256": "1081dc3a9a36c9c5e6a256174afe6afd8c207b5475cecb596dbe22e8d4141898",
+      "git_diff_sha256": "fb977aa3d1f4b7d7b851f39329356c9ed457e12679012f6f8d81bd2684b1555c",
+      "git_diff_bytes": 18940,
+      "real_callsite_or_applicability": "OnModLoad -> InstallNativeSaveHooks -> Harmony postfixes -> WriteLordWarSaveState / RestoreLordWarSaveState; pinned API signatures were probed in CI.",
+      "validation": "PASS reference compile and package in run 36379955527; active ZIP manifest source SHA matches; Android save/load runtime NOT_RUN."
+    }
+  ],
+  "manifest_note": "This file is updated alongside the evidence set; its committed blob SHA identifies this exact revision and is not self-referenced.",
+  "apk": "NOT_BUILT",
+  "device": "NOT_RUN; no adb or arm64 device",
+  "first_runtime_failure": "UNDETERMINED after MelonLoader Runtime Type net8; latest log has no same-launch APK ID or failure trace",
+  "signature_install": "BLOCKED: candidate cert differs from original and signing secret unavailable",
+  "diff_check": "PASS: local git diff --check; GitHub compare 49a0d37e9d356fa829314b57ebea83c7fed1588d..cc5ba0f5262278420b97ada6672548a82e96f348 shows 374 source insertions; current-source package manifest hash matches active file. Candidate APK/device remain NOT_RUN.",
+  "source_change_commit": "cc5ba0f5262278420b97ada6672548a82e96f348"
+}

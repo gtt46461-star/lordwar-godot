@@ -1,0 +1,10 @@
+{
+  "name": "LordWar",
+  "GUID": "LordWar.Android.Core",
+  "author": "LordWar",
+  "version": "0.3.0",
+  "description": "将原版炸弹分类接入12项领主入口，限制人类国家与人类居民任命",
+  "Dependencies": [],
+  "OptionalDependencies": [],
+  "IncompatibleWith": []
+}

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <ProjectReference Include="../../_deps/MelonLoaderInstaller/Core/MelonLoader.Installer.Core.csproj" />
+    <PackageReference Include="AssetRipper.Primitives" Version="2.0.0" />
+  </ItemGroup>
+</Project>

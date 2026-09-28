@@ -1,0 +1,80 @@
+name: LordWar WorldBox Android mod compile check
+on:
+  workflow_dispatch:
+  push:
+    branches: [construction/worldbox-android-mod]
+    paths: [WorldBoxMod/**, .github/workflows/worldbox-android-mod.yml]
+  pull_request:
+    branches: [main]
+    paths: [WorldBoxMod/**, .github/workflows/worldbox-android-mod.yml]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture Android packaging tools for local authorized builds
+        run: |
+          set -euo pipefail
+          tool_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p WorldBoxMod/dist/android-packaging-tools/lib
+          cp "$tool_dir/aapt" "$tool_dir/zipalign" "$tool_dir/apksigner" WorldBoxMod/dist/android-packaging-tools/
+          cp "$tool_dir/lib/apksigner.jar" WorldBoxMod/dist/android-packaging-tools/lib/
+          cp -a "$tool_dir/lib64" WorldBoxMod/dist/android-packaging-tools/
+          sha256sum WorldBoxMod/dist/android-packaging-tools/{aapt,zipalign,apksigner,lib/apksigner.jar,lib64/*} > WorldBoxMod/dist/android-packaging-tools/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WorldBox-Android-packaging-tools
+          path: WorldBoxMod/dist/android-packaging-tools/
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Get public Android mod reference assemblies
+        run: |
+          git clone --depth 1 https://github.com/WorldBoxOpenMods/AndroidModLoader.git WorldBoxMod/_deps/AndroidModLoader
+          git -C WorldBoxMod/_deps/AndroidModLoader fetch --depth 1 origin 165fe841f832b7e64dd54cef815ab2b9d5ffed7b
+          git -C WorldBoxMod/_deps/AndroidModLoader checkout --detach 165fe841f832b7e64dd54cef815ab2b9d5ffed7b
+          curl --fail --location --retry 3 --output WorldBoxMod/_deps/NeoModLoader_mobile.dll https://github.com/WorldBoxOpenMods/AndroidModLoader/releases/download/2.0/NeoModLoader_mobile.dll
+          echo '273aa9ce93e9de9dec56339871fe7d55c10010ccb12a386db0f676a6eeaf3132  WorldBoxMod/_deps/NeoModLoader_mobile.dll' | sha256sum --check
+      - name: Compile game core
+        run: dotnet build WorldBoxMod/Smoke/CoreSmoke.csproj -c Release
+      - name: Exercise creation, day tick, save and restore
+        run: dotnet run --no-build -c Release --project WorldBoxMod/Smoke/CoreSmoke.csproj -- "$GITHUB_WORKSPACE/WorldBoxMod/LordWarMod"
+      - name: Compile Android NML mod against published assemblies
+        run: dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release
+      - name: Syntax check pinned Android loader diagnostic patcher
+        run: python3 -m py_compile WorldBoxMod/Build/instrument_loader_stages.py
+      - name: Inspect Android reference type signatures
+        run: |
+          mkdir -p WorldBoxMod/dist
+          dotnet build WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -c Release
+          dotnet run --no-build -c Release --project WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -- WorldBoxMod/_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll WorldBoxMod/_deps/NeoModLoader_mobile.dll > WorldBoxMod/dist/native-api-probe.txt
+      - name: Verify complete legacy data inventory and mapping status
+        run: python3 WorldBoxMod/Build/build_adaptation_map.py --output WorldBoxMod/dist/WorldBox_Adapter_Map.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WorldBox-LordWar-adaptation-map
+          path: |
+            WorldBoxMod/dist/WorldBox_Adapter_Map.csv
+            WorldBoxMod/CORE_ACCEPTANCE.csv
+      - name: Compile pinned Android loader construction tools
+        run: |
+          git clone https://github.com/LemonLoader/MelonLoaderInstaller.git WorldBoxMod/_deps/MelonLoaderInstaller
+          git -C WorldBoxMod/_deps/MelonLoaderInstaller checkout ac443fce9f2ef890caddf8c64bba9194a43361bd
+          dotnet build WorldBoxMod/Build/LoaderRecipe/InstallerCli.csproj -c Release
+          dotnet build WorldBoxMod/Build/LoaderRecipe/LoaderPathPatch.csproj -c Release
+      - name: Package NML source mod (runtime NOT_RUN)
+        run: python3 WorldBoxMod/Build/package_mod.py --output WorldBoxMod/dist/LordWarMod-0.3.0.zip --manifest WorldBoxMod/dist/LordWarMod-0.3.0.manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LordWar-NML-compile-check
+          path: WorldBoxMod/Build/bin/Release/net8.0/LordWar.Android.NML.CompileCheck.dll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LordWar-NML-source-mod-0.3.0
+          path: |
+            WorldBoxMod/dist/LordWarMod-0.3.0.zip
+            WorldBoxMod/dist/LordWarMod-0.3.0.manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WorldBox-Android-reference-signatures
+          path: WorldBoxMod/dist/native-api-probe.txt

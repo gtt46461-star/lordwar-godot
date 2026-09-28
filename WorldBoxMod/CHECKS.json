@@ -1,0 +1,515 @@
+{
+  "target_apk_version": "0.50.6",
+  "source_archive_sha256": "1146cad1ff06ed2130cf674030962710f3a29281c9f35cacc99564dcba5b0dec",
+  "source_files": [
+    {
+      "path": "LordWarMod/Core/AI/AiOwner.cs",
+      "sha256": "64bc5a8692e090d49500eae5fb6bb6fa44195132b706700971a4d079a3b29244"
+    },
+    {
+      "path": "LordWarMod/Core/Combat/CombatResolution.cs",
+      "sha256": "4ef6669d765d368bc0a55610a4af8b7b778b7a20d31ede05b0d8e3f50fa36373"
+    },
+    {
+      "path": "LordWarMod/Core/Construction/CityPlanningOwner.cs",
+      "sha256": "470afa4fa11db6db123b8ca75410cbdcd17b3784eea525836db30ec493ad7f15"
+    },
+    {
+      "path": "LordWarMod/Core/Construction/ConstructionOwner.cs",
+      "sha256": "2c42f6def077ace608a98dd3d72b7a4206817cc18a7cd9a1a0f55251b15eeb66"
+    },
+    {
+      "path": "LordWarMod/Core/Core/BuildInfo.cs",
+      "sha256": "bddad5419fc80d840d1c080b4b82f4036f21c6f20c96e3d73a136ccd994d0f9a"
+    },
+    {
+      "path": "LordWarMod/Core/Core/ChineseText.cs",
+      "sha256": "43e867ff381cca53d3609fb7e740a8bffc87a87ad636f657abda9f1f41c1fd62"
+    },
+    {
+      "path": "LordWarMod/Core/Core/CityCultureEffectEngine.cs",
+      "sha256": "dce7d7f5e7abef58257f20ff0e23857dab52e4d11aa3daa1a7fa86d9b07a3ad0"
+    },
+    {
+      "path": "LordWarMod/Core/Core/Deterministic.cs",
+      "sha256": "1cefef4296bc829669af5acce0f1fd51b35533f8f17986ed3b48728e7ef0cdda"
+    },
+    {
+      "path": "LordWarMod/Core/Core/EquipmentDurabilitySystem.cs",
+      "sha256": "930868183369be94d31755b573a7dacf96f4f8c15f648e08f2ec4a746f7ebf66"
+    },
+    {
+      "path": "LordWarMod/Core/Core/LordWarModels.cs",
+      "sha256": "ed3b35afe6a2439b586b7ecaeb4dac3d125293f64400cf8f82921a80ef57aee5"
+    },
+    {
+      "path": "LordWarMod/Core/Core/MarchFormationSystem.cs",
+      "sha256": "1553b90fae36a2f8e79ed05dde941bf4465782485a8e7b90dae7d31a52fd676b"
+    },
+    {
+      "path": "LordWarMod/Core/Core/MoraleSystem.cs",
+      "sha256": "2336d557b010ab087b28b7be888ae85240031ee6419969d7169a54f366ba4776"
+    },
+    {
+      "path": "LordWarMod/Core/Core/TraitEffectEngine.cs",
+      "sha256": "19909a3cc90c626286c0a5684ea41548abd1543d627f5e4a3af2d70e22257a95"
+    },
+    {
+      "path": "LordWarMod/Core/Data/CsvTable.cs",
+      "sha256": "d9274804ebce2e0fd585fee0619684c8d9bf0e0df059ede8f4c4e0864a14e317"
+    },
+    {
+      "path": "LordWarMod/Core/Data/GameDataCatalog.cs",
+      "sha256": "5faed3a3bb7194f1b748234e7aea8e217f62f78ae2429486c19d167a71e96097"
+    },
+    {
+      "path": "LordWarMod/Core/Diplomacy/DiplomacyOwner.cs",
+      "sha256": "d3260adf305555a3f72d710ed3d21cb327d998cbcf29783c53c0e792772e4acd"
+    },
+    {
+      "path": "LordWarMod/Core/Economy/EconomyLedger.cs",
+      "sha256": "abb60ef9c6537356ace1aba94374e4c9ac5100cb6aab71105e8fd11d2b3b2180"
+    },
+    {
+      "path": "LordWarMod/Core/Governance/PolicyOwner.cs",
+      "sha256": "5220a16090274cd1195de510c67256f6cec4298a0d58c07572a265b10eb993f5"
+    },
+    {
+      "path": "LordWarMod/Core/Governance/PolicyRuntimeProfile.cs",
+      "sha256": "79d5d58cf94b51fdc98ecf2801af455a6266c6e53115b31259527777e81de1d3"
+    },
+    {
+      "path": "LordWarMod/Core/Governance/ProposalSystem.cs",
+      "sha256": "81f058977ced0a022b7186454e4440c94f7adc5f407de71faa29a760ba339051"
+    },
+    {
+      "path": "LordWarMod/Core/Governance/WarAdministrationOwner.cs",
+      "sha256": "9ff270c3e13a4f298041098fe06e7cde28db8058d0cdfdaa39198b357b5dde94"
+    },
+    {
+      "path": "LordWarMod/Core/Military/ArmyOwner.cs",
+      "sha256": "f06d0383ea8fcbb6d660a1502f1ac4713ea8d676eb0cf078bbf00e4a99632ade"
+    },
+    {
+      "path": "LordWarMod/Core/Military/CommanderSkillEffectEngine.cs",
+      "sha256": "768d2984a18ba866ba53adec6acd77e21ffcbb6ef8aecbccc1b093ab0ea763fa"
+    },
+    {
+      "path": "LordWarMod/Core/Military/EquipmentOwner.cs",
+      "sha256": "706f3d6c3e82ee57f72fd602eb31616f4c0bb7e4576b351c9728b801f7fb5f6c"
+    },
+    {
+      "path": "LordWarMod/Core/Military/LogisticsOwner.cs",
+      "sha256": "3f70bfb765b79e0ef67eea6b1ff83ddbac65b3246c4d629df46e91a375e21ee8"
+    },
+    {
+      "path": "LordWarMod/Core/Military/MarchOwner.cs",
+      "sha256": "fa63513883a0948dc6b7bba11076fe6cc438877336e85e8390918fec80768b4b"
+    },
+    {
+      "path": "LordWarMod/Core/Military/MilitaryFinanceSystem.cs",
+      "sha256": "666513ccb5c3d8050416172307b782d147c8cb8e6cceeb1f6445f20a08de43ef"
+    },
+    {
+      "path": "LordWarMod/Core/Military/SpecialUnitBehaviorEngine.cs",
+      "sha256": "08f466d2d3deba0316e6061eb043f4f757cafd32f90a5d23cc06c8dc27fa8444"
+    },
+    {
+      "path": "LordWarMod/Core/Military/UnitLoadoutResolver.cs",
+      "sha256": "f5e2623fcde68fcba5f1bb2a92f47fbabacd1a409a930c11703d06a487c942c9"
+    },
+    {
+      "path": "LordWarMod/Core/Military/UnlockResolver.cs",
+      "sha256": "85f7ebfc86eff8390654dc8b5220584bc4be8c5b94ef9ede57091f24882bd4de"
+    },
+    {
+      "path": "LordWarMod/Core/Military/VeteranEffectEngine.cs",
+      "sha256": "804b604e1d1429a58b4585223b092cdaadf2ba10dab39d4549a162fed2698634"
+    },
+    {
+      "path": "LordWarMod/Core/Performance/TickScheduler.cs",
+      "sha256": "c94ea73d947bb15176307f74a89edc732d7bc0c252eb5f08582cdef1242b30e9"
+    },
+    {
+      "path": "LordWarMod/Core/Save/GameSaveService.cs",
+      "sha256": "274cae54e467e269394f302cbc85db4bb5b5833785549a64b9a1fb7e2cb08392"
+    },
+    {
+      "path": "LordWarMod/Core/Save/SaveOwner.cs",
+      "sha256": "fa3cab4ab9022be87f6978c4790fa4f2d39dfffe5decd26f1883a7544fd85f87"
+    },
+    {
+      "path": "LordWarMod/Core/Siege/SiegeOwner.cs",
+      "sha256": "30f611e6b6f067f49675a386ccad4e9e0eac80c0f19b9b1e87762a1b1f0fadc6"
+    },
+    {
+      "path": "LordWarMod/Core/Simulation/GameWorld.cs",
+      "sha256": "b60fad24657de846db4ad4bf952f0a0b3d224f5d49fa7cb7ae9df0a6ad02649f"
+    },
+    {
+      "path": "LordWarMod/Core/Society/FamilyOwner.cs",
+      "sha256": "6113eb1ab666017f6044848b89885d5985bbe694ec714cd46105c61c9468ee2a"
+    },
+    {
+      "path": "LordWarMod/Core/Society/MerchantOwner.cs",
+      "sha256": "8eaefed2c2e28d72fc4c943ac997366026626fb6693ca796b3ef5cb429785271"
+    },
+    {
+      "path": "LordWarMod/Core/Society/PopulationOwner.cs",
+      "sha256": "06ed95bacb0538f55abbe0b07c29ecc2d23c20af7a66860b02410d83f88698b0"
+    },
+    {
+      "path": "LordWarMod/Core/Society/PromotionOwner.cs",
+      "sha256": "1a0d7aa5eb737cdc88a4e13c4621c4c980947be43672bea154dba591279b2242"
+    },
+    {
+      "path": "LordWarMod/Core/World/AnimalOwner.cs",
+      "sha256": "f4607279ef3da382dbdb08eb90e4fba0870db1c85fe9c362525ff6612f733ee1"
+    },
+    {
+      "path": "LordWarMod/Core/World/WeatherOwner.cs",
+      "sha256": "8665076366191c42024c7e5b955089575153bf9b159c8a1279eae910385dbf11"
+    },
+    {
+      "path": "LordWarMod/Core/World/WorldGenerator.cs",
+      "sha256": "3bfcaf532ee67c98d5bd01992da0b902f5a8e5af5627a1a280cf9b4323cd53c4"
+    },
+    {
+      "path": "LordWarMod/Core/World/WorldMap.cs",
+      "sha256": "2810d3d42407bce97d09eb5d3bbfcc588090889971dec33b521954a49e0912a3"
+    }
+  ],
+  "data_counts": {
+    "policies_v8": 300,
+    "commander_skills_v8": 360,
+    "units_v8": 156,
+    "special_units_v8": 120,
+    "person_traits_v8": 160,
+    "soldier_traits_v8": 128,
+    "general_traits_v8": 120,
+    "official_traits_v8": 96,
+    "equipment_types_v9": 72
+  },
+  "static_checks": {
+    "copied_core_matches_uploaded_R30": false,
+    "nine_required_csv_counts_match": true,
+    "mod_json_parses": true,
+    "entry_calls_R30_world_creation_and_war": false,
+    "core_has_UnityEditor_or_UnityEngine_imports": false,
+    "all_44_core_files_derived_from_uploaded_R30": true,
+    "native_tab_and_button_entry_compiles_against_public_NML_mobile_references": true
+  },
+  "runtime_compilation": {
+    "core": "PASS (.NET 8 csc)",
+    "NML_android_reference_compile": "PASS: current active source compiled against pinned public AndroidModLoader references in GitHub Actions run 36379955527; reference compile is not Android runtime proof",
+    "on_device": "NOT_RUN"
+  },
+  "device_test": "NOT_RUN: no connected arm64 Android device/emulator; current source APK not installed or exercised",
+  "apk_build": "NOT_BUILT for current source; candidate 693 contains older 0.2.5 and cannot prove current behavior",
+  "source_file_hashes_mean": "Original uploaded R30 hashes; modified_files gives ported hashes.",
+  "modified_files": [
+    {
+      "path": "LordWarMod/Core/Construction/CityPlanningOwner.cs",
+      "original_sha256": "470afa4fa11db6db123b8ca75410cbdcd17b3784eea525836db30ec493ad7f15",
+      "ported_sha256": "6e311a74d32334445eafe019ed4c62c2fe61f690cb497dc4908841a96d830114"
+    },
+    {
+      "path": "LordWarMod/Core/Military/LogisticsOwner.cs",
+      "original_sha256": "3f70bfb765b79e0ef67eea6b1ff83ddbac65b3246c4d629df46e91a375e21ee8",
+      "ported_sha256": "c0d960cad0484a1bf7923ca2bea7390529d47fc33e70dd7c40b11f2d03c5ee43"
+    },
+    {
+      "path": "LordWarMod/Core/Save/GameSaveService.cs",
+      "original_sha256": "274cae54e467e269394f302cbc85db4bb5b5833785549a64b9a1fb7e2cb08392",
+      "ported_sha256": "952cb23db45f52110d93282a01549603f91c08b96590515f5515c8fcf55eb26e"
+    },
+    {
+      "path": "LordWarMod/Core/Save/SaveOwner.cs",
+      "original_sha256": "fa3cab4ab9022be87f6978c4790fa4f2d39dfffe5decd26f1883a7544fd85f87",
+      "ported_sha256": "adf507558befaa238a0073bb286679866f2163106e6f425b5dbdf9e79d15e642"
+    },
+    {
+      "path": "LordWarMod/Core/Simulation/GameWorld.cs",
+      "original_sha256": "b60fad24657de846db4ad4bf952f0a0b3d224f5d49fa7cb7ae9df0a6ad02649f",
+      "ported_sha256": "0880f80dde0788247b4fd13e382e0e2202a8be7be285c601766185d334f74aa1"
+    },
+    {
+      "path": "LordWarMod/Core/World/AnimalOwner.cs",
+      "original_sha256": "f4607279ef3da382dbdb08eb90e4fba0870db1c85fe9c362525ff6612f733ee1",
+      "ported_sha256": "cc648c317a52c8242455b543c011a5cb25f2f6e1383432ceab1d3bf13f725e46"
+    },
+    {
+      "path": "LordWarMod/Core/World/WeatherOwner.cs",
+      "original_sha256": "8665076366191c42024c7e5b955089575153bf9b159c8a1279eae910385dbf11",
+      "ported_sha256": "7077f59d42bdc11aa91b139d979f17b964e81a1544b41c949de7a9eb45b09222"
+    },
+    {
+      "path": "LordWarMod/Core/World/WorldGenerator.cs",
+      "original_sha256": "3bfcaf532ee67c98d5bd01992da0b902f5a8e5af5627a1a280cf9b4323cd53c4",
+      "ported_sha256": "d4a49bb94c605d249bba7592570fd7e8f76eaa579e7a7b4de9cff5e06db056da"
+    }
+  ],
+  "runtime_smoke": "PASS only for dormant standalone R30 CoreSmoke; does not exercise current native mod entry",
+  "android_candidate_20260927": {
+    "original_outer_sha256": "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "loader_seed_inner_sha256": "b869f6dcba05879b67bf9b493d5f557c1608ddb7721cfacdc71ad984fef0ee6a",
+    "active_mod_zip_sha256": "68b854014e5b3dd57555a7524aa068a39a9f94f222ade665908f3b6179190c2b",
+    "inner_apk_sha256": "ae210dabe266fe19402e7e29081d35c97c581fc1d9df780eff1dc56d0ae1df6e",
+    "outer_apk_sha256": "dab32f3b9bb691867de062beed29c8e9626bc408460047d3b19584edeb80de6e",
+    "package_version": "com.mkarpenko.worldbox 0.50.6 (688)",
+    "signer_sha256": "a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13",
+    "original_signer_sha256": "37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b",
+    "static_inner_and_outer": "PASS: zip, current mod exact bytes, all retained host entries SHA256 equal original, zipalign and apksigner v1/v2/v3",
+    "device_install_launch_gameplay": "NOT_RUN: adb devices empty; no applicable arm64 emulator",
+    "worldbox_full_gameplay": "NOT_IMPLEMENTED"
+  },
+  "native_entry_20260927": {
+    "github_branch": "construction/worldbox-android-mod",
+    "commit_verified": "0768e96a168d31786d5107e66da6a5399165a3bd",
+    "compile_run": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36322350671",
+    "native_selected_city_read": "COMPILED; device NOT_RUN",
+    "native_capital_command": "COMPILED; device NOT_RUN",
+    "save_load_and_restart": "NOT_RUN",
+    "standalone_GameWorld_execution": "removed from current LordWarMod.cs entry; historical Core still included but dormant",
+    "other_requirements": "NOT_IMPLEMENTED",
+    "native_map_city_power": "COMPILED with IL2CPPHelper.C<PowerActionWithID>; device NOT_RUN"
+  },
+  "android_candidate_0_2_2": {
+    "baseline": "0.50.6+688 outer original SHA-256 77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "version": "0.2.2",
+    "package": "com.mkarpenko.worldbox",
+    "inner_outer_version_code": 689,
+    "candidate_certificate_sha256": "a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13",
+    "original_certificate_sha256": "37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b",
+    "mod_zip_sha256": "e0666797b50ec7d038403cb7c55980b7ab212fcb610d3a20e9d53c56e6672cf3",
+    "inner_apk_sha256": "b117c10ebd32170ba110aaf084ce1b45dcec5ffdef68f04528eb66dda71f32fa",
+    "outer_apk_sha256": "6addd309e94ae6a1e25ead96e1592453cee04ffc58bcd382a5e0e27819e4057b",
+    "native_leader_and_captain": "COMPILED against public Android references; user reports mod UI absent, actual operation FAIL/not reached",
+    "native_city_and_capital": "COMPILED against public Android reference assemblies, runtime NOT_RUN",
+    "static_zip_signature_alignment_manifest_and_entry_hashes": "PASS",
+    "device_install_launch_ui_state_save_restart": "USER_REPORTED: APK opens original WorldBox; LordWar UI absent. Loader logs and save test NOT_RUN by agent.",
+    "full_lord_war_requirements": "NOT_IMPLEMENTED; only native city selection/capital/leader/captain slice present",
+    "ci_compile_run": "https://github.com/gtt46461-star/lordwar-godot/actions/runs/36326079559",
+    "candidate_signer_can_cover_original": "NO: SHA-256 differs; retain original installation and save backup"
+  },
+  "android_candidate_0_2_3": {
+    "baseline": "WorldBox 0.50.6 original outer SHA-256 77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "user_feedback_on_previous_0_2_2": "USER_REPORTED: game launches but no LordWar UI or gameplay is visible; failure not yet localized by loader logs",
+    "changes": "correct lower-case ui/icons path with fallback; mirror NML DLL and two-file source mod to assets/copyToData/MelonLoader/...; preserve original host and game anchors",
+    "mod_zip_sha256": "25a270f03da553bd28098d0c6384bba34c956de6bc6cfbfecb7d5d051521d4f3",
+    "active_entry_sha256": "25b772352ef48970b7c6f2c35bedff50aa63d8f5adfa0529f23625016ca96d80",
+    "inner_apk_sha256": "afbd1eeedabffabf0e213833a45033af6b3fd43e8f886efb972e292bb20b2869",
+    "outer_apk_sha256": "c5a6747d53c1c6ba0ba9b8ed2b0df75a596d4551bae2f437e21d9cf56ee038ba",
+    "package_version": "com.mkarpenko.worldbox 0.50.6 versionCode 690",
+    "compile": "PASS: Android public reference GitHub Actions run 36327816423",
+    "apk_build_and_static_integrity": "PASS: build script exit 0, ZIP/signature/alignment/host-entry checks; independent verification pending",
+    "new_apk_install_launch_loader_mod_ui_commands_save": "NOT_RUN on device",
+    "complete_gameplay": "NOT_IMPLEMENTED",
+    "user_video_feedback": "FAIL: 85.82s phone recording shows WorldBox map and original tabs without LordWar entry; the video does not expose installed buildId, so exact 0.2.2/0.2.3 identity is unconfirmed."
+  },
+  "android_candidate_0_2_4": {
+    "version": "0.2.4",
+    "package": "com.mkarpenko.worldbox",
+    "inner_outer_version_code": 691,
+    "mod_zip_sha256": "5d843ecee98b4813c0cd7a8bd73edb1286ccb7048a27fd61c0add498b249d7d9",
+    "inner_apk_sha256": "df32cf21c4777e48f47db79021578b0da87b8674b83df6d3e2cfd41521d0a44c",
+    "outer_apk_sha256": "453ed637d6c65d2f7eddc91e6461891f06274aa5cc6da1e4c6a9e661e5d75290",
+    "candidate_certificate_sha256": "a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13",
+    "cause_found": "Prior installed outer APK carried original libmain.so and no libBootstrap.so, while only embedded hook.apk contained the patched loader. UnityPlayer reads Context ApplicationInfo.nativeLibraryDir and loads libmain.so there; np.App rewrites sourceDir/publicSourceDir only.",
+    "repair": "Mirror patched arm64 libmain.so, Bootstrap/native dependencies, MelonLoader/dotnet/copyToData assets into outer host from the same signed inner APK, plus bump embedded hook ZIP timestamp.",
+    "static_build_sign_alignment_overlay": "PASS: builder exit 0, both APKs version 691, zipalign, apksigner v1/v2/v3, overlay SHA-256 equality with inner; outer native libmain differs from original.",
+    "on_device_install_start_loader_native_tab_commands_save": "FAIL: user 16.23s recording shows white screen and exit; uploaded Latest-Bootstrap.log reports Failed to get function pointer: il2cpp_init. Native mod entry was not reached; native commands and save remain NOT_RUN.",
+    "complete_gameplay": "NOT_IMPLEMENTED: only selected original city/person, capital, leader, captain code present; native runtime unverified."
+  },
+  "android_candidate_0_2_4_incident": {
+    "uploaded_log": "com.mkarpenko.worldbox/MelonLoader/Latest-Bootstrap.log; JNI initialized, APK assets copied, then il2cpp_init lookup failed",
+    "uploaded_video": "1000248698.mp4; 16.23 seconds, white screen and return to phone desktop",
+    "libil2cpp_sha256": "88a9d6e7af066e77de1a60426e8e77f331ec3b4f26c3e2044201f45dbb4a08d3",
+    "required_bootstrap_symbols": "FAIL: il2cpp_init, il2cpp_domain_get, il2cpp_thread_attach, il2cpp_runtime_invoke, il2cpp_string_new and il2cpp_add_internal_call absent from .dynsym",
+    "builder_gate": "PASS: inspect_il2cpp.py returns BLOCKED_LOADER_API on the 0.50.6 host; verify_game_anchors rejects the previous loader/game pair before APK output",
+    "other_version_control": "0.22.21 exports all six symbols but is a different game version; export preflight pass is not evidence that this NML source or loader supports it",
+    "new_apk": "NOT_BUILT: no verified compatible game/loader pair; old candidate must not be reissued as playable",
+    "device_for_agent": "NOT_CONNECTED; direct installation/launch still NOT_RUN by agent"
+  },
+  "android_candidate_0_2_5": {
+    "mod_version": "0.2.5",
+    "package": "com.mkarpenko.worldbox",
+    "version_code": 692,
+    "original_apk_sha256": "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5",
+    "reference_old_apk_sha256": "e4b37e1ffdc27fba37e1fcd9390787a248dcdc5764d123da5a47df0681ab6bd5",
+    "mod_zip_sha256": "52db6ad82dec024cbfeca3fe7d4c0a5561c3f1b427edf1b0661f1a16c5319569",
+    "inner_apk_sha256": "ad62100885bb880359b78cb03000a6a850abbf63bbf39b1ba5b4a835aa657e6d",
+    "outer_apk_sha256": "7393781d0534737156081b87270105ecab5743abe0b0c3c37dc851273b1b8fbe",
+    "game_alias_sha256": "afb0877bfa6814469d83c34952622e4d25aeef4a7a21c4af6dbc97a82dc23b7d",
+    "static_alias_count": 239,
+    "static_checks": "PASS: 239 aliases, code section unchanged, signed APKs aligned and identical overlay",
+    "local_mod_compile": "BLOCKED locally: dotnet CLI Process.get_StartTime failure",
+    "android_install_launch": "NOT_RUN: adb devices empty",
+    "native_world_button_and_commands": "NOT_RUN",
+    "all_gameplay_complete": "NO",
+    "phone_feedback": "PENDING; previous APK failed before il2cpp_init",
+    "signing": "same candidate test certificate a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13; not original certificate",
+    "remote_mod_compile": "PASS: GitHub Actions run 36333047066 step Compile Android NML mod against published assemblies",
+    "remote_core_smoke": "PASS: GitHub Actions run 36333047066 steps Compile game core and Exercise creation, day tick, save and restore; only legacy core host smoke"
+  },
+  "android_construction_0_3_0": {
+    "date": "2026-09-28",
+    "branch": "construction/worldbox-android-mod",
+    "status": "SOURCE_COMPILE_PASS; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN; CORE_GAMEPLAY_INCOMPLETE",
+    "base_game": {
+      "package": "com.mkarpenko.worldbox",
+      "version": "0.50.6",
+      "version_code": 688,
+      "original_outer_sha256": "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
+    },
+    "previous_active_mod": {
+      "version": "0.2.5",
+      "source_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e",
+      "apk_candidate_version_code": 693,
+      "candidate_outer_sha256": "97f75b226f46f1a07eebcbc360af81eebcb965103874b54533d8e28e4f830563",
+      "device_test": "NOT_RUN"
+    },
+    "active_entry_execution_chain": "LordWarMod.OnModLoad -> CaptureOriginalBombIcons -> TabManager.CreateTab(lordwar) -> ClearTabTemplateButtons -> RegisterMainEntries(12) -> TryReplaceBombCategory -> rebind original destruction Button and parallel TabManager names/entries; failure path hides the temporary tab and retains original bomb powers",
+    "tab_contract_source": "Pinned AndroidModLoader commit 165fe841f832b7e64dd54cef815ab2b9d5ffed7b: TabManager.tab_names/tab_entries, private _updateTabLayout(), CreateTab(), and PowersTabExtension.SetLayout/AddPowerButton/UpdateLayout() inspected locally",
+    "human_gate": "Source filters selected City to Kingdom.getFounderSpecies().id == human and Actor to asset.id == human, adult, alive, and in the same native City",
+    "native_entities": "Uses WorldBox City/Kingdom/Actor/Army IDs, native resources and readback; no GameWorld is created in the active Android entry",
+    "mod_version": "0.3.0",
+    "data_input_inventory": {
+      "file": "WorldBox_Adapter_Map.csv (GitHub Actions artifact: WorldBox-LordWar-adaptation-map)",
+      "records": 3920,
+      "source_rows_with_runtime_callsite": 1,
+      "runtime_verified_rows": 0,
+      "status": "U001 SOURCE_ADAPTED_RUNTIME_UNVERIFIED; remaining 3919 NOT_STARTED; mapping CSV is an audit ledger and excluded from active payload",
+      "key_counts": {
+        "regular_units": 156,
+        "special_units": 120,
+        "commander_skills": 360,
+        "policies": 300
+      }
+    },
+    "core_acceptance": {
+      "stage_1_original_start_enter_save": "NOT_RUN",
+      "stage_2_basic_hook_original_world": "NOT_RUN",
+      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN; replacement/rebinding source compiled and packaged in run 36379955527; device tap/no-bomb-action test absent",
+      "stage_4_native_city_actor_appointment_original_details": "NOT_RUN",
+      "stage_5_save_exit_reload_extension_state": "NOT_RUN; checksummed native-path sidecar and Harmony hooks implemented in source and compile/package PASS; actual save, process exit, reload and same-entity ID verification not run",
+      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; U001 request/approval/recruit plus save-state sidecar compile, but runtime is NOT_RUN; no native movement, battle, exactly-once result or AI parity; stages 1-5 not passed"
+    },
+    "latest_runtime_trace": {
+      "observed": "MelonLoader 0.6.5; Android 14; Il2Cpp x64 configuration; Runtime Type net8",
+      "log_end": "Latest.log ends after Runtime Type: net8; no stack trace, WorldBox game-information line, MANAGED_MOD_ENTERED marker, or diagnostic file",
+      "apk_build_id_at_launch": "UNKNOWN",
+      "current_first_failure": "UNDETERMINED; next transition after .NET 8 startup is not evidenced",
+      "old_il2cpp_init_report": "Historical only; not the failure established by the latest log"
+    },
+    "compile_and_package": "PASS in GitHub Actions run 36379955527: core compile/smoke, Android NML reference compile, API probe, 3,920-row mapping check, loader-tool compile and source ZIP package. No APK or device test.",
+    "initial_compile_attempt": {
+      "push_run": 36372720593,
+      "pull_request_run": 36372723621,
+      "failed_step": "Compile Android NML mod against published assemblies",
+      "error": "LordWarMod.cs line 226 CS1503: Il2CppSystem.Collections.Generic.List<PowerButton> cannot convert to System.Collections.Generic.IEnumerable<PowerButton>",
+      "fix": "copy the IL2CPP list element-by-element before rollback snapshot"
+    },
+    "new_apk": "NOT_BUILT; do not repack the same unverified loader before diagnosing the current runtime",
+    "target_version_code_reserved": 694,
+    "device": "NOT_RUN; adb unavailable",
+    "signing": "BLOCKED; local candidate JKS available but LORDWAR_KEYSTORE_PASS unavailable; candidate cert a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13 differs from original cert 37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b; cover install unverified",
+    "diff_review": "Source and API compatibility diff reviewed. Current U001 implementation compiled and packaged successfully in run 36374557691. Per-file before/after hashes, diffs, callsites and verification results are recorded in MODIFICATION_EVIDENCE.json.",
+    "new_source_adaptation": {
+      "unit_id": "U001",
+      "old_rules": "27 recruitment gold; 3 training days",
+      "source_route": "SubmitRecruitmentRequest -> ApproveRecruitmentRequest -> public City.checkCanMakeWarrior(Actor) -> City.takeResource(String,Int32) -> public City.makeWarrior(Actor) -> Actor.isWarrior() / Actor.army.getCity().getID() readback; on failure restore with City.addResourcesToRandomStockpile(String,Int32) and verify native gold delta",
+      "behavior_difference": "3 training days are compressed into immediate approval; vanilla profession, city equipment, weapon supply and Army membership remain authoritative. Proposal exists only in session memory.",
+      "compile": "PASS: current U001 call path compiled in run 36374557691",
+      "device_runtime": "NOT_RUN",
+      "scope_limit": "No native movement order, battle or result settlement yet; other 275 unit rows remain NOT_STARTED",
+      "api_probe": "GitHub Actions run 36372968185 native-api-probe.txt: City.checkCanMakeWarrior(Actor) public Boolean; City.makeWarrior(Actor) public Void; City.tryToMakeWarrior(Actor) private Boolean and therefore not called directly",
+      "direct_private_method_call": "NO",
+      "refund_api": "City.addResources is absent (compile failure); City.addResourcesToRandomStockpile(String,Int32) is public in the pinned API probe and now used with getResourcesAmount readback",
+      "persistence": {
+        "status": "SOURCE_IMPLEMENTED_COMPILE_PASS_RUNTIME_NOT_RUN",
+        "source_route": "LordWarMod.OnModLoad -> InstallNativeSaveHooks -> Harmony postfixes on SaveManager.saveMapData(string,bool), saveWorldToDirectory(string,bool,bool), saveToCurrentPath(), and loadData(SavedMap,string)",
+        "behavior": "Checksummed sidecar under Application.persistentDataPath/LordWar/saves, keyed by normalized native save path; stores selected native IDs and pending U001 request IDs/messages; missing/corrupt state clears only LordWar extension references and never edits the native world",
+        "signature_basis": "Pinned AndroidModLoader reference API only; exact WorldBox 0.50.6 target signature and Harmony patch runtime remain unverified",
+        "verification": "NML compile and package PASS in run 36379955527; no device save/load round trip"
+      }
+    },
+    "compile_and_package_history": {
+      "initial_failure_runs": [
+        36372720593,
+        36372723621
+      ],
+      "initial_failure": "C# CS1503: System.Collections.Generic.List constructor cannot consume Il2CppSystem.Collections.Generic.List<PowerButton>",
+      "repair": "Copy IL2CPP button list element-by-element for rollback snapshot",
+      "repair_ci_pass_run": 36374557691,
+      "repair_ci_scope": "Current 0.3.0 source including U001 request, approval, native warrior conversion, native stockpile refund and readback; build/package checks only",
+      "current_change_ci": "PASS: commit cc5ba0f5262278420b97ada6672548a82e96f348, push run 36379955527; every workflow step completed successfully",
+      "recruitment_attempts": [
+        {
+          "run": 36374187293,
+          "result": "FAIL",
+          "first_error": "CS1061 City has no addResources method at refund sites"
+        },
+        {
+          "run": 36374184452,
+          "result": "FAIL",
+          "first_error": "CS1061 City has no addResources method at refund sites"
+        }
+      ],
+      "repair_after_failure": "Use public City.addResourcesToRandomStockpile(String,Int32), verify restored balance through City.getResourcesAmount",
+      "current_retry": "PASS run 36379955527; active ZIP includes the save-hook source",
+      "artifacts": {
+        "source_mod_artifact": {
+          "id": 10952855010,
+          "name": "LordWar-NML-source-mod-0.3.0",
+          "artifact_digest": "sha256:a2a5dd8c5186c160b10bf3e3ee3afb8b18dc979c6f1c1ff96c7bf807be7df42c"
+        },
+        "inner_mod_zip_sha256": "0462bd28d2578d155e392cb77f67d1aa06ae206d8a7dfb5b36dda20f2a23d96f",
+        "active_source_sha256": "1081dc3a9a36c9c5e6a256174afe6afd8c207b5475cecb596dbe22e8d4141898",
+        "compile_check_artifact": {
+          "id": 10952855008,
+          "digest": "sha256:2420d2288f43d3b4e1a29b4d4dbaeb61a1651431c0a80251fea034e98cf29ab1"
+        },
+        "mapping_artifact": {
+          "id": 10951954922,
+          "digest": "sha256:031922a77a4ed032abdd1f050cc79723b68789e7d0af4ccf9b4a1da2a913cc30"
+        },
+        "reference_api_artifact": {
+          "id": 10952188442,
+          "digest": "sha256:72410695df93b146ed81c2f033d018682f306eb8f7196c2b83f25280f1cd5f56"
+        },
+        "packaging_tools_artifact": {
+          "id": 10952128998,
+          "digest": "sha256:35f9040910b31e3b58b2526128392b5b43c1d5acb53db7b5a3b6df95c2dbe757"
+        }
+      },
+      "current_change_commit": "cc5ba0f5262278420b97ada6672548a82e96f348"
+    },
+    "artifacts": {
+      "source_mod_artifact": {
+        "id": 10952855010,
+        "name": "LordWar-NML-source-mod-0.3.0",
+        "artifact_digest": "sha256:a2a5dd8c5186c160b10bf3e3ee3afb8b18dc979c6f1c1ff96c7bf807be7df42c"
+      },
+      "inner_mod_zip_sha256": "0462bd28d2578d155e392cb77f67d1aa06ae206d8a7dfb5b36dda20f2a23d96f",
+      "active_source_sha256": "1081dc3a9a36c9c5e6a256174afe6afd8c207b5475cecb596dbe22e8d4141898",
+      "compile_check_artifact": {
+        "id": 10952855008,
+        "digest": "sha256:2420d2288f43d3b4e1a29b4d4dbaeb61a1651431c0a80251fea034e98cf29ab1"
+      },
+      "mapping_artifact": {
+        "id": 10951954922,
+        "digest": "sha256:031922a77a4ed032abdd1f050cc79723b68789e7d0af4ccf9b4a1da2a913cc30"
+      },
+      "reference_api_artifact": {
+        "id": 10952188442,
+        "digest": "sha256:72410695df93b146ed81c2f033d018682f306eb8f7196c2b83f25280f1cd5f56"
+      },
+      "packaging_tools_artifact": {
+        "id": 10952128998,
+        "digest": "sha256:35f9040910b31e3b58b2526128392b5b43c1d5acb53db7b5a3b6df95c2dbe757"
+      }
+    },
+    "previous_0_2_5_source_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e"
+  }
+}
