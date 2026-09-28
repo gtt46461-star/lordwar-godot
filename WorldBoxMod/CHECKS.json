@@ -351,5 +351,62 @@
     "signing": "same candidate test certificate a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13; not original certificate",
     "remote_mod_compile": "PASS: GitHub Actions run 36333047066 step Compile Android NML mod against published assemblies",
     "remote_core_smoke": "PASS: GitHub Actions run 36333047066 steps Compile game core and Exercise creation, day tick, save and restore; only legacy core host smoke"
+  },
+  "android_construction_0_3_0": {
+    "date": "2026-09-28",
+    "branch": "construction/worldbox-android-mod",
+    "status": "SOURCE_MODIFIED; CI_PENDING; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN",
+    "base_game": {
+      "package": "com.mkarpenko.worldbox",
+      "version": "0.50.6",
+      "version_code": 688,
+      "original_outer_sha256": "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
+    },
+    "previous_active_mod": {
+      "version": "0.2.5",
+      "source_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e",
+      "apk_candidate_version_code": 693,
+      "candidate_outer_sha256": "97f75b226f46f1a07eebcbc360af81eebcb965103874b54533d8e28e4f830563",
+      "device_test": "NOT_RUN"
+    },
+    "active_entry_execution_chain": "LordWarMod.OnModLoad -> CaptureOriginalBombIcons -> TabManager.CreateTab(lordwar) -> ClearTabTemplateButtons -> RegisterMainEntries(12) -> TryReplaceBombCategory -> rebind original destruction Button and parallel TabManager names/entries; failure path hides the temporary tab and retains original bomb powers",
+    "tab_contract_source": "Pinned AndroidModLoader commit 165fe841f832b7e64dd54cef815ab2b9d5ffed7b: TabManager.tab_names/tab_entries, private _updateTabLayout(), CreateTab(), and PowersTabExtension.SetLayout/AddPowerButton/UpdateLayout() inspected locally",
+    "human_gate": "Source filters selected City to Kingdom.getFounderSpecies().id == human and Actor to asset.id == human, adult, alive, and in the same native City",
+    "native_entities": "Uses WorldBox City/Kingdom/Actor/Army IDs, native resources and readback; no GameWorld is created in the active Android entry",
+    "mod_version": "0.3.0",
+    "data_input_inventory": {
+      "file": "WorldBox_Adapter_Map.csv (GitHub Actions artifact: WorldBox-LordWar-adaptation-map)",
+      "records": 3920,
+      "mapped_to_runtime": 0,
+      "status": "NOT_STARTED for every row; ledger only, not included in mod payload",
+      "key_counts": {
+        "regular_units": 156,
+        "special_units": 120,
+        "commander_skills": 360,
+        "policies": 300
+      }
+    },
+    "core_acceptance": {
+      "stage_1_original_start_enter_save": "NOT_RUN",
+      "stage_2_basic_hook_original_world": "NOT_RUN",
+      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN",
+      "stage_4_native_city_actor_appointment_original_details": "NOT_RUN",
+      "stage_5_save_exit_reload_extension_state": "NOT_RUN; extension persistence not implemented",
+      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; not in active mod"
+    },
+    "latest_runtime_trace": {
+      "observed": "MelonLoader 0.6.5; Android 14; Il2Cpp x64 configuration; Runtime Type net8",
+      "log_end": "Latest.log ends after Runtime Type: net8; no stack trace, WorldBox game-information line, MANAGED_MOD_ENTERED marker, or diagnostic file",
+      "apk_build_id_at_launch": "UNKNOWN",
+      "current_first_failure": "UNDETERMINED; next transition after .NET 8 startup is not evidenced",
+      "old_il2cpp_init_report": "Historical only; not the failure established by the latest log"
+    },
+    "compile_and_package": "PENDING GitHub Actions push; local dotnet CLI unavailable",
+    "new_apk": "NOT_BUILT; do not repack the same unverified loader before diagnosing the current runtime",
+    "target_version_code_reserved": 694,
+    "device": "NOT_RUN; adb unavailable",
+    "signing": "BLOCKED; local candidate JKS available but LORDWAR_KEYSTORE_PASS unavailable; candidate cert a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13 differs from original cert 37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b; cover install unverified",
+    "modified_source_pre_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e",
+    "diff_review": "PENDING final staged diff"
   }
 }

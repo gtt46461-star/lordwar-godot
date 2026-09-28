@@ -24,7 +24,7 @@ from alias_il2cpp_exports import build_aliases, TARGET_LIB_SHA256
 
 EXPECTED_OUTER = "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
 SOURCE_VERSION_CODE = 688
-TARGET_VERSION_CODE = 693
+TARGET_VERSION_CODE = 694
 MOD_ROOT = "assets/MelonLoader/NMLMods/"
 DEPLOY_MOD_ROOT = "assets/copyToData/MelonLoader/NMLMods/"
 MOD_PREFIX = MOD_ROOT + "LordWarMod/"

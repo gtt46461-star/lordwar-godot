@@ -2,8 +2,8 @@
   "name": "LordWar",
   "GUID": "LordWar.Android.Core",
   "author": "LordWar",
-  "version": "0.2.5",
-  "description": "领主战争原生城市选城、王都、城主任命与军队长任命",
+  "version": "0.3.0",
+  "description": "将原版炸弹分类接入12项领主入口，限制人类国家与人类居民任命",
   "Dependencies": [],
   "OptionalDependencies": [],
   "IncompatibleWith": []

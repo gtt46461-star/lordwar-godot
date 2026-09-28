@@ -1,5 +1,15 @@
 # 领主战争 × WorldBox Android 模组源码接入件
 
+## 当前施工状态（2026-09-28）
+
+当前工作分支为 `construction/worldbox-android-mod`，目标母体为用户的 WorldBox Android 0.50.6（外层 APK SHA-256 `77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`）。源码版本从 0.2.5 提升到 0.3.0，实际运行入口 `LordWarMod.OnModLoad()` 会创建12个主入口，读取原版炸弹分类图标，并尝试把原版 `destruction` 分类的按钮、回调和注册键重绑到该12项面板。反射契约缺失时会隐藏临时分类并保留原版炸弹工具；被任命居民必须是原版 `human` asset 且仍是该原版城市成年居民，领主起始城市必须属于人类国家。任命后仍直接检查 WorldBox `City`、`Kingdom`、`Army` 字段。
+
+这是已修改的源码，不是已验证的 APK。当前候选 693 仍装载 0.2.5；0.3.0 的 Android 参考程序集编译和打包需等本分支 CI。最新设备日志可见 MelonLoader 0.6.5 的 .NET 8 启动阶段，然后中止记录；没有异常栈或模组进入标记，故实际失败调用仍未定位。该日志也没有精确的已安装 APK build ID。旧日志的 `il2cpp_init` 缺失不能代替当前诊断。当前环境没有 `adb`，本地也没有 .NET CLI。不得用未验证的同一加载器重发 APK。见 [`Build/ANDROID_CANDIDATE.md`](Build/ANDROID_CANDIDATE.md)。
+
+现有用户签名 JKS 可读取，但 `LORDWAR_KEYSTORE_PASS` 不在当前执行环境；候选测试证书与原包官方签名不同，覆盖安装兼容性没有证据。版本号 694 暂留给修复并通过启动关卡后的 APK。最新设备安装、原版存档、点击炸弹栏、任命、重启读档、申请批准、真实征募、战斗和战果状态一律为 `NOT_RUN`。
+
+适配盘点由 [`build_adaptation_map.py`](Build/build_adaptation_map.py) 逐项生成，列出旧 CSV/JSON 的 3,920 条输入和面向原版实体/方法的适配路线；当前全部标为 `NOT_STARTED`，CI 产物名为 `WorldBox-LordWar-adaptation-map`。它不参与运行包。0.3.0 只提供入口、原版人类城市/人物筛选、城市资源和建筑只读显示，以及原版王都、城主、军队长命令代码；这几项仍待运行验证。政务箱、审批及保存、官职体系、家族、军队编制、兵种和装备、补给、指挥、围城外交、AI同规则及其他核心玩法尚未完成。
+
 ## 目标版本裁决（2026-09-27）
 
 已核验文件库中的两个完整 Android 包。**仅选择 WorldBox 0.50.6 作为模组目标**；用户截图标记为 0.50.6+688，NeoModLoader 1.1.3 发布说明列出游戏 0.50.6 兼容。Android 组合在这个第三方宿主上的实际加载仍未通过。
@@ -9,7 +19,7 @@
 |0.22.21|`e4b37e1ffdc27fba37e1fcd9390787a248dcdc5764d123da5a47df0681ab6bd5`|152,904,263 字节；arm64-v8a/armeabi-v7a；IL2CPP|保留资源对照，画面与目标不符|
 |0.50.6|`77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`|322,027,494 字节；arm64-v8a；IL2CPP；内嵌 `assets/hook.apk` 和第三方宿主|当前唯一施工基线|
 
-旧的内层候选包在用户视频中黑屏退回桌面。随后手机录像显示外层候选可进入原版 WorldBox，底部标签和菜单均无“领主战争”；录像不能证明具体安装的是 0.2.2 还是 0.2.3，但入口验收明确失败。0.2.4 补齐了外层加载器启动文件；用户 2026-09-27 再次录屏显示白屏后退出，并提供 `Latest-Bootstrap.log`：`Failed to get function pointer: il2cpp_init`。已核实原始外层、内层和 0.2.4 候选包中的 arm64 `libil2cpp.so` SHA-256 均为 `88a9d6e7af066e77de1a60426e8e77f331ec3b4f26c3e2044201f45dbb4a08d3`，其动态导出表无 `il2cpp_init` 等加载器所需的六个 API。**0.2.4 手机启动验收为 FAIL，模组代码尚未执行。**当前入口没有实例化并行 `GameWorld`；已写入的王都、城主和军队长命令仍未在手机上证明执行成功。
+历史上，旧内层候选包在用户视频中黑屏退回桌面；之后的外层候选录像没有“领主战争”入口，具体版本不能确认。0.2.4 的启动日志曾报 `Failed to get function pointer: il2cpp_init`，并确认当时的目标库缺少该导出。该故障属于 0.2.4 尝试。**当前最新设备日志与这次旧日志不同，不能把旧结论当成当前首个失败点。**
 
 ## 本包是什么
 
@@ -24,20 +34,20 @@
 - 旧 run `36293519434` 的候选 APK 属于已弃用的并行地图实现。0.2.4 的外层 SHA-256 是 `453ed637d6c65d2f7eddc91e6461891f06274aa5cc6da1e4c6a9e661e5d75290`，模组 ZIP SHA-256 是 `5d843ecee98b4813c0cd7a8bd73edb1286ccb7048a27fd61c0add498b249d7d9`，内外层 versionCode 为 `691`。两层 APK 签名、对齐和内容核对通过，但设备日志证明加载失败。`Build/build_candidate_apk.py` 在 0.2.5 增加导出别名，并调用 `Build/inspect_il2cpp.py` 检查新包的动态导出；设备验收仍未进行。
 - `Smoke/` 和 `Build/` 是独立校验用文件，不要放入手机的 `LordWarMod/` 目录。`_deps/` 是本地下载的公开依赖，不包含在交付 ZIP 中。GitHub Actions 工作流位于仓库分支的 `.github/workflows/`。
 
-## 0.2.5 符号别名诊断候选
+## 历史版本 0.2.5 符号别名诊断候选
 
 用户手机的 `Latest-Bootstrap.log` 显示 LemonLoader 在查找 `il2cpp_init` 时失败。用户提供的 0.22.21 未改名游戏库与当前 0.50.6 游戏库中 239 个 IL2CPP API 的排列和函数长度完全一致，当前版在有界数组 API 前多两个小函数。`Build/alias_il2cpp_exports.py` 在固定输入哈希下推导符号别名，同时保留游戏原有随机名字；静态校验确认 `.text` 字节不变、两个名字指向同一地址。构建器将同一别名库写入宿主和内层包，模组管理入口在实际运行后尝试向手机存储写 `startup-diagnostic.txt`。新增的管理诊断代码在 GitHub Actions run 36333047066 的公开参考程序集编译通过。这项推导不等于 Android 加载器、游戏和模组已经启动；以前的黑屏只有新设备日志能验证是否解决。完整原版 C# 源码无法从 APK 自动写出。
 
 ## 为什么候选 APK 不是成品
 
-用户 2026-09-27 的启动视频显示旧内层候选 APK 黑屏后数秒退回桌面。0.2.4 保留第三方外层宿主并映射了加载器启动库，但最新 16.23 秒用户录像与设备日志证明仍在 IL2CPP 初始化之前失败。这个游戏二进制没有导出加载器需要查找的 `il2cpp_init`。重签、改 `mod.json`、复制更多模组文件不能解决这个首个失败点；0.2.5 尝试专门符号适配，实际启动需等待新日志。
+当前最新日志可见 MelonLoader 0.6.5、Android 14、`Runtime Type: net8`，之后记录终止。日志没有异常栈或 `MANAGED_MOD_ENTERED`，也无法确定当次安装包 build ID；因此真实失败调用仍待同一次启动的完整 logcat 和版本标识定位。安装一份 APK 或把 DLL 复制到手机都不能作为运行证据。版本 693 没有设备验收记录，本分支不会把相同加载器另封成 versionCode 694。
 
 上传的 `base.apk` 为 WorldBox 0.50.6 的 IL2CPP 构建，外加第三方运行层。已重新使用原始外层宿主封入修改后的内层包，产出 `LordWar-WorldBox-0.50.6-host-candidate.apk`，但 NeoModLoader/LemonLoader 是否能在这个母体上启动仍无实机证据。安卓包 `global-metadata.dat` 开头不含标准 IL2CPP 元数据魔数，Cpp2IL 2022.0.7 直接解析失败。用户提供的 Windows `worldbox.exe` 包含可反编译的 Mono `Assembly-CSharp.dll`（2441 个 C# 文件）及 firstpass（86 个文件），可用于接口研究，但不能直接替换安卓 IL2CPP 逻辑，也不是官方 Unity 原工程。单位、建筑、士兵、国策、技能、特性的 WorldBox 原生实体映射和规则替换均未完成。候选 APK 不可宣称为完整游戏。
 
 ## 运行链和待验收项
 
 1. 先用对应 WorldBox 0.50.6 的 Android LemonLoader/NeoModLoader 环境验证加载器启动和日志。社区 Android 仓库已归档，不能仅凭桌面版的 0.50.6 适配公告推定手机兼容。
-2. 在有权使用的 WorldBox 安装中按 AndroidModLoader 的说明安装 LemonLoader，并将其 2.0 发布的 `NeoModLoader_mobile.dll` 放入 `MelonLoader/com.mkarpenko.worldbox/Mods`；解压本批 `LordWarMod-0.2.5.zip` 到同一游戏根目录下的 `NMLMods/`，形成 `NMLMods/LordWarMod/mod.json` 和 `NMLMods/LordWarMod/LordWarMod.cs`。候选 APK 的内外两层都包含加载器资产和 `assets/copyToData/MelonLoader/...` 部署镜像；实际根目录及复制结果须以设备日志核实。
+2. 历史 0.2.5 的手动模组部署方法是：将当时生成的 `NeoModLoader_mobile.dll` 放入 `MelonLoader/com.mkarpenko.worldbox/Mods`，解压当时的 `LordWarMod-0.2.5.zip` 到 `NMLMods/`。当前 0.3.0 代码尚待 CI 编译，候选 APK 中也没有该版本；请勿把旧 ZIP 当作本次施工结果。
 3. 确认模组出现在模组列表，日志出现 `LordWar native city entry registered`，在原版地图选城或按“领主战争”按钮读取当前城市，再依次执行“设为王都”、“任命城主”、“任命军队长”，观察原版对象改变、重复点击不重复执行和重启读档恢复。
 4. 若失败，保留设备日志和编译报错，对照实际 IL2CPP 包装程序集修正。这份源码**没有运行过手机编译与实机验收**。
 

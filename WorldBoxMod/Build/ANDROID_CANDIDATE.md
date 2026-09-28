@@ -1,61 +1,41 @@
-# WorldBox 0.50.6 安卓候选包的重建输入和状态
+# Android host construction status
 
-`build_candidate_apk.py` 只接受 SHA-256 为
-`77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`
-的用户提供原始外层 APK。另需已有的内层 LemonLoader/NML 种子 APK（此次输入 SHA-256
-`b869f6dcba05879b67bf9b493d5f557c1608ddb7721cfacdc71ad984fef0ee6a`），
-以及用户单独保管的 LordWar 候选签名 JKS。种子来自用户先前的
-`LordWar-WorldBox-0.50.6-host-candidate.apk` 的 `assets/hook.apk`；
-它是**未经设备加载验收的旧候选**，只复用加载器文件和游戏数据，旧模组目录被完整替换。
-原始 WorldBox、第三方宿主、加载器二进制和 JKS 不入 GitHub，也不入普通源码包。
+Last verified: 2026-09-28. This file distinguishes the current runtime investigation from older loader failures.
 
-重建时在有 `python3`、`aapt`、`zipalign`、`apksigner` 的机器上，先从此前候选外层
-提取 `assets/hook.apk` 为 `loader-seed-inner.apk`，确认它的 SHA-256，再将密钥口令
-以本地环境变量 `LORDWAR_KEYSTORE_PASS` 传给构建脚本：
+## Current input and versions
+
+| Input | Version / hash | What it proves |
+|---|---|---|
+| User supplied outer WorldBox APK | 0.50.6, versionCode 688; SHA-256 `77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5` | Static baseline only |
+| Earlier checked loader candidate | 0.50.6, versionCode 692; outer SHA-256 `7393781d0534737156081b87270105ecab5743abe0b0c3c37dc851273b1b8fbe` | Rebuild seed source; not an installable upgrade to the official app |
+| Reconstructed unsigned loader seed | SHA-256 `0d7649e334bfb61952a37d81a20347a2c6e3bb49897d13bb4b844de94e0e1d14` | Reproducible loader/game files only; device compatibility remains unproved |
+| Existing version 693 candidate | Outer SHA-256 `97f75b226f46f1a07eebcbc360af81eebcb965103874b54533d8e28e4f830563`; inner SHA-256 `99382589cfa38585e77da064557512f9c0c29affcbca8bbc951b4fdf74ecaafe` | Static archive and payload checks only; still contains source mod 0.2.5 |
+| Source now under construction | LordWarMod 0.3.0 | Changes bomb-tab routing and human-only city/person selection; CI/device results pending |
+
+## Current first unverified runtime transition
+
+The latest supplied `Latest.log` identifies MelonLoader 0.6.5, Android 14, an Il2Cpp x64 loader configuration, and `Runtime Type: net8`. It ends at that point. It contains no exception stack, WorldBox game-information line, `MANAGED_MOD_ENTERED` marker, or mod diagnostic file. The paired `Latest-Bootstrap.log` shows JNI initialization and the embedded APK asset copy. The exact failure after the visible .NET 8 startup stage is therefore **undetermined**. There is no evidence that the current version 693 candidate was installed for that log, so the log cannot be attributed to it.
+
+An older 0.2.4 log reported that `il2cpp_init` could not be found. That remains a historical failure from a different startup attempt; it is not the first failure established by the latest log. Do not rebuild the same loader/runtime pair until a launch trace identifies the next failing call.
+
+## Build and install gates
+
+- A connected Android device and `adb` are unavailable in this workspace. Install, start, WorldBox entry, toolbar click, appointment, save/reload, recruit and battle are `NOT_RUN`.
+- The local candidate keystore exists, but `LORDWAR_KEYSTORE_PASS` is unavailable. Do not guess it. The candidate signer fingerprint `a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13` differs from the official input APK signer `37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b`; a compatible cover install has not been established.
+- VersionCode 694 is reserved for a later APK build. **No new APK is produced from version 693's unverified loader**. A mod-only compile or ZIP must not be represented as an Android game build.
+- The existing package recipe can be run after resolving the loader and signing gates:
 
 ```bash
 python3 WorldBoxMod/Build/build_candidate_apk.py \
-  --original-outer /private/original-base.apk \
+  --original-outer /private/base.apk \
   --loader-seed-inner /private/loader-seed-inner.apk \
-  --reference-apk /private/user-supplied-worldbox-0.22.21.apk \
+  --reference-apk /private/worldbox-0.22.21.apk \
   --keystore /private/lordwar-worldbox-candidate-signing.jks \
   --output-dir /private/build-output
 ```
 
-脚本校验原始 APK 身份、Unity 资源和 IL2CPP 游戏锚点、加载器种子、模组实际字节，
-重签内外两层并验证签名和对齐，还比较所有保留的外层条目内容。独立 ZIP
-`LordWarMod-0.2.5.zip` 只含 `LordWarMod/mod.json` 与
-`LordWarMod/LordWarMod.cs`。未运行的旧 Core/Data 仅作源码迁移依据。
+Set `LORDWAR_KEYSTORE_PASS` through the local secret environment. Before running the recipe, obtain one trace tied to the exact installed APK: version/build ID, full `Latest-Bootstrap.log`, full `Latest.log`, and Android logcat from process start through exit. The first unresolved transition is net8 startup into the game/IL2CPP initialization path. Correct that specific failure and prove the original WorldBox reaches a saved world before packaging another candidate.
 
-本次内外两层 APK 都是 `com.mkarpenko.worldbox`，versionName `0.50.6`、versionCode `692`；
-构建脚本直接定位二进制清单中的 `android:versionCode`，从原始 `688` 改为 `692`，
-其余清单字节保留，并通过 `aapt dump badging` 逐层核对。
-当前签名证书 SHA-256 为
-`a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13`，
-不同于原外层证书 SHA-256
-`37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b`。
-不能保证覆盖用户已有原版安装；**不要卸载、清除数据或覆盖现有存档**。
+## Payload scope
 
-此次通过的是构建、静态 ZIP、签名、对齐和内容一致性。`adb devices` 为空，
-用户录像显示上一候选能打开原版，但底部和菜单没有“领主战争”；录像未显示 APK
-buildId，不能准确区分 0.2.2/0.2.3，入口验收为 `FAIL（用户手机反馈）`。
-静态比较发现上一候选的外层 `libmain.so` 与原包完全相同，而内嵌的启动库已打补丁；
-外层也缺少 `libBootstrap.so`。本版让外层与内层的 `libmain.so`、Bootstrap 本机库、
-`assets/MelonLoader/`、`assets/dotnet/`、`assets/copyToData/` 完全同源，并保持
-其它外层宿主条目不变。镜像进入 APK 仍不等于加载器实际运行。
-新包安装、启动、加载器日志、原版选城按钮、王都、城主和军队长命令以及存档重启是 `NOT_RUN`。
-此前内层 APK 黑屏视频无法替代本次外层 APK 的实际运行证据。即便它之后能启动，
-目前入口只有读取原生城市和人物、王都、原版城主及军队长任命命令；
-建设、征募、行军、战争、外交和其余玩法尚未迁入，
-所以它不是完整《领主战争》游戏。
-
-在有可访问的 arm64 Android 设备后，先备份用户世界存档与购买状态，再收集
-`adb install` 的结果、启动完整 `adb logcat`、原版世界截图、模组按钮操作和重启读档。
-若首个失败点在外层宿主、Bootstrap、MelonLoader、NML 或 C# 编译，应以当次
-日志逐层修复，不把静态通过推断为启动成功。
-
-## 0.2.5 符号适配和手机诊断
-
-另需用户已上传的 0.22.21 安卓 APK 作为未改名 API 导出参考，以及 `lief==1.0.0`、`readelf`。构建脚本核对两个游戏库 SHA-256、全部 239 项函数顺序与长度，在 0.50.6 保留随机名字的同时添加标准 IL2CPP 动态符号别名，确认代码段内容不变，再把同一份游戏库放入内外两层。ELF 布局仍有改动；静态通过不代表安卓启动通过。旧版仅用于分析，不放入安装包。
-
-模组管理代码若实际加载，会尝试写出 `startup-diagnostic.txt` 到 `/storage/emulated/0/MelonLoader/com.mkarpenko.worldbox/LordWar/` 和应用私有存储 `LordWar/`。管理代码没有启动时，应查看 MelonLoader 的 `Latest-Bootstrap.log`。诊断只包含模组阶段、包名与 Unity 版本，不会还原原版完整 C# 源码。
+`package_mod.py` emits only `mod.json` and `LordWarMod.cs`. It deliberately omits the legacy parallel simulation and CSV/JSON inputs because the live adapter does not consume them. CI generates `WorldBox_Adapter_Map.csv`, which inventories 3,920 data rows/leaves and marks them `NOT_STARTED`; the `WorldBox-LordWar-adaptation-map` workflow artifact is an audit ledger, not working game data. Never describe any row as adapted until the Android runtime code consumes it and its resulting WorldBox behavior is verified.

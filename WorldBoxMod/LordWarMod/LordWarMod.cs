@@ -1,5 +1,8 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using NeoModLoader.api;
 using NeoModLoader.AndroidCompatibilityModule;
 using NeoModLoader.General;
@@ -14,10 +17,40 @@ namespace LordWar.AndroidMod
     {
         private const string WindowId = "lordwar_city_window";
         private const string SelectPowerId = "lordwar_select_city";
+        private const string HumanAssetId = "human";
+        private const BindingFlags PrivateStatic = BindingFlags.Static | BindingFlags.NonPublic;
+        private static readonly MainSection[] MainSections =
+        {
+            new MainSection("start", "领主开局", "realm", "从原版地图选择人类城市；只显示原版城市和人物。",
+                "原版地图选城、城市与成年人类居民读取已接入；完整开局规则尚未完成。"),
+            new MainSection("construction", "城市建设", "realm", "读取原版城市建筑和在建建筑。",
+                "原版建筑只读信息已接入；建设规划、资源扣除和下达建造订单尚未完成。"),
+            new MainSection("treasury", "国库军资", "economy", "读取原版城市现有资源。",
+                "原版资源只读信息已接入；独立国库、军资预算和收支规则尚未完成。"),
+            new MainSection("population", "人口职业", "economy", "读取原版人类居民与原版战士。",
+                "成年人类和原版战士只读统计已接入；完整职业分配和人口政策尚未完成。"),
+            new MainSection("proposals", "政务审批", "government", "政务请求审批入口。",
+                "尚未完成：请求箱、同意、拒绝、稍后和重开恢复均未接入。"),
+            new MainSection("officials", "官员任免", "government", "从原版成年人类居民中任命原版城主。",
+                "原版城主任命和回读确认已接入；完整官职资格、任期和替补规则尚未完成。"),
+            new MainSection("generals", "将军与家族", "army", "读取原版军队并任命原版军队长。",
+                "原版军队长任命和回读确认已接入；将军履历、家族系统和其他军职尚未完成。"),
+            new MainSection("units", "兵种解锁", "army", "查看人类兵种与装备适配进度。",
+                "尚未完成：156 常规兵种和 120 特殊兵种尚未逐项映射到原版职业与装备行为。"),
+            new MainSection("recruitment", "征募训练", "recruitment", "真实居民征募和训练。",
+                "尚未完成：没有征募、资源扣除、训练队列或原版军队入伍命令。"),
+            new MainSection("equipment", "装备成长", "recruitment", "原版人物装备与成长。",
+                "尚未完成：没有装备消耗、装备成长、耐久或升级规则接入。"),
+            new MainSection("skills", "技能特性", "policies", "技能和特性适配进度。",
+                "尚未完成：360 项技能与特性尚未映射到原版特质、装备或战斗触发。"),
+            new MainSection("policies", "国策外交军令", "policies", "政策、外交、附庸和军团命令。",
+                "尚未完成：政策效果、外交附庸、行军补给与军团命令尚未接入。")
+        };
         private ScrollWindow _cityWindow;
         private long _cityId = -1;
         private long _kingdomId = -1;
         private long _actorId = -1;
+        private int _activeSection;
         private string _status = "请选择原版城市";
 
         protected override void OnModLoad()
@@ -40,7 +73,10 @@ namespace LordWar.AndroidMod
                 }
                 if (cityIcon == null)
                     throw new InvalidOperationException("WorldBox UI icons unavailable; LordWar tab cannot be registered");
+
+                Sprite[] originalBombIcons = CaptureOriginalBombIcons();
                 var tab = TabManager.CreateTab("lordwar", "领主战争", "在原版城市中执行领主命令", cityIcon);
+                ClearTabTemplateButtons(tab);
 
                 AssetManager.powers.add(new GodPower
                 {
@@ -51,14 +87,18 @@ namespace LordWar.AndroidMod
                         (Func<global::WorldTile, string, bool>)SelectCityFromMap),
                     unselect_when_window = true
                 });
-                var select = PowerButtonCreator.CreateGodPowerButton(SelectPowerId, cityIcon, tab.transform);
-                PowerButtonCreator.AddButtonToTab(select, tab);
-
-                var open = PowerButtonCreator.CreateSimpleButton(
-                    "lordwar_open_city", (Action)OpenSelectedCity, cityIcon, tab.transform);
-                PowerButtonCreator.AddButtonToTab(open, tab);
-                LogInfo("LordWar native city entry registered");
-                WriteDiagnostic("NATIVE_CITY_ENTRY_REGISTERED");
+                RegisterMainEntries(tab, cityIcon, originalBombIcons);
+                if (TryReplaceBombCategory(tab, cityIcon))
+                {
+                    LogInfo("LordWar replaced the native destruction category with 12 grouped entries");
+                    WriteDiagnostic("BOMB_CATEGORY_REPLACED_WITH_12_ENTRIES");
+                }
+                else
+                {
+                    HideUnboundLordWarTab(tab);
+                    LogInfo("LordWar could not resolve the pinned NML registry; the temporary tab was hidden and vanilla bomb powers were left intact");
+                    WriteDiagnostic("BOMB_CATEGORY_REPLACEMENT_BLOCKED");
+                }
             }
             catch (Exception error)
             {
@@ -67,12 +107,220 @@ namespace LordWar.AndroidMod
             }
         }
 
+        private sealed class MainSection
+        {
+            public readonly string Id;
+            public readonly string Title;
+            public readonly string Group;
+            public readonly string Description;
+            public readonly string Status;
+
+            public MainSection(string id, string title, string group, string description, string status)
+            {
+                Id = id;
+                Title = title;
+                Group = group;
+                Description = description;
+                Status = status;
+            }
+        }
+
+        private static Sprite[] CaptureOriginalBombIcons()
+        {
+            PowersTab nativeBombTab = PowerButtonCreator.GetTab(PowerTabNames.Bombs);
+            if (nativeBombTab == null) return new Sprite[0];
+            PowerButton[] nativeButtons = nativeBombTab.GetComponentsInChildren<PowerButton>(true);
+            var icons = new System.Collections.Generic.List<Sprite>();
+            foreach (PowerButton button in nativeButtons)
+                if (button != null && button.icon != null && button.icon.sprite != null)
+                    icons.Add(button.icon.sprite);
+            LogInfo("LordWar captured " + icons.Count + " existing bomb-category button icons");
+            return icons.ToArray();
+        }
+
+        private static void ClearTabTemplateButtons(PowersTab tab)
+        {
+            PowerButton[] templateButtons = tab.GetComponentsInChildren<PowerButton>(true);
+            foreach (PowerButton button in templateButtons)
+                if (button != null) button.gameObject.SetActive(false);
+            tab._power_buttons.Clear();
+            LogInfo("LordWar hid " + templateButtons.Length + " cloned template buttons before registering its 12 entries");
+        }
+
+        private void RegisterMainEntries(PowersTab tab, Sprite fallbackIcon, Sprite[] originalIcons)
+        {
+            tab.SetLayout(new System.Collections.Generic.List<string>
+            {
+                "realm", "economy", "government", "army", "recruitment", "policies"
+            });
+
+            for (int index = 0; index < MainSections.Length; index++)
+            {
+                MainSection section = MainSections[index];
+                Sprite icon = originalIcons != null && index < originalIcons.Length && originalIcons[index] != null
+                    ? originalIcons[index] : fallbackIcon;
+                PowerButton button;
+                if (index == 0)
+                {
+                    button = PowerButtonCreator.CreateGodPowerButton(SelectPowerId, icon, tab.transform);
+                }
+                else
+                {
+                    int capturedIndex = index;
+                    button = PowerButtonCreator.CreateSimpleButton(
+                        "lordwar_section_" + section.Id,
+                        (Action)(() => OpenSection(capturedIndex)), icon, tab.transform);
+                }
+
+                TipButton tip = button.GetComponent<TipButton>();
+                if (tip != null)
+                {
+                    tip.textOnClick = section.Title;
+                    tip.textOnClickDescription = section.Description;
+                }
+                tab.AddPowerButton(section.Group, button);
+            }
+            tab.UpdateLayout();
+        }
+
+        // NML 2.0's public CreateTab API creates a tab entry. The pinned Android
+        // loader's TabManager keeps parallel private tab_names/tab_entries lists.
+        // We rebind the existing "destruction" entry to our NML tab, remove only
+        // the temporary LordWar entry, then reflow the same native toolbar.
+        private static bool TryReplaceBombCategory(PowersTab lordWarTab, Sprite icon)
+        {
+            Type managerType = typeof(TabManager);
+            FieldInfo namesField = managerType.GetField("tab_names", PrivateStatic);
+            FieldInfo entriesField = managerType.GetField("tab_entries", PrivateStatic);
+            IList names = namesField == null ? null : namesField.GetValue(null) as IList;
+            IList entries = entriesField == null ? null : entriesField.GetValue(null) as IList;
+            if (names == null || entries == null || names.Count != entries.Count) return false;
+
+            int lordWarIndex = FindTabIndex(names, "lordwar");
+            int bombsIndex = FindTabIndex(names, PowerTabNames.Bombs);
+            if (lordWarIndex < 0 || bombsIndex < 0 || lordWarIndex == bombsIndex) return false;
+
+            Button lordWarEntry = entries[lordWarIndex] as Button;
+            Button bombsEntry = entries[bombsIndex] as Button;
+            PowersTab bombsTab = PowerButtonCreator.GetTab(PowerTabNames.Bombs);
+            if (lordWarEntry == null || bombsEntry == null || bombsTab == null) return false;
+
+            // Stage references before changing the UI so an unknown NML layout
+            // leaves the original category and its actions untouched.
+            Image iconImage = bombsEntry.transform.Find("Icon") == null
+                ? null : bombsEntry.transform.Find("Icon").GetComponent<Image>();
+            TipButton tip = bombsEntry.GetComponent<TipButton>();
+            MethodInfo reflow = managerType.GetMethod("_updateTabLayout", PrivateStatic);
+            if (iconImage == null || tip == null || reflow == null) return false;
+
+            Button.ButtonClickedEvent previousClick = bombsEntry.onClick;
+            string previousTitle = tip.textOnClick;
+            string previousDescription = tip.textOnClickDescription;
+            Sprite previousIcon = iconImage.sprite;
+            bool previousLordWarEntryActive = lordWarEntry.gameObject.activeSelf;
+            var nativeBombButtons = bombsTab.GetComponentsInChildren<PowerButton>(true);
+            var nativeBombButtonActiveStates = new bool[nativeBombButtons.Length];
+            for (int index = 0; index < nativeBombButtons.Length; index++)
+                nativeBombButtonActiveStates[index] = nativeBombButtons[index] != null &&
+                    nativeBombButtons[index].gameObject.activeSelf;
+            var previousNativeButtonList = new List<PowerButton>(bombsTab._power_buttons);
+            var previousNames = new ArrayList(names);
+            var previousEntries = new ArrayList(entries);
+            ButtonSfx sfx = bombsEntry.GetComponent<ButtonSfx>();
+            try
+            {
+                bombsEntry.onClick = new Button.ButtonClickedEvent();
+                bombsEntry.onClick.AddListener(() => lordWarTab.showTab(bombsEntry));
+                if (sfx != null) bombsEntry.onClick.AddListener(() => sfx.playSound());
+                tip.textOnClick = "领主战争";
+                tip.textOnClickDescription = "在此分类中运行领主战争";
+                iconImage.sprite = icon;
+
+                foreach (PowerButton oldButton in nativeBombButtons)
+                    if (oldButton != null) oldButton.gameObject.SetActive(false);
+                // Keep the list pair aligned with the visible original entry order.
+                names[bombsIndex] = "lordwar";
+                names.RemoveAt(lordWarIndex);
+                entries.RemoveAt(lordWarIndex);
+                lordWarEntry.gameObject.SetActive(false);
+                reflow.Invoke(null, null);
+                bombsTab._power_buttons.Clear();
+                return true;
+            }
+            catch (Exception error)
+            {
+                // Restore the registry pair and native powers if Unity or the
+                // pinned private NML layout hook fails during the switch.
+                names.Clear();
+                foreach (object name in previousNames) names.Add(name);
+                entries.Clear();
+                foreach (object entry in previousEntries) entries.Add(entry);
+                bombsEntry.onClick = previousClick;
+                tip.textOnClick = previousTitle;
+                tip.textOnClickDescription = previousDescription;
+                iconImage.sprite = previousIcon;
+                lordWarEntry.gameObject.SetActive(previousLordWarEntryActive);
+                for (int index = 0; index < nativeBombButtons.Length; index++)
+                    if (nativeBombButtons[index] != null)
+                        nativeBombButtons[index].gameObject.SetActive(nativeBombButtonActiveStates[index]);
+                bombsTab._power_buttons.Clear();
+                foreach (PowerButton oldButton in previousNativeButtonList)
+                    bombsTab._power_buttons.Add(oldButton);
+                try { reflow.Invoke(null, null); }
+                catch (Exception restoreError) { LogInfo("LordWar category layout rollback warning: " + restoreError.Message); }
+                LogInfo("LordWar bomb-category mutation rolled back: " + error);
+                return false;
+            }
+        }
+
+        private static int FindTabIndex(IList names, string tabName)
+        {
+            for (int index = 0; index < names.Count; index++)
+                if (string.Equals(names[index] as string, tabName, StringComparison.Ordinal)) return index;
+            return -1;
+        }
+
+        private static bool IsHumanKingdom(global::Kingdom kingdom)
+        {
+            if (kingdom == null) return false;
+            global::ActorAsset founderSpecies = kingdom.getFounderSpecies();
+            return founderSpecies != null && string.Equals(
+                founderSpecies.id, HumanAssetId, StringComparison.Ordinal);
+        }
+
+        private static void HideUnboundLordWarTab(PowersTab lordWarTab)
+        {
+            Type managerType = typeof(TabManager);
+            FieldInfo namesField = managerType.GetField("tab_names", PrivateStatic);
+            FieldInfo entriesField = managerType.GetField("tab_entries", PrivateStatic);
+            IList names = namesField == null ? null : namesField.GetValue(null) as IList;
+            IList entries = entriesField == null ? null : entriesField.GetValue(null) as IList;
+            int index = names == null ? -1 : FindTabIndex(names, "lordwar");
+            if (index >= 0 && entries != null && index < entries.Count)
+            {
+                Button entry = entries[index] as Button;
+                if (entry != null) entry.gameObject.SetActive(false);
+                entries.RemoveAt(index);
+                names.RemoveAt(index);
+                MethodInfo reflow = managerType.GetMethod("_updateTabLayout", PrivateStatic);
+                if (reflow != null) reflow.Invoke(null, null);
+            }
+            if (lordWarTab != null) lordWarTab.gameObject.SetActive(false);
+        }
+
+        private void OpenSection(int sectionIndex)
+        {
+            _activeSection = Math.Max(0, Math.Min(sectionIndex, MainSections.Length - 1));
+            BindCity(SelectedMetas.selected_city);
+            ShowCityWindow();
+        }
+
         // This only runs after the native bootstrap and NML have loaded this
         // mod. The loader's own Latest-Bootstrap.log covers earlier failures.
         // It exports our build/runtime facts, never the game's proprietary code.
         private void WriteDiagnostic(string phase)
         {
-            string message = "LordWarMod 0.2.5\nphase=" + phase +
+            string message = "LordWarMod 0.3.0\nphase=" + phase +
                 "\nutc=" + DateTime.UtcNow.ToString("o") +
                 "\npackage=" + Application.identifier +
                 "\nunity=" + Application.unityVersion +
@@ -104,20 +352,14 @@ namespace LordWar.AndroidMod
             return true;
         }
 
-        private void OpenSelectedCity()
-        {
-            BindCity(SelectedMetas.selected_city);
-            ShowCityWindow();
-        }
-
         private bool BindCity(global::City city)
         {
-            if (city == null || city.isRekt() || city.kingdom == null)
+            if (city == null || city.isRekt() || !IsHumanKingdom(city.kingdom))
             {
                 _cityId = -1;
                 _kingdomId = -1;
                 _actorId = -1;
-                _status = "请在原版地图选择一座仍属于国家的城市";
+                _status = "请在原版地图选择一座仍属于人类国家的城市";
                 return false;
             }
             if (_cityId != city.getID() || _kingdomId != city.kingdom.getID())
@@ -141,7 +383,8 @@ namespace LordWar.AndroidMod
             {
                 global::City city = world.cities.list[index];
                 if (city == null || city.getID() != _cityId || city.isRekt()) continue;
-                if (city.kingdom == null || city.kingdom.getID() != _kingdomId) return null;
+                if (city.kingdom == null || city.kingdom.getID() != _kingdomId ||
+                    !IsHumanKingdom(city.kingdom)) return null;
                 return city;
             }
             return null;
@@ -149,7 +392,8 @@ namespace LordWar.AndroidMod
 
         private static bool BelongsToCity(global::Actor actor, global::City city)
         {
-            if (actor == null || actor.isRekt() || !actor.isSapient() || !actor.isAdult())
+            if (actor == null || actor.isRekt() || actor.asset == null ||
+                !string.Equals(actor.asset.id, HumanAssetId, StringComparison.Ordinal) || !actor.isAdult())
                 return false;
             global::City home = actor.getCity();
             return home != null && home.getID() == city.getID();
@@ -209,11 +453,13 @@ namespace LordWar.AndroidMod
                 UnityEngine.Object.Destroy(content.GetChild(index).gameObject);
 
             AddText(content, "领主战争 · 原版城市", 40f);
+            MainSection section = MainSections[_activeSection];
+            AddText(content, section.Title + " · " + section.Description, 58f);
             global::City city = ResolveCity();
             if (city == null)
             {
                 _status = "选中城市不存在、已易主或当前地图已改变；请重新选城";
-                AddText(content, _status, 78f);
+                AddText(content, _status + "\n" + section.Status, 92f);
                 return;
             }
 
@@ -224,6 +470,52 @@ namespace LordWar.AndroidMod
                 "    城市金币：" + city.getResourcesAmount("gold") +
                 "    王都：" + (kingdom.capital == city ? "是" : "否"), 56f);
 
+            if (_activeSection == 1)
+            {
+                AddText(content, "原版已登记建筑数：" + city.countBuildings() +
+                    "。当前只读取原版建筑；建设规划、材料扣除和建造订单尚未接入。", 64f);
+            }
+            else if (_activeSection == 2)
+            {
+                AddText(content, "原版库存：金币 " + city.getResourcesAmount("gold") +
+                    "，食物 " + city.getResourcesAmount("food") +
+                    "，木材 " + city.getResourcesAmount("wood") +
+                    "，石料 " + city.getResourcesAmount("stone") +
+                    "，铁矿 " + city.getResourcesAmount("iron") +
+                    "。军资账户和收支结算尚未接入。", 72f);
+            }
+            else if (_activeSection == 3 || _activeSection == 7 || _activeSection == 8)
+            {
+                int humanAdults = 0;
+                int humanWarriors = 0;
+                int otherSpecies = 0;
+                foreach (global::Actor resident in city.units)
+                {
+                    if (resident == null || resident.isRekt()) continue;
+                    if (resident.asset == null || !string.Equals(
+                        resident.asset.id, HumanAssetId, StringComparison.Ordinal))
+                    {
+                        otherSpecies++;
+                        continue;
+                    }
+                    if (!resident.isAdult()) continue;
+                    humanAdults++;
+                    if (resident.isWarrior()) humanWarriors++;
+                }
+                AddText(content, "原版人类成年居民：" + humanAdults +
+                    "，其中原版战士：" + humanWarriors + "；其他种族居民：" + otherSpecies +
+                    "（保持原版身份和AI，不进入领主军队）。", 68f);
+            }
+            else if (_activeSection == 10)
+            {
+                AddText(content, "适配口径：优先映射原版特质、职业、装备和战斗回调；360 项技能尚未逐项映射或合并。", 62f);
+            }
+            else if (_activeSection == 11)
+            {
+                AddText(content, "政务箱、政策效果、外交附庸、军团命令与行军补给都尚未接入原版世界。", 58f);
+            }
+            AddText(content, "本入口状态：" + section.Status, 64f);
+
             global::Army army = city.army;
             AddText(content, "原版城主：" + (city.leader == null ? "未任命" : city.leader.getName()) +
                 "    军队长：" + (army == null || army.getCaptain() == null
@@ -232,7 +524,7 @@ namespace LordWar.AndroidMod
             AddText(content, "当前人物：" + (selected == null ? "未选择" : selected.getName()) +
                 "（仅从原版城市居民中选择）", 42f);
 
-            AddText(content, "原版人物（优先显示士兵，最多 16 位）：", 35f);
+            AddText(content, "可任命的人类（优先显示士兵，最多 16 位）：", 35f);
             int shown = 0;
             for (int pass = 0; pass < 2 && shown < 16; pass++)
             {
@@ -246,9 +538,13 @@ namespace LordWar.AndroidMod
                 }
             }
             if (shown == 0) AddText(content, "城内没有可任命的成年人物", 35f);
-            AddAction(content, "设为王都", SetCapital);
-            AddAction(content, "任命所选人物为城主", AppointCityLeader);
-            AddAction(content, "任命所选士兵为军队长", AppointArmyCaptain);
+            if (_activeSection == 0 || _activeSection == 5)
+            {
+                AddAction(content, "设为王都", SetCapital);
+                AddAction(content, "任命所选人类为城主", AppointCityLeader);
+            }
+            if (_activeSection == 0 || _activeSection == 6)
+                AddAction(content, "任命所选人类士兵为军队长", AppointArmyCaptain);
             AddText(content, _status, 65f);
         }
 
