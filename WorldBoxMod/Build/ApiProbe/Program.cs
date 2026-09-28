@@ -48,29 +48,49 @@ foreach (var type in assembly.MainModule.Types.Where(type => names.Contains(type
 if (args.Length == 2)
 {
     var loader = AssemblyDefinition.ReadAssembly(args[1]);
-    var loaderTypes = loader.MainModule.Types
-        .Where(type => type.Name.Contains("BasicMod", StringComparison.Ordinal)
+    foreach (var reference in loader.MainModule.AssemblyReferences)
+        Console.WriteLine("LOADER_REFERENCE " + reference.Name);
+
+    var allTypes = loader.MainModule.Types.Where(type => type.Namespace.StartsWith("NeoModLoader", StringComparison.Ordinal)).ToArray();
+    var mainTypes = allTypes.Where(type => type.Name.Contains("BasicMod", StringComparison.Ordinal)
             || type.Name.Contains("ModDeclare", StringComparison.Ordinal)
             || type.Name.Contains("ModSettings", StringComparison.Ordinal)
             || type.Name.Contains("ModStorage", StringComparison.Ordinal)
             || type.Name.Contains("WrappedBehaviour", StringComparison.Ordinal))
-        .OrderBy(type => type.FullName);
-    foreach (var type in loaderTypes)
+        .ToArray();
+    foreach (var type in mainTypes.OrderBy(type => type.FullName))
     {
         Console.WriteLine("LOADER_TYPE " + type.FullName);
         Console.WriteLine("  BASE " + (type.BaseType == null ? "<none>" : type.BaseType.FullName));
-        foreach (var method in type.Methods.Where(method =>
-            method.Name.StartsWith("OnMod", StringComparison.Ordinal)
-            || method.Name.Contains("Update", StringComparison.Ordinal)
-            || method.Name.Contains("Save", StringComparison.Ordinal)
-            || method.Name.Contains("Load", StringComparison.Ordinal)
-            || method.Name.Contains("Setting", StringComparison.Ordinal)))
+        foreach (var field in type.Fields)
+            Console.WriteLine("  FIELD " + field.FieldType.FullName + " " + field.Name);
+        foreach (var property in type.Properties)
+            Console.WriteLine("  PROPERTY " + property.PropertyType.FullName + " " + property.Name);
+        foreach (var method in type.Methods.Where(method => !method.IsConstructor))
         {
             var parameters = string.Join(", ", method.Parameters.Select(p => p.ParameterType.FullName + " " + p.Name));
             var visibility = method.IsPublic ? "public" : method.IsFamily ? "protected" : method.IsAssembly ? "internal" : "private";
             var modifiers = (method.IsStatic ? " static" : "") + (method.IsVirtual ? " virtual" : "");
             Console.WriteLine("  METHOD " + visibility + modifiers + " " + method.ReturnType.FullName + " " + method.Name + "(" + parameters + ") body=" + method.HasBody);
         }
+    }
+
+    var lifecycleTypes = allTypes.Where(type => !mainTypes.Contains(type)
+        && type.Methods.Any(method => method.Name.StartsWith("OnMod", StringComparison.Ordinal)
+            || method.Name == "Update" || method.Name == "LateUpdate" || method.Name == "FixedUpdate"
+            || method.Name == "OnApplicationQuit" || method.Name == "OnDestroy"
+            || method.Name.StartsWith("Save", StringComparison.Ordinal)
+            || method.Name.StartsWith("Load", StringComparison.Ordinal)))
+        .OrderBy(type => type.FullName);
+    foreach (var type in lifecycleTypes)
+    {
+        var methods = type.Methods.Where(method => method.Name.StartsWith("OnMod", StringComparison.Ordinal)
+            || method.Name == "Update" || method.Name == "LateUpdate" || method.Name == "FixedUpdate"
+            || method.Name == "OnApplicationQuit" || method.Name == "OnDestroy"
+            || method.Name.StartsWith("Save", StringComparison.Ordinal)
+            || method.Name.StartsWith("Load", StringComparison.Ordinal));
+        foreach (var method in methods)
+            Console.WriteLine("LOADER_LIFECYCLE " + type.FullName + " " + method.Name + " body=" + method.HasBody);
     }
 }
 return 0;
