@@ -10,9 +10,9 @@ Last verified: 2026-09-28. This file distinguishes the current runtime investiga
 | Earlier checked loader candidate | 0.50.6, versionCode 692; outer SHA-256 `7393781d0534737156081b87270105ecab5743abe0b0c3c37dc851273b1b8fbe` | Rebuild seed source; not an installable upgrade to the official app |
 | Reconstructed unsigned loader seed | SHA-256 `0d7649e334bfb61952a37d81a20347a2c6e3bb49897d13bb4b844de94e0e1d14` | Reproducible loader/game files only; device compatibility remains unproved |
 | Existing version 693 candidate | Outer SHA-256 `97f75b226f46f1a07eebcbc360af81eebcb965103874b54533d8e28e4f830563`; inner SHA-256 `99382589cfa38585e77da064557512f9c0c29affcbca8bbc951b4fdf74ecaafe` | Static archive and payload checks only; still contains source mod 0.2.5 |
-| Source now under construction | LordWarMod 0.3.0 | Changes bomb-tab routing and human-only city/person selection; repaired compile run pending |
+| Source now under construction | LordWarMod 0.3.0 | Bomb-tab routing and 12 grouped entries passed CI compile/package in run `36372968185`; a new U001 approval/recruit path is awaiting its own compile and remains device-unverified |
 
-The first 0.3.0 Android compile failed because the pinned NML wrapper exposes `_power_buttons` as `Il2CppSystem.Collections.Generic.List<PowerButton>`, not a .NET `List<PowerButton>`. The source now copies entries explicitly; the repaired compile is pending. This is a confirmed source compilation defect, separate from the still undetermined device startup failure.
+The first 0.3.0 Android compile failed because the pinned NML wrapper exposes `_power_buttons` as `Il2CppSystem.Collections.Generic.List<PowerButton>`, not a .NET `List<PowerButton>`. The source now copies entries explicitly. That repair, the bomb-category rebind, twelve entries and human qualification compiled and packaged successfully in GitHub Actions run `36372968185`. The accompanying API probe lists `City.checkCanMakeWarrior(Actor)` and `City.makeWarrior(Actor)` as public, while `City.tryToMakeWarrior(Actor)` is private. The new source uses only the public methods, adds one session-only recruitment request, approve/reject/defer actions, 27 native city gold, and verifies the original actor/army after `makeWarrior`. Its compile is pending; all gameplay behavior remains device `NOT_RUN`.
 
 ## Current first unverified runtime transition
 
@@ -40,4 +40,4 @@ Set `LORDWAR_KEYSTORE_PASS` through the local secret environment. Before running
 
 ## Payload scope
 
-`package_mod.py` emits only `mod.json` and `LordWarMod.cs`. It deliberately omits the legacy parallel simulation and CSV/JSON inputs because the live adapter does not consume them. CI generates `WorldBox_Adapter_Map.csv`, which inventories 3,920 data rows/leaves and marks them `NOT_STARTED`; the `WorldBox-LordWar-adaptation-map` workflow artifact is an audit ledger, not working game data. Never describe any row as adapted until the Android runtime code consumes it and its resulting WorldBox behavior is verified.
+`package_mod.py` emits only `mod.json` and `LordWarMod.cs`. It deliberately omits the legacy parallel simulation and CSV/JSON inputs because the live adapter does not consume them. CI generates `WorldBox_Adapter_Map.csv`, which inventories 3,920 data rows/leaves. The pending source version marks only U001 `SOURCE_ADAPTED_RUNTIME_UNVERIFIED`; all other rows remain `NOT_STARTED`. The `WorldBox-LordWar-adaptation-map` workflow artifact is an audit ledger, not working game data. No source row is verified as functioning in WorldBox until device behavior is tested.

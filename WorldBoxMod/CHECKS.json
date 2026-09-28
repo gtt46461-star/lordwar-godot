@@ -201,11 +201,11 @@
   },
   "runtime_compilation": {
     "core": "PASS (.NET 8 csc)",
-    "NML_android_reference_compile": "PASS (GitHub Actions 36321362788; public AndroidModLoader references and mobile 2.0; 0 warnings, 0 errors; not target APK runtime proof)",
+    "NML_android_reference_compile": "PASS for 12-entry bomb-category integration in GitHub Actions run 36372968185; current native recruitment addition pending a separate compile; neither result proves Android runtime behavior",
     "on_device": "NOT_RUN"
   },
-  "device_test": "NOT_RUN (no connected arm64 Android device or emulator; loader, native UI, WorldBox state, save/restart unverified)",
-  "apk_build": "SIGNED_STATIC_CANDIDATE (0.50.6 outer and inner APKs built, signature/content verified; installation and runtime NOT_RUN)",
+  "device_test": "NOT_RUN: no connected arm64 Android device/emulator; no current candidate install/launch/gameplay evidence",
+  "apk_build": "NO current-source APK; candidate 693 statically contains the older 0.2.5 mod. Do not infer current-source runtime from it.",
   "source_file_hashes_mean": "Original uploaded R30 hashes; modified_files gives ported hashes.",
   "modified_files": [
     {
@@ -355,7 +355,7 @@
   "android_construction_0_3_0": {
     "date": "2026-09-28",
     "branch": "construction/worldbox-android-mod",
-    "status": "SOURCE_MODIFIED; CI_REPAIR_PENDING; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN",
+    "status": "SOURCE_MODIFIED; BASE_ENTRY_CI_PASS; NATIVE_RECRUITMENT_CI_PENDING; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN",
     "base_game": {
       "package": "com.mkarpenko.worldbox",
       "version": "0.50.6",
@@ -377,8 +377,9 @@
     "data_input_inventory": {
       "file": "WorldBox_Adapter_Map.csv (GitHub Actions artifact: WorldBox-LordWar-adaptation-map)",
       "records": 3920,
-      "mapped_to_runtime": 0,
-      "status": "NOT_STARTED for every row; ledger only, not included in mod payload",
+      "source_rows_with_runtime_callsite": 1,
+      "runtime_verified_rows": 0,
+      "status": "U001 SOURCE_ADAPTED_RUNTIME_UNVERIFIED; remaining 3919 NOT_STARTED; mapping CSV is an audit ledger and excluded from active payload",
       "key_counts": {
         "regular_units": 156,
         "special_units": 120,
@@ -389,10 +390,10 @@
     "core_acceptance": {
       "stage_1_original_start_enter_save": "NOT_RUN",
       "stage_2_basic_hook_original_world": "NOT_RUN",
-      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN",
+      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN; 12-entry source and bomb-tab rebind compiled/packaged in run 36372968185; device not tested",
       "stage_4_native_city_actor_appointment_original_details": "NOT_RUN",
       "stage_5_save_exit_reload_extension_state": "NOT_RUN; extension persistence not implemented",
-      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; not in active mod"
+      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; U001 single-slot proposal and native warrior conversion code pending compile/runtime; no movement, battle, exactly-once result, persistent queue or AI parity; stages 1-5 not passed"
     },
     "latest_runtime_trace": {
       "observed": "MelonLoader 0.6.5; Android 14; Il2Cpp x64 configuration; Runtime Type net8",
@@ -401,7 +402,7 @@
       "current_first_failure": "UNDETERMINED; next transition after .NET 8 startup is not evidenced",
       "old_il2cpp_init_report": "Historical only; not the failure established by the latest log"
     },
-    "compile_and_package": "Initial CI FAIL in push run 36372720593 and PR run 36372723621: System.Collections.Generic.List constructor rejected Il2CppSystem.Collections.Generic.List<PowerButton>; corrected to explicit foreach copy; repaired CI pending",
+    "compile_and_package": "PASS for base 12-entry source in GitHub Actions run 36372968185 (compile, syntax check, map inventory, mod ZIP and artifacts). Current U001 recruitment addition is not yet committed/compiled.",
     "initial_compile_attempt": {
       "push_run": 36372720593,
       "pull_request_run": 36372723621,
@@ -414,6 +415,28 @@
     "device": "NOT_RUN; adb unavailable",
     "signing": "BLOCKED; local candidate JKS available but LORDWAR_KEYSTORE_PASS unavailable; candidate cert a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13 differs from original cert 37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b; cover install unverified",
     "modified_source_pre_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e",
-    "diff_review": "CI failure reviewed; fixed source diff awaits repaired build"
+    "diff_review": "Current LordWarMod.cs and build_adaptation_map.py diffs reviewed. API probe from run 36372968185 showed tryToMakeWarrior is private; source corrected to public makeWarrior. Per-file before/after hashes, diff IDs, callsites and validation states are recorded in MODIFICATION_EVIDENCE.json.",
+    "new_source_adaptation": {
+      "unit_id": "U001",
+      "old_rules": "27 recruitment gold; 3 training days",
+      "source_route": "SubmitRecruitmentRequest -> ApproveRecruitmentRequest -> public City.checkCanMakeWarrior(Actor) -> City.takeResource(String,Int32) -> public City.makeWarrior(Actor) -> Actor.isWarrior() and Actor.army.getCity().getID() readback",
+      "behavior_difference": "3 training days are compressed into immediate approval; vanilla profession, city equipment, weapon supply and Army membership remain authoritative. Proposal exists only in session memory.",
+      "compile": "PENDING",
+      "device_runtime": "NOT_RUN",
+      "scope_limit": "No native movement order, battle or result settlement yet; other 275 unit rows remain NOT_STARTED",
+      "api_probe": "GitHub Actions run 36372968185 native-api-probe.txt: City.checkCanMakeWarrior(Actor) public Boolean; City.makeWarrior(Actor) public Void; City.tryToMakeWarrior(Actor) private Boolean and therefore not called directly",
+      "direct_private_method_call": "NO"
+    },
+    "compile_and_package_history": {
+      "initial_failure_runs": [
+        36372720593,
+        36372723621
+      ],
+      "initial_failure": "C# CS1503: System.Collections.Generic.List constructor cannot consume Il2CppSystem.Collections.Generic.List<PowerButton>",
+      "repair": "Copy IL2CPP button list element-by-element for rollback snapshot",
+      "repair_ci_pass_run": 36372968185,
+      "repair_ci_scope": "pre-recruitment 12-entry integration only",
+      "current_change_ci": "PENDING"
+    }
   }
 }

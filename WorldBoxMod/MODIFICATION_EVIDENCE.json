@@ -1,0 +1,136 @@
+{
+  "title": "LordWar WorldBox Android source modification evidence",
+  "date": "2026-09-28",
+  "remote_branch_base_commit": "9f28a0d65bf8ddc27aff1898ba287af19d4630be",
+  "local_review_base_commit": "af2c9d3f5b1f92243c237fae5e22fddac60ff866",
+  "base_tree_sha256": "1e03a05abee3d4e6c8bbfd36297769105ba3dc40",
+  "target": "WorldBox Android 0.50.6 / 0.50.6+688 / ARM64 IL2CPP",
+  "source_change_status": "U001 SOURCE_ADAPTED_RUNTIME_UNVERIFIED; new native recruit C# compile pending; device NOT_RUN",
+  "api_reference_evidence": {
+    "workflow_run": 36372968185,
+    "artifact_id": 10950017131,
+    "artifact_sha256": "d55aea375cae8f1884e7873ea1e598eacf547523318cbfe4f630948a92ef1ff1",
+    "reference_assemblies": "pinned AndroidModLoader commit 165fe841f832b7e64dd54cef815ab2b9d5ffed7b",
+    "method_signatures": [
+      "FIELD System.IntPtr NativeMethodInfoPtr_tryToMakeWarrior_Private_Boolean_Actor_0",
+      "FIELD System.IntPtr NativeMethodInfoPtr_checkCanMakeWarrior_Public_Boolean_Actor_0",
+      "FIELD System.IntPtr NativeMethodInfoPtr_makeWarrior_Public_Void_Actor_0",
+      "METHOD System.Boolean tryToMakeWarrior(Actor pActor)",
+      "METHOD System.Boolean checkCanMakeWarrior(Actor pActor)",
+      "METHOD System.Void makeWarrior(Actor pActor)"
+    ],
+    "caveat": "Generated reference-assembly API probe proves names/accessibility in the pinned reference, not the target Android method effect or runtime stability."
+  },
+  "source_input_evidence": {
+    "path": "WorldBoxMod/LordWarMod/Data/units_v8.csv",
+    "sha256": "f5c9e4ca008f050c454712eb182989eda641ce7a2124017ef1158489d0e9ebe8",
+    "source_row": "U001",
+    "old_rule": "27 recruitment gold; 3 training days",
+    "adaptation": "27 native city gold; 3-day training delay folded into approval; original Actor, native equipment and native Army remain authoritative."
+  },
+  "static_artifact_evidence": {
+    "map_rows": 3920,
+    "map_status_counts": {
+      "NOT_STARTED": 3919,
+      "SOURCE_ADAPTED_RUNTIME_UNVERIFIED": 1
+    },
+    "map_sha256": "4dca9b63af53573389b9bf8e4b1188a32ee831141f05eaa2c05f3513114d0f89",
+    "mod_active_files": [
+      {
+        "path": "LordWarMod/mod.json",
+        "size": 288,
+        "sha256": "60bd049eaf02ee5e197c94fed2f12c187be8b9a1d8756ae600012ea09684e390"
+      },
+      {
+        "path": "LordWarMod/LordWarMod.cs",
+        "size": 45670,
+        "sha256": "0347fa3698564b8368439bb7d7d4a4e2fa98223e3ec84a2c82d59870250f783d"
+      }
+    ],
+    "mod_zip_sha256": "51ccff04f2c7281db75fc77295a8fcb18d06cf83e6430d3e956a78d2de8c470d",
+    "mod_active_paths": [
+      "LordWarMod/mod.json",
+      "LordWarMod/LordWarMod.cs"
+    ],
+    "api_accessibility_assertion": "PASS: public checkCanMakeWarrior/makeWarrior, private tryToMakeWarrior; source does not call private method",
+    "Csharp_compile_for_current_changes": "PENDING_GITHUB_ACTIONS",
+    "apk_build": "NOT_BUILT",
+    "device": "NOT_RUN"
+  },
+  "modified_files": [
+    {
+      "path": "WorldBoxMod/LordWarMod/LordWarMod.cs",
+      "before_read": "git show HEAD:WorldBoxMod/LordWarMod/LordWarMod.cs",
+      "before_sha256": "324431bc2a1762d8bbc28d1108d5a11974fae4990b13fd077222f74de15cb458",
+      "edit": "Adds one session-only proposal slot and U001 recruit approval. Approval charges native City gold, uses public native eligibility and warrior-conversion methods, and verifies original Actor/Army state.",
+      "after_read": "read modified file from workspace",
+      "after_sha256": "0347fa3698564b8368439bb7d7d4a4e2fa98223e3ec84a2c82d59870250f783d",
+      "git_diff_sha256": "c7de458357d98f2062fc164e9b30198f636d70880b3143e9b4a67dfe959a1765",
+      "git_diff_bytes": 15201,
+      "real_callsite_or_applicability": "RefreshCityWindow section index 8 -> SubmitRecruitmentRequest; RefreshProposalBox buttons -> ApproveRecruitmentRequest -> City.checkCanMakeWarrior(Actor), City.takeResource(String,Int32), City.makeWarrior(Actor), Actor.isWarrior(), Actor.army.getCity().getID().",
+      "validation": "Active two-file ZIP payload verified to contain the current C# source hash; compile of this new callsite PENDING; device runtime NOT_RUN."
+    },
+    {
+      "path": "WorldBoxMod/Build/build_adaptation_map.py",
+      "before_read": "git show HEAD:WorldBoxMod/Build/build_adaptation_map.py",
+      "before_sha256": "92f6b2a0c1e229282c52d2b04e2562e4c54d43bb0102d18e8e19c0028a236961",
+      "edit": "Adds behavior difference and runtime callsite columns; only U001 is source-adapted but runtime-unverified.",
+      "after_read": "read modified file from workspace",
+      "after_sha256": "6fa86875808fe147f7a5ea162278c687a8e396f59c1a593b16c4af1e0497c47b",
+      "git_diff_sha256": "a7829790f99ae9a85ca59a8bd3304189bb27a8d47a6db6435c05b93386aafa85",
+      "git_diff_bytes": 3806,
+      "real_callsite_or_applicability": "WorldBox Android workflow invokes the generator; generated 3,920-row inventory has one U001 callsite row and 3,919 NOT_STARTED.",
+      "validation": "python -m py_compile PASS; generator PASS; row-count/status assertion PASS."
+    },
+    {
+      "path": "WorldBoxMod/README.md",
+      "before_read": "git show HEAD:WorldBoxMod/README.md",
+      "before_sha256": "2460bb6b26fdea3b5dcff723c9c26879b7bf17fa072d666a46c9c404bdd7d3a7",
+      "edit": "Updates current implementation scope and remaining work.",
+      "after_read": "read modified file from workspace",
+      "after_sha256": "6d5a90618cfc8540824ada5fe03150bc6894d5913c64f33b92be6852878a4453",
+      "git_diff_sha256": "b8956675051eb993e996cd290d46dc569c61d93a5663a1c5fc899e34e2079006",
+      "git_diff_bytes": 4628,
+      "real_callsite_or_applicability": "Documentation only; records code callsite and API accessibility finding.",
+      "validation": "Readback PASS; git diff --check PASS."
+    },
+    {
+      "path": "WorldBoxMod/Build/ANDROID_CANDIDATE.md",
+      "before_read": "git show HEAD:WorldBoxMod/Build/ANDROID_CANDIDATE.md",
+      "before_sha256": "d258250c7b012a74454ead219afa8b9e22bf89d7e6f73192e44a703d892234d0",
+      "edit": "Updates CI/runtime state and method accessibility evidence.",
+      "after_read": "read modified file from workspace",
+      "after_sha256": "adde1b5caba174c63a50d2062dba0a7ae84b42a31b31096fbb59b967239414dc",
+      "git_diff_sha256": "23cf34595218f98bfeeae7e878cef6c387714763d4d409b9aac15ef4f0611d95",
+      "git_diff_bytes": 3812,
+      "real_callsite_or_applicability": "Documentation only; records pinned API signature probe.",
+      "validation": "Readback PASS; git diff --check PASS."
+    },
+    {
+      "path": "WorldBoxMod/CORE_ACCEPTANCE.csv",
+      "before_read": "git show HEAD:WorldBoxMod/CORE_ACCEPTANCE.csv",
+      "before_sha256": "487d2219e5d9981f803fcb592cc32e404c035462e80939400db194e2713715a6",
+      "edit": "Updates UI stage and end-to-end recruitment gate evidence/status.",
+      "after_read": "read modified file from workspace",
+      "after_sha256": "334b1002ade8ae18d8546f6db619e6b19da29ccce9e3d57192c050cf31bc1678",
+      "git_diff_sha256": "660bbbf63dcab5d587bd4a3420d9b2eb51ee692fbf00d98c47e0c8773a5d333f",
+      "git_diff_bytes": 3287,
+      "real_callsite_or_applicability": "Acceptance gates, no runtime code.",
+      "validation": "CSV parse PASS; runtime statuses remain NOT_RUN/BLOCKED."
+    },
+    {
+      "path": "WorldBoxMod/CHECKS.json",
+      "before_read": "git show HEAD:WorldBoxMod/CHECKS.json",
+      "before_sha256": "df1fee9860b9fe491f6ac5d59353ae2b05d129b9605afdc16d4d88cae638df15",
+      "edit": "Updates compile, map, runtime and failure-point facts; records only evidence-backed source adaptation.",
+      "after_read": "read modified file from workspace",
+      "after_sha256": "49f1eca913921d1a26d7abc0185de24d460406a4007a6166f65b3f4ba3b683b3",
+      "git_diff_sha256": "ebca7bfd3d389ccc9aa33723363861d5b2877e19cd86b10e1a8bc9d4c35d2ca9",
+      "git_diff_bytes": 6710,
+      "real_callsite_or_applicability": "Audit record referring to source callsites and CI API probe.",
+      "validation": "JSON parse PASS; runtime not marked PASS."
+    }
+  ],
+  "new_file_note": "This manifest is added in this change. Its committed Git blob SHA identifies the post-edit content; it is not self-referenced.",
+  "diff_check": "PASS"
+}

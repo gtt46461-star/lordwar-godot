@@ -4,11 +4,13 @@
 
 当前工作分支为 `construction/worldbox-android-mod`，目标母体为用户的 WorldBox Android 0.50.6（外层 APK SHA-256 `77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`）。源码版本从 0.2.5 提升到 0.3.0，实际运行入口 `LordWarMod.OnModLoad()` 会创建12个主入口，读取原版炸弹分类图标，并尝试把原版 `destruction` 分类的按钮、回调和注册键重绑到该12项面板。反射契约缺失时会隐藏临时分类并保留原版炸弹工具；被任命居民必须是原版 `human` asset 且仍是该原版城市成年居民，领主起始城市必须属于人类国家。任命后仍直接检查 WorldBox `City`、`Kingdom`、`Army` 字段。
 
-这是已修改的源码，不是已验证的 APK。当前候选 693 仍装载 0.2.5。首轮 0.3.0 CI 编译发现并拒绝了 .NET 集合与 IL2CPP 集合直接转换；已把回滚快照改为逐项复制，修复提交的 CI 编译待跑。最新设备日志可见 MelonLoader 0.6.5 的 .NET 8 启动阶段，然后中止记录；没有异常栈或模组进入标记，故实际失败调用仍未定位。该日志也没有精确的已安装 APK build ID。旧日志的 `il2cpp_init` 缺失不能代替当前诊断。当前环境没有 `adb`，本地也没有 .NET CLI。不得用未验证的同一加载器重发 APK。见 [`Build/ANDROID_CANDIDATE.md`](Build/ANDROID_CANDIDATE.md)。
+这是正在施工的源码，不是已验证的 APK。此前版本的 12 主入口与炸弹分类重绑定代码已在 GitHub Actions run `36372968185` 编译和打包通过；本次新增的单一政务申请槽及原版征募调用尚待下一轮 CI。入口当前新增 U001 乡兵路径：原版人类居民申请、审批、按 27 金币扣原版城市资源，再调用目标 API 签名公开的 `City.makeWarrior(Actor)`，以原版 Actor/Army 回读为准。目标 API 清单确认相近的 `tryToMakeWarrior(Actor)` 是 private，代码不直接调用它。源方案 3 天训练被折叠为批准时即时执行。这项代码尚未实机验证，兵种映射表其他 3,919 项也未接入。当前候选 693 仍装载旧版 0.2.5。
+
+最新设备日志可见 MelonLoader 0.6.5 的 .NET 8 启动阶段，然后记录结束；没有异常栈、游戏信息或模组进入标记，且没有精确的已安装 APK build ID，所以 .NET 8 之后的第一个失败调用仍未定位。旧日志的 `il2cpp_init` 缺失不能代替当前诊断。当前环境没有 `adb`，本地也没有 .NET CLI。不得用未验证的同一加载器重发 APK。见 [`Build/ANDROID_CANDIDATE.md`](Build/ANDROID_CANDIDATE.md)。
 
 现有用户签名 JKS 可读取，但 `LORDWAR_KEYSTORE_PASS` 不在当前执行环境；候选测试证书与原包官方签名不同，覆盖安装兼容性没有证据。版本号 694 暂留给修复并通过启动关卡后的 APK。最新设备安装、原版存档、点击炸弹栏、任命、重启读档、申请批准、真实征募、战斗和战果状态一律为 `NOT_RUN`。
 
-适配盘点由 [`build_adaptation_map.py`](Build/build_adaptation_map.py) 逐项生成，列出旧 CSV/JSON 的 3,920 条输入和面向原版实体/方法的适配路线；当前全部标为 `NOT_STARTED`，CI 产物名为 `WorldBox-LordWar-adaptation-map`。它不参与运行包。0.3.0 只提供入口、原版人类城市/人物筛选、城市资源和建筑只读显示，以及原版王都、城主、军队长命令代码；这几项仍待运行验证。政务箱、审批及保存、官职体系、家族、军队编制、兵种和装备、补给、指挥、围城外交、AI同规则及其他核心玩法尚未完成。
+适配盘点由 [`build_adaptation_map.py`](Build/build_adaptation_map.py) 逐项生成，列出旧 CSV/JSON 的 3,920 条输入和面向原版实体/方法的适配路线。本次将 U001 记为 `SOURCE_ADAPTED_RUNTIME_UNVERIFIED`，并在映射行写明 27 金币、原版资格、公开 `City.makeWarrior(Actor)` 调用，以及 3 天训练被折叠的行为差异；目标 API 清单中的私有 `tryToMakeWarrior(Actor)` 不会被模组直接调用。其余 3,919 项仍为 `NOT_STARTED`。映射表由 CI 作为 `WorldBox-LordWar-adaptation-map` 产物发布，不参与运行包。城市建设、完整官职与家族体系、军队编制、其他兵种与装备、补给、军令、战斗、围城外交、AI同规则、扩展状态存档尚未完成。
 
 ## 目标版本裁决（2026-09-27）
 

@@ -18,6 +18,8 @@ namespace LordWar.AndroidMod
         private const string WindowId = "lordwar_city_window";
         private const string SelectPowerId = "lordwar_select_city";
         private const string HumanAssetId = "human";
+        private const string FirstMappedUnitId = "U001";
+        private const int FirstMappedUnitGoldCost = 27;
         private const BindingFlags PrivateStatic = BindingFlags.Static | BindingFlags.NonPublic;
         private static readonly MainSection[] MainSections =
         {
@@ -30,15 +32,15 @@ namespace LordWar.AndroidMod
             new MainSection("population", "人口职业", "economy", "读取原版人类居民与原版战士。",
                 "成年人类和原版战士只读统计已接入；完整职业分配和人口政策尚未完成。"),
             new MainSection("proposals", "政务审批", "government", "政务请求审批入口。",
-                "尚未完成：请求箱、同意、拒绝、稍后和重开恢复均未接入。"),
+                "已接入单一会话内的乡兵申请、同意、拒绝、稍后；多类固定政务箱和申请存档尚未完成。"),
             new MainSection("officials", "官员任免", "government", "从原版成年人类居民中任命原版城主。",
                 "原版城主任命和回读确认已接入；完整官职资格、任期和替补规则尚未完成。"),
             new MainSection("generals", "将军与家族", "army", "读取原版军队并任命原版军队长。",
                 "原版军队长任命和回读确认已接入；将军履历、家族系统和其他军职尚未完成。"),
             new MainSection("units", "兵种解锁", "army", "查看人类兵种与装备适配进度。",
-                "尚未完成：156 常规兵种和 120 特殊兵种尚未逐项映射到原版职业与装备行为。"),
+                "源码适配 U001 乡兵：调用原版征募资格和战士职业，27 金币；3 天训练折叠到批准时完成。其余 155 常规与 120 特殊兵种未映射。"),
             new MainSection("recruitment", "征募训练", "recruitment", "真实居民征募和训练。",
-                "尚未完成：没有征募、资源扣除、训练队列或原版军队入伍命令。"),
+                "源码接入：原版人类居民申请，经批准扣除 27 原版城市金币，再调用公开的原版 City.makeWarrior；训练时长折叠，申请队列暂不持久化。"),
             new MainSection("equipment", "装备成长", "recruitment", "原版人物装备与成长。",
                 "尚未完成：没有装备消耗、装备成长、耐久或升级规则接入。"),
             new MainSection("skills", "技能特性", "policies", "技能和特性适配进度。",
@@ -52,6 +54,10 @@ namespace LordWar.AndroidMod
         private long _actorId = -1;
         private int _activeSection;
         private string _status = "请选择原版城市";
+        private long _pendingRecruitCityId = -1;
+        private long _pendingRecruitKingdomId = -1;
+        private long _pendingRecruitActorId = -1;
+        private string _proposalMessage = "当前没有待审批申请";
 
         protected override void OnModLoad()
         {
@@ -457,6 +463,11 @@ namespace LordWar.AndroidMod
             AddText(content, "领主战争 · 原版城市", 40f);
             MainSection section = MainSections[_activeSection];
             AddText(content, section.Title + " · " + section.Description, 58f);
+            if (_activeSection == 4)
+            {
+                RefreshProposalBox(content);
+                return;
+            }
             global::City city = ResolveCity();
             if (city == null)
             {
@@ -516,6 +527,12 @@ namespace LordWar.AndroidMod
             {
                 AddText(content, "政务箱、政策效果、外交附庸、军团命令与行军补给都尚未接入原版世界。", 58f);
             }
+            else if (_activeSection == 8)
+            {
+                AddText(content, "征募来源：" + FirstMappedUnitId + " 乡兵。批准时扣原版城市库存金币 " +
+                    FirstMappedUnitGoldCost + "，按 WorldBox 原版 checkCanMakeWarrior/makeWarrior 执行；" +
+                    "旧表 3 天训练压缩为审批即完成，使用原版武器和装备，不生成额外人物。", 76f);
+            }
             AddText(content, "本入口状态：" + section.Status, 64f);
 
             global::Army army = city.army;
@@ -547,7 +564,209 @@ namespace LordWar.AndroidMod
             }
             if (_activeSection == 0 || _activeSection == 6)
                 AddAction(content, "任命所选人类士兵为军队长", AppointArmyCaptain);
+            if (_activeSection == 8)
+                AddAction(content, "申请征募所选人类为乡兵", SubmitRecruitmentRequest);
             AddText(content, _status, 65f);
+        }
+
+        private void RefreshProposalBox(Transform content)
+        {
+            AddText(content, "固定政务箱（当前只含一个会话内的乡兵申请槽）", 52f);
+            if (_pendingRecruitActorId < 0)
+            {
+                AddText(content, "没有待审批的乡兵申请。未批准的申请目前不跨进程/存档保存。", 58f);
+                AddText(content, _proposalMessage, 52f);
+                return;
+            }
+
+            global::City city = ResolveNativeCity(_pendingRecruitCityId, _pendingRecruitKingdomId);
+            global::Actor actor = ResolvePendingRecruit(city);
+            AddText(content, "申请：将原版人类居民转为 " + FirstMappedUnitId + " 乡兵；" +
+                "申请金币 " + FirstMappedUnitGoldCost + "；城市ID " + _pendingRecruitCityId +
+                "，人物ID " + _pendingRecruitActorId, 76f);
+            if (city == null || actor == null)
+            {
+                AddText(content, "申请对象已死亡、离城、转属或世界已改变；不能批准。", 58f);
+                AddAction(content, "清除失效申请", RejectRecruitmentRequest);
+                AddText(content, _proposalMessage, 52f);
+                return;
+            }
+
+            AddText(content, "当前原版人物：" + actor.getName() +
+                "；当前城市：" + city.name + "；审批前不会扣资源或更改职业。", 58f);
+            AddAction(content, "同意并按原版规则征募", ApproveRecruitmentRequest);
+            AddAction(content, "拒绝申请", RejectRecruitmentRequest);
+            AddAction(content, "稍后处理", DeferRecruitmentRequest);
+            AddText(content, _proposalMessage, 52f);
+        }
+
+        private void SubmitRecruitmentRequest()
+        {
+            global::City city = ResolveCity();
+            global::Actor actor = ResolveActor(city);
+            if (_pendingRecruitActorId >= 0)
+                _status = "政务箱已有待审批乡兵申请；先处理或拒绝它";
+            else if (city == null || actor == null)
+                _status = "城市或人物已变化，申请未提交";
+            else if (actor.isWarrior() || actor.isKing() ||
+                (city.leader != null && city.leader.getID() == actor.getID()))
+                _status = "所选人类已是战士、国王或城主，不符合乡兵申请资格";
+            else if (!city.checkCanMakeWarrior(actor))
+                _status = "WorldBox 原版城市当前不允许将此居民编为战士";
+            else
+            {
+                _pendingRecruitCityId = city.getID();
+                _pendingRecruitKingdomId = city.kingdom.getID();
+                _pendingRecruitActorId = actor.getID();
+                _proposalMessage = "待领主审批；当前不扣金币、不改人物职业";
+                _status = "乡兵申请已送入政务箱";
+            }
+            RefreshCityWindow();
+        }
+
+        private global::City ResolveNativeCity(long cityId, long kingdomId)
+        {
+            MapBox world = MapBox.instance;
+            if (world == null || world.cities == null || cityId < 0) return null;
+            world.cities.checkLists();
+            for (int index = 0; index < world.cities.list.Count; index++)
+            {
+                global::City city = world.cities.list[index];
+                if (city == null || city.isRekt() || city.getID() != cityId ||
+                    city.kingdom == null || city.kingdom.getID() != kingdomId ||
+                    !IsHumanKingdom(city.kingdom)) continue;
+                return city;
+            }
+            return null;
+        }
+
+        private global::Actor ResolvePendingRecruit(global::City city)
+        {
+            if (city == null || _pendingRecruitActorId < 0) return null;
+            foreach (global::Actor actor in city.units)
+                if (actor != null && actor.getID() == _pendingRecruitActorId && BelongsToCity(actor, city))
+                    return actor;
+            return null;
+        }
+
+        private void DeferRecruitmentRequest()
+        {
+            if (_pendingRecruitActorId >= 0)
+            {
+                _proposalMessage = "已标记稍后；申请仍待审批，不扣资源";
+                _status = _proposalMessage;
+            }
+            RefreshCityWindow();
+        }
+
+        private void RejectRecruitmentRequest()
+        {
+            ClearPendingRecruitment();
+            _proposalMessage = "乡兵申请已拒绝或清除；未扣资源、未更改人物";
+            _status = _proposalMessage;
+            RefreshCityWindow();
+        }
+
+        private void ApproveRecruitmentRequest()
+        {
+            global::City city = ResolveNativeCity(_pendingRecruitCityId, _pendingRecruitKingdomId);
+            global::Actor actor = ResolvePendingRecruit(city);
+            if (city == null || actor == null)
+            {
+                _proposalMessage = "审批失败：原版城市或人类居民已死亡、离城或转属";
+                _status = _proposalMessage;
+                RefreshCityWindow();
+                return;
+            }
+            if (actor.isWarrior() || actor.isKing() ||
+                (city.leader != null && city.leader.getID() == actor.getID()) ||
+                !city.checkCanMakeWarrior(actor))
+            {
+                _proposalMessage = "审批失败：WorldBox 原版资格已变化，申请仍保留供稍后处理或拒绝";
+                _status = _proposalMessage;
+                RefreshCityWindow();
+                return;
+            }
+
+            int goldBefore = city.getResourcesAmount("gold");
+            if (goldBefore < FirstMappedUnitGoldCost)
+            {
+                _proposalMessage = "审批失败：原版城市库存金币不足；申请仍保留";
+                _status = _proposalMessage;
+                RefreshCityWindow();
+                return;
+            }
+
+            try
+            {
+                city.takeResource("gold", FirstMappedUnitGoldCost);
+                int goldAfterPayment = city.getResourcesAmount("gold");
+                if (goldAfterPayment != goldBefore - FirstMappedUnitGoldCost)
+                {
+                    if (goldAfterPayment < goldBefore)
+                        city.addResources("gold", goldBefore - goldAfterPayment);
+                    _proposalMessage = "审批失败：原版城市没有准确扣除乡兵费用，未发出征募命令";
+                    _status = _proposalMessage;
+                    RefreshCityWindow();
+                    return;
+                }
+
+                city.makeWarrior(actor);
+                bool becameWarrior = !actor.isRekt() && actor.isWarrior();
+                if (becameWarrior)
+                {
+                    long actorId = actor.getID();
+                    global::Army army = actor.army;
+                    bool assignedToOriginalArmy = army != null && army.getCity() != null &&
+                        army.getCity().getID() == city.getID();
+                    ClearPendingRecruitment();
+                    _proposalMessage = assignedToOriginalArmy
+                        ? "批准完成：原版人类人物ID " + actorId + " 已转为战士并加入原版城市军队"
+                        : "原版已将人物ID " + actorId + " 转为战士，但军队归属回读未确认；金币已按实际职业变化保留";
+                    _status = _proposalMessage;
+                    LogInfo("LordWar native recruitment city=" + city.getID() +
+                        " actor=" + actorId + " makeWarrior_called=true" +
+                        " warrior=" + becameWarrior + " army_confirmed=" + assignedToOriginalArmy);
+                }
+                else
+                {
+                    int goldBeforeRefund = city.getResourcesAmount("gold");
+                    city.addResources("gold", FirstMappedUnitGoldCost);
+                    int refunded = city.getResourcesAmount("gold") - goldBeforeRefund;
+                    _proposalMessage = "征募失败；原版费用返还 " + refunded + "/" +
+                        FirstMappedUnitGoldCost + " 金币；申请仍保留";
+                    _status = _proposalMessage;
+                    LogInfo("LordWar native recruitment failed city=" + city.getID() +
+                        " actor=" + actor.getID() + " returned=" + refunded);
+                }
+            }
+            catch (Exception error)
+            {
+                bool becameWarriorBeforeError = actor != null && !actor.isRekt() && actor.isWarrior();
+                if (becameWarriorBeforeError)
+                {
+                    ClearPendingRecruitment();
+                    _proposalMessage = "原版人物已转为战士后发生异常；为防止重复征募，费用不自动回滚，请核对原版城市库存";
+                }
+                else
+                {
+                    int goldCurrent = city.getResourcesAmount("gold");
+                    int missing = Math.Max(0, goldBefore - goldCurrent);
+                    if (missing > 0) city.addResources("gold", missing);
+                    _proposalMessage = "原版征募抛出错误；尝试返还 " + missing + " 金币；请检查城市库存";
+                }
+                _status = _proposalMessage;
+                LogInfo("LordWar native recruitment exception city=" + city.getID() +
+                    " actor=" + actor.getID() + " error=" + error);
+            }
+            RefreshCityWindow();
+        }
+
+        private void ClearPendingRecruitment()
+        {
+            _pendingRecruitCityId = -1;
+            _pendingRecruitKingdomId = -1;
+            _pendingRecruitActorId = -1;
         }
 
         private void AppointCityLeader()

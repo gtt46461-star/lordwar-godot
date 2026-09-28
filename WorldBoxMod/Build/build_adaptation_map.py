@@ -55,6 +55,7 @@ FIELDS = (
     "source_title",
     "planned_worldbox_route",
     "status",
+    "behavior_difference",
     "runtime_file_or_callsite",
     "input_record_json",
 )
@@ -76,15 +77,34 @@ def build(output):
                 raise ValueError(f"{path.name}: expected {EXPECTED[path.name]} records, found {len(records)}")
             key_field, title_field = KEY_FIELDS.get(path.name, ("ID", "名称"))
             for number, record in enumerate(records, 1):
+                source_id = record.get(key_field) or f"row-{number:04d}"
+                status = "NOT_STARTED"
+                behavior_difference = "尚未接入运行入口；当前无游戏内行为改变。"
+                runtime_callsite = "none; this inventory is not included in the active mod payload"
+                if path.name == "units_v8.csv" and source_id == "U001":
+                    if record.get("单兵招募金币") != "27" or record.get("训练天数") != "3":
+                        raise ValueError("U001 source data changed; review its WorldBox adaptation")
+                    status = "SOURCE_ADAPTED_RUNTIME_UNVERIFIED"
+                    behavior_difference = (
+                        "27原版城市金币按批准时扣除；旧表3天训练折叠为立即调用原版资格/征募方法；"
+                        "使用真实原版Actor和装备，不新增人物。实机行为仍未验证。"
+                    )
+                    runtime_callsite = (
+                        "LordWarMod.SubmitRecruitmentRequest/ApproveRecruitmentRequest -> "
+                        "public City.checkCanMakeWarrior(Actor), City.takeResource(String,Int32), "
+                        "public City.makeWarrior(Actor), Actor.isWarrior(), Actor.army.getCity().getID(); "
+                        "private tryToMakeWarrior is not called directly; device NOT_RUN"
+                    )
                 rows.append({
                     "source_file": str(path.relative_to(ROOT)),
                     "source_sha256": digest(path),
                     "source_row": number + 1,
-                    "source_id": record.get(key_field) or f"row-{number:04d}",
+                    "source_id": source_id,
                     "source_title": record.get(title_field) or "",
                     "planned_worldbox_route": ROUTES.get(path.name, "需先核对原版Actor/City/Kingdom/Building接口再决定适配去向"),
-                    "status": "NOT_STARTED",
-                    "runtime_file_or_callsite": "none; this inventory is not included in the active mod payload",
+                    "status": status,
+                    "behavior_difference": behavior_difference,
+                    "runtime_file_or_callsite": runtime_callsite,
                     "input_record_json": json.dumps(record, ensure_ascii=False, separators=(",", ":")),
                 })
         elif path.suffix.lower() == ".json":
@@ -112,6 +132,7 @@ def build(output):
                     "source_title": str(item),
                     "planned_worldbox_route": ROUTES.get(path.name, "需先核对原版对象和调用签名再决定适配去向"),
                     "status": "NOT_STARTED",
+                    "behavior_difference": "尚未接入运行入口；当前无游戏内行为改变。",
                     "runtime_file_or_callsite": "none; this inventory is not included in the active mod payload",
                     "input_record_json": json.dumps({"path": key, "value": item}, ensure_ascii=False, separators=(",", ":")),
                 })
