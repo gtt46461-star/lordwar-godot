@@ -201,7 +201,7 @@
   },
   "runtime_compilation": {
     "core": "PASS (.NET 8 csc)",
-    "NML_android_reference_compile": "PASS: GitHub Actions run 36374557691 compiled the current active Android NML source against pinned public AndroidModLoader references; this is reference compilation, not Android runtime proof",
+    "NML_android_reference_compile": "PASS: current active source compiled against pinned public AndroidModLoader references in GitHub Actions run 36379955527; reference compile is not Android runtime proof",
     "on_device": "NOT_RUN"
   },
   "device_test": "NOT_RUN: no connected arm64 Android device/emulator; current source APK not installed or exercised",
@@ -390,10 +390,10 @@
     "core_acceptance": {
       "stage_1_original_start_enter_save": "NOT_RUN",
       "stage_2_basic_hook_original_world": "NOT_RUN",
-      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN; replacement/rebinding code compiled and packaged; device tap/no-bomb-action test absent",
+      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN; replacement/rebinding source compiled and packaged in run 36379955527; device tap/no-bomb-action test absent",
       "stage_4_native_city_actor_appointment_original_details": "NOT_RUN",
-      "stage_5_save_exit_reload_extension_state": "NOT_RUN; extension persistence not implemented",
-      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; U001 request/approve/recruit source now compiles, but device not run; no native movement, battle, exactly-once result, AI parity or persisted proposal; stages 1-5 not passed"
+      "stage_5_save_exit_reload_extension_state": "NOT_RUN; checksummed native-path sidecar and Harmony hooks implemented in source and compile/package PASS; actual save, process exit, reload and same-entity ID verification not run",
+      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; U001 request/approval/recruit plus save-state sidecar compile, but runtime is NOT_RUN; no native movement, battle, exactly-once result or AI parity; stages 1-5 not passed"
     },
     "latest_runtime_trace": {
       "observed": "MelonLoader 0.6.5; Android 14; Il2Cpp x64 configuration; Runtime Type net8",
@@ -402,7 +402,7 @@
       "current_first_failure": "UNDETERMINED; next transition after .NET 8 startup is not evidenced",
       "old_il2cpp_init_report": "Historical only; not the failure established by the latest log"
     },
-    "compile_and_package": "PASS in GitHub Actions run 36374557691: core compile/smoke, Android NML compile, API probe, 3920-row mapping check and source ZIP package. No APK or runtime test.",
+    "compile_and_package": "PASS in GitHub Actions run 36379955527: core compile/smoke, Android NML reference compile, API probe, 3,920-row mapping check, loader-tool compile and source ZIP package. No APK or device test.",
     "initial_compile_attempt": {
       "push_run": 36372720593,
       "pull_request_run": 36372723621,
@@ -425,7 +425,14 @@
       "scope_limit": "No native movement order, battle or result settlement yet; other 275 unit rows remain NOT_STARTED",
       "api_probe": "GitHub Actions run 36372968185 native-api-probe.txt: City.checkCanMakeWarrior(Actor) public Boolean; City.makeWarrior(Actor) public Void; City.tryToMakeWarrior(Actor) private Boolean and therefore not called directly",
       "direct_private_method_call": "NO",
-      "refund_api": "City.addResources is absent (compile failure); City.addResourcesToRandomStockpile(String,Int32) is public in the pinned API probe and now used with getResourcesAmount readback"
+      "refund_api": "City.addResources is absent (compile failure); City.addResourcesToRandomStockpile(String,Int32) is public in the pinned API probe and now used with getResourcesAmount readback",
+      "persistence": {
+        "status": "SOURCE_IMPLEMENTED_COMPILE_PASS_RUNTIME_NOT_RUN",
+        "source_route": "LordWarMod.OnModLoad -> InstallNativeSaveHooks -> Harmony postfixes on SaveManager.saveMapData(string,bool), saveWorldToDirectory(string,bool,bool), saveToCurrentPath(), and loadData(SavedMap,string)",
+        "behavior": "Checksummed sidecar under Application.persistentDataPath/LordWar/saves, keyed by normalized native save path; stores selected native IDs and pending U001 request IDs/messages; missing/corrupt state clears only LordWar extension references and never edits the native world",
+        "signature_basis": "Pinned AndroidModLoader reference API only; exact WorldBox 0.50.6 target signature and Harmony patch runtime remain unverified",
+        "verification": "NML compile and package PASS in run 36379955527; no device save/load round trip"
+      }
     },
     "compile_and_package_history": {
       "initial_failure_runs": [
@@ -436,7 +443,7 @@
       "repair": "Copy IL2CPP button list element-by-element for rollback snapshot",
       "repair_ci_pass_run": 36374557691,
       "repair_ci_scope": "Current 0.3.0 source including U001 request, approval, native warrior conversion, native stockpile refund and readback; build/package checks only",
-      "current_change_ci": "PENDING",
+      "current_change_ci": "PASS: commit cc5ba0f5262278420b97ada6672548a82e96f348, push run 36379955527; every workflow step completed successfully",
       "recruitment_attempts": [
         {
           "run": 36374187293,
@@ -450,7 +457,33 @@
         }
       ],
       "repair_after_failure": "Use public City.addResourcesToRandomStockpile(String,Int32), verify restored balance through City.getResourcesAmount",
-      "current_retry": "PASS"
+      "current_retry": "PASS run 36379955527; active ZIP includes the save-hook source",
+      "artifacts": {
+        "source_mod_artifact": {
+          "id": 10952855010,
+          "name": "LordWar-NML-source-mod-0.3.0",
+          "artifact_digest": "sha256:a2a5dd8c5186c160b10bf3e3ee3afb8b18dc979c6f1c1ff96c7bf807be7df42c"
+        },
+        "inner_mod_zip_sha256": "0462bd28d2578d155e392cb77f67d1aa06ae206d8a7dfb5b36dda20f2a23d96f",
+        "active_source_sha256": "1081dc3a9a36c9c5e6a256174afe6afd8c207b5475cecb596dbe22e8d4141898",
+        "compile_check_artifact": {
+          "id": 10952855008,
+          "digest": "sha256:2420d2288f43d3b4e1a29b4d4dbaeb61a1651431c0a80251fea034e98cf29ab1"
+        },
+        "mapping_artifact": {
+          "id": 10951954922,
+          "digest": "sha256:031922a77a4ed032abdd1f050cc79723b68789e7d0af4ccf9b4a1da2a913cc30"
+        },
+        "reference_api_artifact": {
+          "id": 10952188442,
+          "digest": "sha256:72410695df93b146ed81c2f033d018682f306eb8f7196c2b83f25280f1cd5f56"
+        },
+        "packaging_tools_artifact": {
+          "id": 10952128998,
+          "digest": "sha256:35f9040910b31e3b58b2526128392b5b43c1d5acb53db7b5a3b6df95c2dbe757"
+        }
+      },
+      "current_change_commit": "cc5ba0f5262278420b97ada6672548a82e96f348"
     },
     "artifacts": {
       "source_mod_artifact": {

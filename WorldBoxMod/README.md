@@ -4,15 +4,15 @@
 
 当前工作分支为 `construction/worldbox-android-mod`，目标母体为用户的 WorldBox Android 0.50.6（外层 APK SHA-256 `77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`）。源码版本从 0.2.5 提升到 0.3.0，实际运行入口 `LordWarMod.OnModLoad()` 会创建12个主入口，读取原版炸弹分类图标，并尝试把原版 `destruction` 分类的按钮、回调和注册键重绑到该12项面板。反射契约缺失时会隐藏临时分类并保留原版炸弹工具；被任命居民必须是原版 `human` asset 且仍是该原版城市成年居民，领主起始城市必须属于人类国家。任命后仍直接检查 WorldBox `City`、`Kingdom`、`Army` 字段。
 
-当前源码在 GitHub Actions run `36374557691` 的 Android NML 参考程序集编译、API 探针、静态映射和模组打包全部通过。活动 ZIP SHA-256 为 `08b2e1496850120f4d9bd0a95aab961c49a5dbfb4b36215b3d61c41e8e2aefd4`，其清单中的 `LordWarMod.cs` SHA-256 与分支源码一致。它是 NML 源码模组 ZIP，不是修改后的 APK，也没有 Android 设备运行证据。此前 CI 发现并修复了两个真实接口问题：直接调用 private `tryToMakeWarrior` 改为 public `makeWarrior`；不存在的 `City.addResources` 改为 public `addResourcesToRandomStockpile` 并回读金币。
+当前源码在 GitHub Actions [run 36379955527](https://github.com/gtt46461-star/lordwar-godot/actions/runs/36379955527) 的 Android NML 参考程序集编译、API 探针、静态映射、构建工具编译和模组打包全部通过。活动源码 ZIP 内层 SHA-256 为 `0462bd28d2578d155e392cb77f67d1aa06ae206d8a7dfb5b36dda20f2a23d96f`，清单确认 `LordWarMod.cs` SHA-256 为 `1081dc3a9a36c9c5e6a256174afe6afd8c207b5475cecb596dbe22e8d4141898`。它是 NML 源码模组 ZIP，不是修改后的 APK，也没有 Android 设备运行证据。CI 已发现并修复 `tryToMakeWarrior` 私有访问和不存在的 `City.addResources` 两个真实接口问题；当前代码使用公开 `makeWarrior` 及 `addResourcesToRandomStockpile` 并回读金币。
 
-U001 乡兵路径现包含：原版人类居民申请、批准/拒绝/稍后、扣 27 原版城市金币、调用公开 `City.makeWarrior(Actor)`、回读原版 Actor/Army；无法完成征募时通过原版库存 API 返还并回读差额。旧方案的 3 天训练被折叠为批准时即时执行。此路径已编译但未在手机运行。兵种映射表其他 3,919 项未接入，当前候选 693 仍装载旧版 0.2.5。
+U001 乡兵路径现包含：原版人类居民申请、批准/拒绝/稍后、扣 27 原版城市金币、调用公开 `City.makeWarrior(Actor)`、回读原版 Actor/Army；无法完成征募时通过原版库存 API 返还并回读差额。旧方案的 3 天训练被折叠为批准时即时执行。原版 `SaveManager` 保存后写校验和旁挂文件、读档后按原生存档路径恢复选择与待审批扩展状态的代码已加入并通过参考编译；Android Harmony 钩子与读档恢复尚未实机验证。兵种映射表其他 3,919 项未接入，当前候选 693 仍装载旧版 0.2.5。
 
 最新设备日志可见 MelonLoader 0.6.5 的 .NET 8 启动阶段，然后记录结束；没有异常栈、游戏信息或模组进入标记，且没有精确的已安装 APK build ID，所以 .NET 8 之后的第一个失败调用仍未定位。旧日志的 `il2cpp_init` 缺失不能代替当前诊断。当前环境没有 `adb`，本地也没有 .NET CLI。不得用未验证的同一加载器重发 APK。见 [`Build/ANDROID_CANDIDATE.md`](Build/ANDROID_CANDIDATE.md)。
 
 现有用户签名 JKS 可读取，但 `LORDWAR_KEYSTORE_PASS` 不在当前执行环境；候选测试证书与原包官方签名不同，覆盖安装兼容性没有证据。版本号 694 暂留给修复并通过启动关卡后的 APK。最新设备安装、原版存档、点击炸弹栏、任命、重启读档、申请批准、真实征募、战斗和战果状态一律为 `NOT_RUN`。
 
-适配盘点由 [`build_adaptation_map.py`](Build/build_adaptation_map.py) 逐项生成，列出旧 CSV/JSON 的 3,920 条输入和面向原版实体/方法的适配路线。本次将 U001 记为 `SOURCE_ADAPTED_RUNTIME_UNVERIFIED`，其余 3,919 项为 `NOT_STARTED`。CI 产物 `WorldBox-LordWar-adaptation-map` 可核对所有源数据行和行为差异，不参与运行包。城市建设、完整官职与家族体系、军队编制、其他兵种与装备、补给、军令、战斗、围城外交、AI同规则、扩展状态存档尚未完成。
+适配盘点由 [`build_adaptation_map.py`](Build/build_adaptation_map.py) 逐项生成，列出旧 CSV/JSON 的 3,920 条输入和面向原版实体/方法的适配路线。本次将 U001 记为 `SOURCE_ADAPTED_RUNTIME_UNVERIFIED`，其余 3,919 项为 `NOT_STARTED`。CI 产物 `WorldBox-LordWar-adaptation-map` 可核对所有源数据行和行为差异，不参与运行包。城市建设、完整官职与家族体系、军队编制、其他兵种与装备、补给、军令、战斗、围城外交、AI同规则尚未完成；扩展状态旁挂存档已有源码实现但未真机验证。
 
 ## 目标版本裁决（2026-09-27）
 
@@ -51,9 +51,9 @@ U001 乡兵路径现包含：原版人类居民申请、批准/拒绝/稍后、�
 ## 运行链和待验收项
 
 1. 先用对应 WorldBox 0.50.6 的 Android LemonLoader/NeoModLoader 环境验证加载器启动和日志。社区 Android 仓库已归档，不能仅凭桌面版的 0.50.6 适配公告推定手机兼容。
-2. 历史 0.2.5 的手动模组部署方法是：将当时生成的 `NeoModLoader_mobile.dll` 放入 `MelonLoader/com.mkarpenko.worldbox/Mods`，解压当时的 `LordWarMod-0.2.5.zip` 到 `NMLMods/`。当前 0.3.0 代码尚待 CI 编译，候选 APK 中也没有该版本；请勿把旧 ZIP 当作本次施工结果。
+2. 历史 0.2.5 的手动模组部署方法是：将当时生成的 `NeoModLoader_mobile.dll` 放入 `MelonLoader/com.mkarpenko.worldbox/Mods`，解压当时的 `LordWarMod-0.2.5.zip` 到 `NMLMods/`。当前 0.3.0 源码已在 CI run 36379955527 编译并打包；候选 APK 仍未包含该版，旧 ZIP 不对应当前源码。
 3. 确认模组出现在模组列表，日志出现 `LordWar native city entry registered`，在原版地图选城或按“领主战争”按钮读取当前城市，再依次执行“设为王都”、“任命城主”、“任命军队长”，观察原版对象改变、重复点击不重复执行和重启读档恢复。
-4. 若失败，保留设备日志和编译报错，对照实际 IL2CPP 包装程序集修正。这份源码**没有运行过手机编译与实机验收**。
+4. 若失败，保留设备日志和编译报错，对照实际 IL2CPP 包装程序集修正。这份源码已通过 GitHub Actions 的 Android NML 参考程序集编译，但**没有在手机上运行或验收**。
 
 ## 来源
 
