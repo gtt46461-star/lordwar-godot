@@ -52,7 +52,8 @@ if (args.Length == 2)
         .Where(type => type.Name.Contains("BasicMod", StringComparison.Ordinal)
             || type.Name.Contains("ModDeclare", StringComparison.Ordinal)
             || type.Name.Contains("ModSettings", StringComparison.Ordinal)
-            || type.Name.Contains("ModStorage", StringComparison.Ordinal))
+            || type.Name.Contains("ModStorage", StringComparison.Ordinal)
+            || type.Name.Contains("WrappedBehaviour", StringComparison.Ordinal))
         .OrderBy(type => type.FullName);
     foreach (var type in loaderTypes)
     {
