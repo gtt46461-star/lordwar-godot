@@ -12,6 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Capture Android packaging tools for local authorized builds
+        run: |
+          set -euo pipefail
+          tool_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p WorldBoxMod/dist/android-packaging-tools/lib
+          cp "$tool_dir/aapt" "$tool_dir/zipalign" "$tool_dir/apksigner" WorldBoxMod/dist/android-packaging-tools/
+          cp "$tool_dir/lib/apksigner.jar" WorldBoxMod/dist/android-packaging-tools/lib/
+          sha256sum WorldBoxMod/dist/android-packaging-tools/{aapt,zipalign,apksigner,lib/apksigner.jar} > WorldBoxMod/dist/android-packaging-tools/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WorldBox-Android-packaging-tools
+          path: WorldBoxMod/dist/android-packaging-tools/
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -28,6 +40,8 @@ jobs:
         run: dotnet run --no-build -c Release --project WorldBoxMod/Smoke/CoreSmoke.csproj -- "$GITHUB_WORKSPACE/WorldBoxMod/LordWarMod"
       - name: Compile Android NML mod against published assemblies
         run: dotnet build WorldBoxMod/Build/ModCompileCheck.csproj -c Release
+      - name: Syntax check pinned Android loader diagnostic patcher
+        run: python3 -m py_compile WorldBoxMod/Build/instrument_loader_stages.py
       - name: Inspect Android reference type signatures
         run: |
           mkdir -p WorldBoxMod/dist
