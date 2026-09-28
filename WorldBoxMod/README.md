@@ -4,7 +4,7 @@
 
 当前工作分支为 `construction/worldbox-android-mod`，目标母体为用户的 WorldBox Android 0.50.6（外层 APK SHA-256 `77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5`）。源码版本从 0.2.5 提升到 0.3.0，实际运行入口 `LordWarMod.OnModLoad()` 会创建12个主入口，读取原版炸弹分类图标，并尝试把原版 `destruction` 分类的按钮、回调和注册键重绑到该12项面板。反射契约缺失时会隐藏临时分类并保留原版炸弹工具；被任命居民必须是原版 `human` asset 且仍是该原版城市成年居民，领主起始城市必须属于人类国家。任命后仍直接检查 WorldBox `City`、`Kingdom`、`Army` 字段。
 
-这是已修改的源码，不是已验证的 APK。当前候选 693 仍装载 0.2.5；0.3.0 的 Android 参考程序集编译和打包需等本分支 CI。最新设备日志可见 MelonLoader 0.6.5 的 .NET 8 启动阶段，然后中止记录；没有异常栈或模组进入标记，故实际失败调用仍未定位。该日志也没有精确的已安装 APK build ID。旧日志的 `il2cpp_init` 缺失不能代替当前诊断。当前环境没有 `adb`，本地也没有 .NET CLI。不得用未验证的同一加载器重发 APK。见 [`Build/ANDROID_CANDIDATE.md`](Build/ANDROID_CANDIDATE.md)。
+这是已修改的源码，不是已验证的 APK。当前候选 693 仍装载 0.2.5。首轮 0.3.0 CI 编译发现并拒绝了 .NET 集合与 IL2CPP 集合直接转换；已把回滚快照改为逐项复制，修复提交的 CI 编译待跑。最新设备日志可见 MelonLoader 0.6.5 的 .NET 8 启动阶段，然后中止记录；没有异常栈或模组进入标记，故实际失败调用仍未定位。该日志也没有精确的已安装 APK build ID。旧日志的 `il2cpp_init` 缺失不能代替当前诊断。当前环境没有 `adb`，本地也没有 .NET CLI。不得用未验证的同一加载器重发 APK。见 [`Build/ANDROID_CANDIDATE.md`](Build/ANDROID_CANDIDATE.md)。
 
 现有用户签名 JKS 可读取，但 `LORDWAR_KEYSTORE_PASS` 不在当前执行环境；候选测试证书与原包官方签名不同，覆盖安装兼容性没有证据。版本号 694 暂留给修复并通过启动关卡后的 APK。最新设备安装、原版存档、点击炸弹栏、任命、重启读档、申请批准、真实征募、战斗和战果状态一律为 `NOT_RUN`。
 

@@ -355,7 +355,7 @@
   "android_construction_0_3_0": {
     "date": "2026-09-28",
     "branch": "construction/worldbox-android-mod",
-    "status": "SOURCE_MODIFIED; CI_PENDING; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN",
+    "status": "SOURCE_MODIFIED; CI_REPAIR_PENDING; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN",
     "base_game": {
       "package": "com.mkarpenko.worldbox",
       "version": "0.50.6",
@@ -401,12 +401,19 @@
       "current_first_failure": "UNDETERMINED; next transition after .NET 8 startup is not evidenced",
       "old_il2cpp_init_report": "Historical only; not the failure established by the latest log"
     },
-    "compile_and_package": "PENDING GitHub Actions push; local dotnet CLI unavailable",
+    "compile_and_package": "Initial CI FAIL in push run 36372720593 and PR run 36372723621: System.Collections.Generic.List constructor rejected Il2CppSystem.Collections.Generic.List<PowerButton>; corrected to explicit foreach copy; repaired CI pending",
+    "initial_compile_attempt": {
+      "push_run": 36372720593,
+      "pull_request_run": 36372723621,
+      "failed_step": "Compile Android NML mod against published assemblies",
+      "error": "LordWarMod.cs line 226 CS1503: Il2CppSystem.Collections.Generic.List<PowerButton> cannot convert to System.Collections.Generic.IEnumerable<PowerButton>",
+      "fix": "copy the IL2CPP list element-by-element before rollback snapshot"
+    },
     "new_apk": "NOT_BUILT; do not repack the same unverified loader before diagnosing the current runtime",
     "target_version_code_reserved": 694,
     "device": "NOT_RUN; adb unavailable",
     "signing": "BLOCKED; local candidate JKS available but LORDWAR_KEYSTORE_PASS unavailable; candidate cert a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13 differs from original cert 37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b; cover install unverified",
     "modified_source_pre_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e",
-    "diff_review": "PENDING final staged diff"
+    "diff_review": "CI failure reviewed; fixed source diff awaits repaired build"
   }
 }

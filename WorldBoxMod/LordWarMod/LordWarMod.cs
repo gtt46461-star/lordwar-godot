@@ -223,7 +223,9 @@ namespace LordWar.AndroidMod
             for (int index = 0; index < nativeBombButtons.Length; index++)
                 nativeBombButtonActiveStates[index] = nativeBombButtons[index] != null &&
                     nativeBombButtons[index].gameObject.activeSelf;
-            var previousNativeButtonList = new List<PowerButton>(bombsTab._power_buttons);
+            var previousNativeButtonList = new List<PowerButton>();
+            foreach (PowerButton oldButton in bombsTab._power_buttons)
+                previousNativeButtonList.Add(oldButton);
             var previousNames = new ArrayList(names);
             var previousEntries = new ArrayList(entries);
             ButtonSfx sfx = bombsEntry.GetComponent<ButtonSfx>();
