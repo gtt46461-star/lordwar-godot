@@ -102,7 +102,8 @@ def verify_game_anchors(original_inner, loader_seed):
 def replace_mod(loader_seed, mod_zip, patched_il2cpp, unsigned_inner, diagnostic_loader=None):
     with zipfile.ZipFile(loader_seed) as source, zipfile.ZipFile(mod_zip) as mod, zipfile.ZipFile(unsigned_inner, "w", allowZip64=True) as target:
         for info in source.infolist():
-            if info.filename.startswith(MOD_PREFIX) or is_signature(info.filename):
+            if (info.filename.startswith((MOD_PREFIX, DEPLOY_MOD_PREFIX))
+                    or info.filename == DEPLOY_NML_DLL or is_signature(info.filename)):
                 continue
             if info.filename == "AndroidManifest.xml":
                 target.writestr(copy(info), patch_version(source.read(info), SOURCE_VERSION_CODE, TARGET_VERSION_CODE))
