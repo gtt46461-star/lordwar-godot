@@ -17,13 +17,15 @@ var names = new HashSet<string>(StringComparer.Ordinal)
     "Army", "ArmyData", "Building", "WorldTile", "WorldZone", "MapBox",
     "ResourceAsset", "ResourceStorage", "Storage", "WorldActor",
     "SaveManager", "SavedMap", "AutoSaveManager", "SaveSlotManager", "BuildingData",
-    "LoadWorldButton", "SaveWorldButton", "MapUploader"
+    "LoadWorldButton", "SaveWorldButton", "MapUploader", "BaseSimObject",
+    "BaseObjectData", "MetaObjectData", "MetaObject`1", "MetaObjectWithTraits`2"
 };
 var saveTypes = new HashSet<string>(StringComparer.Ordinal)
 {
     "SaveManager", "SavedMap", "AutoSaveManager", "SaveSlotManager",
     "LoadWorldButton", "SaveWorldButton", "MapUploader", "ActorData",
-    "CityData", "KingdomData", "ArmyData", "BuildingData"
+    "CityData", "KingdomData", "ArmyData", "BuildingData", "BaseSimObject",
+    "BaseObjectData", "MetaObjectData", "MetaObject`1", "MetaObjectWithTraits`2"
 };
 
 foreach (var type in assembly.MainModule.Types.Where(type => names.Contains(type.Name)).OrderBy(type => type.Name))
