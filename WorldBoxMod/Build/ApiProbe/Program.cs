@@ -18,7 +18,7 @@ var names = new HashSet<string>(StringComparer.Ordinal)
     "ResourceAsset", "ResourceStorage", "Storage", "WorldActor",
     "SaveManager", "SavedMap", "AutoSaveManager", "SaveSlotManager", "BuildingData",
     "LoadWorldButton", "SaveWorldButton", "MapUploader", "BaseSimObject",
-    "BaseObjectData", "MetaObjectData", "MetaObject`1", "MetaObjectWithTraits`2"
+    "BaseObjectData", "BaseSystemData", "CoreSystemObject`1", "NanoObject", "MetaObjectData", "MetaObject`1", "MetaObjectWithTraits`2"
 };
 var saveTypes = new HashSet<string>(StringComparer.Ordinal)
 {
