@@ -201,11 +201,11 @@
   },
   "runtime_compilation": {
     "core": "PASS (.NET 8 csc)",
-    "NML_android_reference_compile": "PASS for 12-entry bomb-category integration in GitHub Actions run 36372968185; current native recruitment addition pending a separate compile; neither result proves Android runtime behavior",
+    "NML_android_reference_compile": "PASS: GitHub Actions run 36374557691 compiled the current active Android NML source against pinned public AndroidModLoader references; this is reference compilation, not Android runtime proof",
     "on_device": "NOT_RUN"
   },
-  "device_test": "NOT_RUN: no connected arm64 Android device/emulator; no current candidate install/launch/gameplay evidence",
-  "apk_build": "NO current-source APK; candidate 693 statically contains the older 0.2.5 mod. Do not infer current-source runtime from it.",
+  "device_test": "NOT_RUN: no connected arm64 Android device/emulator; current source APK not installed or exercised",
+  "apk_build": "NOT_BUILT for current source; candidate 693 contains older 0.2.5 and cannot prove current behavior",
   "source_file_hashes_mean": "Original uploaded R30 hashes; modified_files gives ported hashes.",
   "modified_files": [
     {
@@ -355,7 +355,7 @@
   "android_construction_0_3_0": {
     "date": "2026-09-28",
     "branch": "construction/worldbox-android-mod",
-    "status": "SOURCE_MODIFIED; BASE_ENTRY_CI_PASS; NATIVE_RECRUITMENT_CI_PENDING; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN",
+    "status": "SOURCE_COMPILE_PASS; NEW_APK_NOT_BUILT; DEVICE_NOT_RUN; CORE_GAMEPLAY_INCOMPLETE",
     "base_game": {
       "package": "com.mkarpenko.worldbox",
       "version": "0.50.6",
@@ -390,10 +390,10 @@
     "core_acceptance": {
       "stage_1_original_start_enter_save": "NOT_RUN",
       "stage_2_basic_hook_original_world": "NOT_RUN",
-      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN; 12-entry source and bomb-tab rebind compiled/packaged in run 36372968185; device not tested",
+      "stage_3_bomb_category_button_no_bomb_action": "NOT_RUN; replacement/rebinding code compiled and packaged; device tap/no-bomb-action test absent",
       "stage_4_native_city_actor_appointment_original_details": "NOT_RUN",
       "stage_5_save_exit_reload_extension_state": "NOT_RUN; extension persistence not implemented",
-      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; U001 single-slot proposal and native warrior conversion code pending compile/runtime; no movement, battle, exactly-once result, persistent queue or AI parity; stages 1-5 not passed"
+      "stage_6_approval_recruit_move_battle_one_result": "BLOCKED; U001 request/approve/recruit source now compiles, but device not run; no native movement, battle, exactly-once result, AI parity or persisted proposal; stages 1-5 not passed"
     },
     "latest_runtime_trace": {
       "observed": "MelonLoader 0.6.5; Android 14; Il2Cpp x64 configuration; Runtime Type net8",
@@ -402,7 +402,7 @@
       "current_first_failure": "UNDETERMINED; next transition after .NET 8 startup is not evidenced",
       "old_il2cpp_init_report": "Historical only; not the failure established by the latest log"
     },
-    "compile_and_package": "BASE_ENTRY_PASS in run 36372968185. U001 recruitment compile runs 36374187293 and 36374184452 failed because City.addResources does not exist; changed refunds to public City.addResourcesToRandomStockpile with post-call native gold readback; repaired compile retry pending.",
+    "compile_and_package": "PASS in GitHub Actions run 36374557691: core compile/smoke, Android NML compile, API probe, 3920-row mapping check and source ZIP package. No APK or runtime test.",
     "initial_compile_attempt": {
       "push_run": 36372720593,
       "pull_request_run": 36372723621,
@@ -414,14 +414,13 @@
     "target_version_code_reserved": 694,
     "device": "NOT_RUN; adb unavailable",
     "signing": "BLOCKED; local candidate JKS available but LORDWAR_KEYSTORE_PASS unavailable; candidate cert a4452032f871b9297418549807fb2040b70718448d53b3040aa6665ecca6eb13 differs from original cert 37803c47397861e81ba0447b486a2bdf3e61202c01f178509f88c59b9b98237b; cover install unverified",
-    "modified_source_pre_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e",
-    "diff_review": "Current source diff reviewed. API probe showed tryToMakeWarrior private; it was replaced with public makeWarrior. CI then rejected nonexistent City.addResources; source now uses public addResourcesToRandomStockpile with native balance readback. Retry pending. Per-file before/after hashes and callsites are in MODIFICATION_EVIDENCE.json.",
+    "diff_review": "Source and API compatibility diff reviewed. Current U001 implementation compiled and packaged successfully in run 36374557691. Per-file before/after hashes, diffs, callsites and verification results are recorded in MODIFICATION_EVIDENCE.json.",
     "new_source_adaptation": {
       "unit_id": "U001",
       "old_rules": "27 recruitment gold; 3 training days",
       "source_route": "SubmitRecruitmentRequest -> ApproveRecruitmentRequest -> public City.checkCanMakeWarrior(Actor) -> City.takeResource(String,Int32) -> public City.makeWarrior(Actor) -> Actor.isWarrior() / Actor.army.getCity().getID() readback; on failure restore with City.addResourcesToRandomStockpile(String,Int32) and verify native gold delta",
       "behavior_difference": "3 training days are compressed into immediate approval; vanilla profession, city equipment, weapon supply and Army membership remain authoritative. Proposal exists only in session memory.",
-      "compile": "FAILED runs 36374187293/36374184452 on missing City.addResources; source corrected, retry PENDING",
+      "compile": "PASS: current U001 call path compiled in run 36374557691",
       "device_runtime": "NOT_RUN",
       "scope_limit": "No native movement order, battle or result settlement yet; other 275 unit rows remain NOT_STARTED",
       "api_probe": "GitHub Actions run 36372968185 native-api-probe.txt: City.checkCanMakeWarrior(Actor) public Boolean; City.makeWarrior(Actor) public Void; City.tryToMakeWarrior(Actor) private Boolean and therefore not called directly",
@@ -435,8 +434,8 @@
       ],
       "initial_failure": "C# CS1503: System.Collections.Generic.List constructor cannot consume Il2CppSystem.Collections.Generic.List<PowerButton>",
       "repair": "Copy IL2CPP button list element-by-element for rollback snapshot",
-      "repair_ci_pass_run": 36372968185,
-      "repair_ci_scope": "pre-recruitment 12-entry integration only",
+      "repair_ci_pass_run": 36374557691,
+      "repair_ci_scope": "Current 0.3.0 source including U001 request, approval, native warrior conversion, native stockpile refund and readback; build/package checks only",
       "current_change_ci": "PENDING",
       "recruitment_attempts": [
         {
@@ -451,7 +450,32 @@
         }
       ],
       "repair_after_failure": "Use public City.addResourcesToRandomStockpile(String,Int32), verify restored balance through City.getResourcesAmount",
-      "current_retry": "PENDING"
-    }
+      "current_retry": "PASS"
+    },
+    "artifacts": {
+      "source_mod_artifact": {
+        "id": 10950641627,
+        "name": "LordWar-NML-source-mod-0.3.0",
+        "artifact_digest": "sha256:4a812a4baab3e6564d7b16d88e4eed228c30f55f8aad2c708b8775cb3b15c71a"
+      },
+      "inner_mod_zip_sha256": "08b2e1496850120f4d9bd0a95aab961c49a5dbfb4b36215b3d61c41e8e2aefd4",
+      "compile_check_artifact": {
+        "id": 10950154367,
+        "digest": "sha256:cd60c0a6d4449f46daf319109f74b97889584f4df417dc2987f44ffec0821efb"
+      },
+      "mapping_artifact": {
+        "id": 10950631729,
+        "digest": "sha256:aa7638318f24bfa1d5b85f642c660db52d37068586713dd960a07917ae169079"
+      },
+      "reference_api_artifact": {
+        "id": 10949994931,
+        "digest": "sha256:048c9969cecf7959d7555f5d23885fea9995574bf80035d489fd546fd76f91eb"
+      },
+      "packaging_tools_artifact": {
+        "id": 10950840574,
+        "digest": "sha256:4242f06ab00b92bca07d9bc81fa29d381ed652127809d295b2a97703e5116ab7"
+      }
+    },
+    "previous_0_2_5_source_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e"
   }
 }
