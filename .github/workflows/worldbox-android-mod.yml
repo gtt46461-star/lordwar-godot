@@ -19,7 +19,8 @@ jobs:
           mkdir -p WorldBoxMod/dist/android-packaging-tools/lib
           cp "$tool_dir/aapt" "$tool_dir/zipalign" "$tool_dir/apksigner" WorldBoxMod/dist/android-packaging-tools/
           cp "$tool_dir/lib/apksigner.jar" WorldBoxMod/dist/android-packaging-tools/lib/
-          sha256sum WorldBoxMod/dist/android-packaging-tools/{aapt,zipalign,apksigner,lib/apksigner.jar} > WorldBoxMod/dist/android-packaging-tools/SHA256SUMS
+          cp -a "$tool_dir/lib64" WorldBoxMod/dist/android-packaging-tools/
+          sha256sum WorldBoxMod/dist/android-packaging-tools/{aapt,zipalign,apksigner,lib/apksigner.jar,lib64/*} > WorldBoxMod/dist/android-packaging-tools/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: WorldBox-Android-packaging-tools
