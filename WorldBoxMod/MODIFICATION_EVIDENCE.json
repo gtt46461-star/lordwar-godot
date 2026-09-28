@@ -176,15 +176,15 @@
     },
     {
       "path": "WorldBoxMod/Build/ANDROID_CANDIDATE.md",
-      "before_read": "GitHub branch file read before this update",
+      "before_read": "GitHub candidate note at source commit cc5ba0f5262278420b97ada6672548a82e96f348",
       "before_sha256": "e87fa84af08040b2a27870267af315873cccf4140ee332c7691dbd441c5909f7",
-      "edit": "Records native SaveManager hooks, source hashes, call path, CI pass and NOT_RUN device round trip.",
-      "after_read": "GitHub source file readback / CI package manifest",
+      "edit": "Documents sidecar fields/path, actual source call chain, current CI pass and exact remaining device gate.",
+      "after_read": "GitHub candidate note after update",
       "after_sha256": "8f41113b3b14f05741a48083970b85c7ded3eac38bc0900cd89dc34d76f203fa",
       "git_diff_sha256": "4eb6ca6985926aadaf8552d83425b2f47b9638f628c8b8f619faa01c7e762790",
       "git_diff_bytes": 8269,
-      "real_callsite_or_applicability": "Build/candidate evidence note.",
-      "validation": "Source ZIP manifest and workflow steps verified; APK/device remain NOT_RUN."
+      "real_callsite_or_applicability": "Documentation only; ties evidence to LordWarMod.OnModLoad and Harmony save/load postfixes.",
+      "validation": "Readback PASS; CI compile/package pass; runtime save/reload remains NOT_RUN."
     },
     {
       "path": "WorldBoxMod/LordWarMod/LordWarMod.cs",
@@ -197,18 +197,6 @@
       "git_diff_bytes": 18940,
       "real_callsite_or_applicability": "OnModLoad -> InstallNativeSaveHooks -> Harmony postfixes -> WriteLordWarSaveState / RestoreLordWarSaveState; pinned API signatures were probed in CI.",
       "validation": "PASS reference compile and package in run 36379955527; active ZIP manifest source SHA matches; Android save/load runtime NOT_RUN."
-    },
-    {
-      "path": "WorldBoxMod/Build/ANDROID_CANDIDATE.md",
-      "before_read": "GitHub candidate note at source commit cc5ba0f5262278420b97ada6672548a82e96f348",
-      "before_sha256": "e87fa84af08040b2a27870267af315873cccf4140ee332c7691dbd441c5909f7",
-      "edit": "Documents sidecar fields/path, actual source call chain, current CI pass and exact remaining device gate.",
-      "after_read": "GitHub candidate note after update",
-      "after_sha256": "8f41113b3b14f05741a48083970b85c7ded3eac38bc0900cd89dc34d76f203fa",
-      "git_diff_sha256": "4eb6ca6985926aadaf8552d83425b2f47b9638f628c8b8f619faa01c7e762790",
-      "git_diff_bytes": 8269,
-      "real_callsite_or_applicability": "Documentation only; ties evidence to LordWarMod.OnModLoad and Harmony save/load postfixes.",
-      "validation": "Readback PASS; CI compile/package pass; runtime save/reload remains NOT_RUN."
     }
   ],
   "manifest_note": "This file is updated alongside the evidence set; its committed blob SHA identifies this exact revision and is not self-referenced.",

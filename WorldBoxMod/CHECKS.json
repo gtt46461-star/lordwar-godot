@@ -487,26 +487,27 @@
     },
     "artifacts": {
       "source_mod_artifact": {
-        "id": 10950641627,
+        "id": 10952855010,
         "name": "LordWar-NML-source-mod-0.3.0",
-        "artifact_digest": "sha256:4a812a4baab3e6564d7b16d88e4eed228c30f55f8aad2c708b8775cb3b15c71a"
+        "artifact_digest": "sha256:a2a5dd8c5186c160b10bf3e3ee3afb8b18dc979c6f1c1ff96c7bf807be7df42c"
       },
-      "inner_mod_zip_sha256": "08b2e1496850120f4d9bd0a95aab961c49a5dbfb4b36215b3d61c41e8e2aefd4",
+      "inner_mod_zip_sha256": "0462bd28d2578d155e392cb77f67d1aa06ae206d8a7dfb5b36dda20f2a23d96f",
+      "active_source_sha256": "1081dc3a9a36c9c5e6a256174afe6afd8c207b5475cecb596dbe22e8d4141898",
       "compile_check_artifact": {
-        "id": 10950154367,
-        "digest": "sha256:cd60c0a6d4449f46daf319109f74b97889584f4df417dc2987f44ffec0821efb"
+        "id": 10952855008,
+        "digest": "sha256:2420d2288f43d3b4e1a29b4d4dbaeb61a1651431c0a80251fea034e98cf29ab1"
       },
       "mapping_artifact": {
-        "id": 10950631729,
-        "digest": "sha256:aa7638318f24bfa1d5b85f642c660db52d37068586713dd960a07917ae169079"
+        "id": 10951954922,
+        "digest": "sha256:031922a77a4ed032abdd1f050cc79723b68789e7d0af4ccf9b4a1da2a913cc30"
       },
       "reference_api_artifact": {
-        "id": 10949994931,
-        "digest": "sha256:048c9969cecf7959d7555f5d23885fea9995574bf80035d489fd546fd76f91eb"
+        "id": 10952188442,
+        "digest": "sha256:72410695df93b146ed81c2f033d018682f306eb8f7196c2b83f25280f1cd5f56"
       },
       "packaging_tools_artifact": {
-        "id": 10950840574,
-        "digest": "sha256:4242f06ab00b92bca07d9bc81fa29d381ed652127809d295b2a97703e5116ab7"
+        "id": 10952128998,
+        "digest": "sha256:35f9040910b31e3b58b2526128392b5b43c1d5acb53db7b5a3b6df95c2dbe757"
       }
     },
     "previous_0_2_5_source_sha256": "9c4af95888f5843b7a22bb227293f2f4e8d185659cdfbba168b89606158c2d7e"
