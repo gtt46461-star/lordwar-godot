@@ -56,7 +56,9 @@ if (args.Length == 2)
             || type.Name.Contains("ModDeclare", StringComparison.Ordinal)
             || type.Name.Contains("ModSettings", StringComparison.Ordinal)
             || type.Name.Contains("ModStorage", StringComparison.Ordinal)
-            || type.Name.Contains("WrappedBehaviour", StringComparison.Ordinal))
+            || type.Name.Contains("WrappedBehaviour", StringComparison.Ordinal)
+            || type.Name.Contains("Il2CPPBehaviour", StringComparison.Ordinal)
+            || type.Name.Contains("WrappedMethodHandler", StringComparison.Ordinal))
         .ToArray();
     foreach (var type in mainTypes.OrderBy(type => type.FullName))
     {
