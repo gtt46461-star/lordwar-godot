@@ -3,6 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using HarmonyLib;
 using NeoModLoader.api;
 using NeoModLoader.AndroidCompatibilityModule;
 using NeoModLoader.General;
@@ -58,12 +61,15 @@ namespace LordWar.AndroidMod
         private long _pendingRecruitKingdomId = -1;
         private long _pendingRecruitActorId = -1;
         private string _proposalMessage = "当前没有待审批申请";
+        private static LordWarMod _saveHookOwner;
+        private static Harmony _saveHarmony;
 
         protected override void OnModLoad()
         {
             WriteDiagnostic("MANAGED_MOD_ENTERED");
             try
             {
+                InstallNativeSaveHooks();
                 Sprite cityIcon = null;
                 foreach (string iconPath in new[] { "ui/icons/iconCity", "ui/icons/iconSteam" })
                 {
@@ -349,6 +355,374 @@ namespace LordWar.AndroidMod
                 {
                     LogInfo("LordWar diagnostic path unavailable: " + root + ": " + error.Message);
                 }
+            }
+        }
+
+        private sealed class LordWarSaveState
+        {
+            public readonly List<string> NativeSaveKeys = new List<string>();
+            public long CityId = -1;
+            public long KingdomId = -1;
+            public long ActorId = -1;
+            public long PendingCityId = -1;
+            public long PendingKingdomId = -1;
+            public long PendingActorId = -1;
+            public int ActiveSection;
+            public string Status = "请选择原版城市";
+            public string ProposalMessage = "当前没有待审批申请";
+        }
+
+        private void InstallNativeSaveHooks()
+        {
+            _saveHookOwner = this;
+            try
+            {
+                _saveHarmony = new Harmony("LordWar.Android.NativeSaveExtension");
+                int saveHooks = 0;
+                int loadHooks = 0;
+                saveHooks += TryInstallNativePatch("saveMapData",
+                    new[] { typeof(string), typeof(bool) }, "AfterNativeSave");
+                saveHooks += TryInstallNativePatch("saveWorldToDirectory",
+                    new[] { typeof(string), typeof(bool), typeof(bool) }, "AfterNativeSave");
+                saveHooks += TryInstallNativePatch("saveToCurrentPath",
+                    Type.EmptyTypes, "AfterNativeSaveCurrentPath");
+                loadHooks += TryInstallNativePatch("loadData",
+                    new[] { typeof(SavedMap), typeof(string) }, "AfterNativeLoad");
+
+                string phase = saveHooks > 0 && loadHooks > 0
+                    ? "NATIVE_SAVE_HOOKS_PATCHED"
+                    : "NATIVE_SAVE_HOOKS_INCOMPLETE";
+                LogInfo("LordWar save integration hooks: save=" + saveHooks + " load=" + loadHooks);
+                WriteDiagnostic(phase);
+            }
+            catch (Exception error)
+            {
+                LogInfo("LordWar native save-hook installation failed; native save/load remains untouched: " + error);
+                WriteDiagnostic("NATIVE_SAVE_HOOK_INSTALL_FAILED");
+            }
+        }
+
+        private static int TryInstallNativePatch(string methodName, Type[] parameterTypes, string postfixName)
+        {
+            BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Static | BindingFlags.Instance;
+            MethodInfo target = typeof(global::SaveManager).GetMethod(
+                methodName, flags, null, parameterTypes, null);
+            MethodInfo postfix = typeof(LordWarMod).GetMethod(
+                postfixName, BindingFlags.Static | BindingFlags.NonPublic);
+            if (target == null || postfix == null)
+            {
+                LogInfo("LordWar save hook not found: SaveManager." + methodName +
+                    "(" + parameterTypes.Length + " args)");
+                return 0;
+            }
+
+            _saveHarmony.Patch(target, null, new HarmonyMethod(postfix));
+            LogInfo("LordWar save hook installed: " + target);
+            return 1;
+        }
+
+        private static void AfterNativeSave(object[] __args, MethodBase __originalMethod)
+        {
+            try
+            {
+                string saveInput = GetStringArgument(__args, 0);
+                if (string.IsNullOrWhiteSpace(saveInput))
+                {
+                    LogInfo("LordWar save hook skipped: native save path argument is empty");
+                    return;
+                }
+                WriteLordWarSaveState(_saveHookOwner, saveInput);
+            }
+            catch (Exception error)
+            {
+                LogInfo("LordWar extension save failed after " + __originalMethod + ": " + error);
+            }
+        }
+
+        private static void AfterNativeSaveCurrentPath(object __instance, MethodBase __originalMethod)
+        {
+            try
+            {
+                string saveInput = ReadStringMember(__instance, "currentSavePath");
+                if (!string.IsNullOrWhiteSpace(saveInput))
+                    WriteLordWarSaveState(_saveHookOwner, saveInput);
+            }
+            catch (Exception error)
+            {
+                LogInfo("LordWar extension save failed after " + __originalMethod + ": " + error);
+            }
+        }
+
+        private static void AfterNativeLoad(object[] __args, object __instance, MethodBase __originalMethod)
+        {
+            try
+            {
+                string saveInput = GetStringArgument(__args, 1);
+                if (string.IsNullOrWhiteSpace(saveInput))
+                    saveInput = ReadStringMember(__instance, "currentSavePath");
+                RestoreLordWarSaveState(_saveHookOwner, saveInput);
+            }
+            catch (Exception error)
+            {
+                LogInfo("LordWar extension restore failed after " + __originalMethod + "; native world was not modified: " + error);
+                ClearExtensionStateAfterLoad(_saveHookOwner,
+                    "领主扩展状态读取失败；原版世界未修改，待审批引用已清空");
+            }
+        }
+
+        private static string GetStringArgument(object[] arguments, int index)
+        {
+            return arguments != null && index >= 0 && index < arguments.Length
+                ? arguments[index] as string : null;
+        }
+
+        private static string ReadStringMember(object instance, string name)
+        {
+            if (instance == null) return null;
+            Type type = instance.GetType();
+            BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Instance | BindingFlags.Static;
+            PropertyInfo property = type.GetProperty(name, flags);
+            if (property != null)
+            {
+                object value = property.GetValue(property.GetMethod != null && property.GetMethod.IsStatic ? null : instance, null);
+                return value as string;
+            }
+            FieldInfo field = type.GetField(name, flags);
+            if (field == null) return null;
+            object target = field.IsStatic ? null : instance;
+            return field.GetValue(target) as string;
+        }
+
+        private static void WriteLordWarSaveState(LordWarMod owner, string saveInput)
+        {
+            if (owner == null) return;
+            List<string> keys = GetNativeSaveKeys(saveInput);
+            if (keys.Count == 0) return;
+
+            var state = new LordWarSaveState();
+            state.NativeSaveKeys.AddRange(keys);
+            state.CityId = owner._cityId;
+            state.KingdomId = owner._kingdomId;
+            state.ActorId = owner._actorId;
+            state.PendingCityId = owner._pendingRecruitCityId;
+            state.PendingKingdomId = owner._pendingRecruitKingdomId;
+            state.PendingActorId = owner._pendingRecruitActorId;
+            state.ActiveSection = owner._activeSection;
+            state.Status = owner._status ?? string.Empty;
+            state.ProposalMessage = owner._proposalMessage ?? string.Empty;
+
+            string body = SerializeLordWarSaveState(state);
+            string root = Path.Combine(Application.persistentDataPath, "LordWar", "saves");
+            Directory.CreateDirectory(root);
+            int written = 0;
+            foreach (string key in keys)
+            {
+                string targetPath = Path.Combine(root, Sha256Hex(key) + ".lwstate");
+                string temporaryPath = targetPath + ".tmp";
+                try
+                {
+                    File.WriteAllText(temporaryPath, body + "checksum\t" + Sha256Hex(body) + "\n",
+                        new UTF8Encoding(false));
+                    File.Move(temporaryPath, targetPath, true);
+                    written++;
+                }
+                finally
+                {
+                    if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+                }
+            }
+            LogInfo("LordWar extension state saved after native save; keys=" + keys.Count +
+                " files=" + written + " actor=" + state.PendingActorId);
+        }
+
+        private static void RestoreLordWarSaveState(LordWarMod owner, string saveInput)
+        {
+            if (owner == null) return;
+            List<string> keys = GetNativeSaveKeys(saveInput);
+            LordWarSaveState state = null;
+            string root = Path.Combine(Application.persistentDataPath, "LordWar", "saves");
+            foreach (string key in keys)
+            {
+                string path = Path.Combine(root, Sha256Hex(key) + ".lwstate");
+                if (TryReadLordWarSaveState(path, keys, out state)) break;
+            }
+
+            if (state == null)
+            {
+                ClearExtensionStateAfterLoad(owner,
+                    "此原版存档没有匹配的领主扩展数据；原版世界未修改");
+                LogInfo("LordWar extension state absent or invalid for native path=" + saveInput);
+                return;
+            }
+
+            owner._cityId = state.CityId;
+            owner._kingdomId = state.KingdomId;
+            owner._actorId = state.ActorId;
+            owner._pendingRecruitCityId = state.PendingCityId;
+            owner._pendingRecruitKingdomId = state.PendingKingdomId;
+            owner._pendingRecruitActorId = state.PendingActorId;
+            owner._activeSection = Math.Max(0, Math.Min(state.ActiveSection, MainSections.Length - 1));
+            owner._status = state.Status;
+            owner._proposalMessage = state.ProposalMessage;
+
+            global::City city = owner.ResolveNativeCity(owner._pendingRecruitCityId, owner._pendingRecruitKingdomId);
+            global::Actor actor = owner.ResolvePendingRecruit(city);
+            if (owner._pendingRecruitActorId >= 0 && (city == null || actor == null))
+            {
+                owner._proposalMessage = "存档已恢复，但待审批居民已死亡、离城或转属；原版对象不会被改写";
+                owner._status = owner._proposalMessage;
+            }
+            LogInfo("LordWar extension state restored after native load; city=" + state.PendingCityId +
+                " actor=" + state.PendingActorId + " entity_valid=" + (city != null && actor != null));
+            if (owner._cityWindow != null) owner.RefreshCityWindow();
+        }
+
+        private static void ClearExtensionStateAfterLoad(LordWarMod owner, string message)
+        {
+            if (owner == null) return;
+            owner.ClearPendingRecruitment();
+            owner._cityId = -1;
+            owner._kingdomId = -1;
+            owner._actorId = -1;
+            owner._proposalMessage = message;
+            owner._status = message;
+            if (owner._cityWindow != null) owner.RefreshCityWindow();
+        }
+
+        private static List<string> GetNativeSaveKeys(string saveInput)
+        {
+            var keys = new List<string>();
+            AddNativeSaveKey(keys, saveInput);
+            if (string.IsNullOrWhiteSpace(saveInput)) return keys;
+            try
+            {
+                MethodInfo getSavePath = typeof(global::SaveManager).GetMethod(
+                    "getSavePath", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
+                    null, new[] { typeof(string) }, null);
+                if (getSavePath != null)
+                    AddNativeSaveKey(keys, getSavePath.Invoke(null, new object[] { saveInput }) as string);
+            }
+            catch (Exception error)
+            {
+                LogInfo("LordWar could not normalize native save path through SaveManager.getSavePath: " + error.Message);
+            }
+            return keys;
+        }
+
+        private static void AddNativeSaveKey(List<string> keys, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            string key = value.Trim().Replace('\\', '/');
+            try { key = Path.GetFullPath(key).Replace('\\', '/'); }
+            catch { }
+            if (!keys.Contains(key)) keys.Add(key);
+        }
+
+        private static string SerializeLordWarSaveState(LordWarSaveState state)
+        {
+            var body = new StringBuilder();
+            body.Append("LORDWAR_STATE\t1\n");
+            foreach (string key in state.NativeSaveKeys)
+                body.Append("savekey\t").Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(key))).Append('\n');
+            body.Append("city\t").Append(state.CityId).Append('\n');
+            body.Append("kingdom\t").Append(state.KingdomId).Append('\n');
+            body.Append("actor\t").Append(state.ActorId).Append('\n');
+            body.Append("pending_city\t").Append(state.PendingCityId).Append('\n');
+            body.Append("pending_kingdom\t").Append(state.PendingKingdomId).Append('\n');
+            body.Append("pending_actor\t").Append(state.PendingActorId).Append('\n');
+            body.Append("section\t").Append(state.ActiveSection).Append('\n');
+            body.Append("status\t").Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(state.Status))).Append('\n');
+            body.Append("proposal\t").Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(state.ProposalMessage))).Append('\n');
+            return body.ToString();
+        }
+
+        private static bool TryReadLordWarSaveState(string path, List<string> expectedKeys,
+            out LordWarSaveState state)
+        {
+            state = null;
+            try
+            {
+                if (!File.Exists(path)) return false;
+                string content = File.ReadAllText(path, Encoding.UTF8);
+                int checksumOffset = content.LastIndexOf("checksum\t", StringComparison.Ordinal);
+                if (checksumOffset < 0) return false;
+                string body = content.Substring(0, checksumOffset);
+                string checksumLine = content.Substring(checksumOffset).Trim();
+                string[] checksumParts = checksumLine.Split('\t');
+                if (checksumParts.Length != 2 || !string.Equals(
+                    checksumParts[1], Sha256Hex(body), StringComparison.OrdinalIgnoreCase)) return false;
+
+                string[] lines = body.Split('\n');
+                if (lines.Length == 0 || lines[0] != "LORDWAR_STATE\t1") return false;
+                var parsed = new LordWarSaveState();
+                var values = new Dictionary<string, string>(StringComparer.Ordinal);
+                for (int index = 1; index < lines.Length; index++)
+                {
+                    if (string.IsNullOrEmpty(lines[index])) continue;
+                    int separator = lines[index].IndexOf('\t');
+                    if (separator < 0) return false;
+                    string name = lines[index].Substring(0, separator);
+                    string value = lines[index].Substring(separator + 1);
+                    if (name == "savekey")
+                    {
+                        parsed.NativeSaveKeys.Add(Encoding.UTF8.GetString(Convert.FromBase64String(value)));
+                    }
+                    else
+                    {
+                        values[name] = value;
+                    }
+                }
+
+                bool matches = false;
+                foreach (string key in expectedKeys)
+                    if (parsed.NativeSaveKeys.Contains(key)) matches = true;
+                if (!matches ||
+                    !TryReadLong(values, "city", out parsed.CityId) ||
+                    !TryReadLong(values, "kingdom", out parsed.KingdomId) ||
+                    !TryReadLong(values, "actor", out parsed.ActorId) ||
+                    !TryReadLong(values, "pending_city", out parsed.PendingCityId) ||
+                    !TryReadLong(values, "pending_kingdom", out parsed.PendingKingdomId) ||
+                    !TryReadLong(values, "pending_actor", out parsed.PendingActorId) ||
+                    !int.TryParse(values.ContainsKey("section") ? values["section"] : null,
+                        out parsed.ActiveSection)) return false;
+                parsed.Status = DecodeBase64Value(values, "status", "请选择原版城市");
+                parsed.ProposalMessage = DecodeBase64Value(values, "proposal", "当前没有待审批申请");
+                state = parsed;
+                return true;
+            }
+            catch (Exception error)
+            {
+                LogInfo("LordWar ignored unreadable extension state " + path + ": " + error.Message);
+                return false;
+            }
+        }
+
+        private static bool TryReadLong(Dictionary<string, string> values, string key, out long value)
+        {
+            value = -1;
+            return values.ContainsKey(key) && long.TryParse(values[key], out value);
+        }
+
+        private static string DecodeBase64Value(Dictionary<string, string> values, string key, string fallback)
+        {
+            try
+            {
+                return values.ContainsKey(key)
+                    ? Encoding.UTF8.GetString(Convert.FromBase64String(values[key])) : fallback;
+            }
+            catch { return fallback; }
+        }
+
+        private static string Sha256Hex(string value)
+        {
+            using (SHA256 sha = SHA256.Create())
+            {
+                byte[] digest = sha.ComputeHash(Encoding.UTF8.GetBytes(value));
+                var result = new StringBuilder(digest.Length * 2);
+                foreach (byte item in digest) result.Append(item.ToString("x2"));
+                return result.ToString();
             }
         }
 
