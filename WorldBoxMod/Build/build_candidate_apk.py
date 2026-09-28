@@ -24,7 +24,7 @@ from alias_il2cpp_exports import build_aliases, TARGET_LIB_SHA256
 
 EXPECTED_OUTER = "77c31e2f6a063754aad809c4b43ed03844ba3e2de80b66706938736fa4e456e5"
 SOURCE_VERSION_CODE = 688
-TARGET_VERSION_CODE = 692
+TARGET_VERSION_CODE = 693
 MOD_ROOT = "assets/MelonLoader/NMLMods/"
 DEPLOY_MOD_ROOT = "assets/copyToData/MelonLoader/NMLMods/"
 MOD_PREFIX = MOD_ROOT + "LordWarMod/"
@@ -99,7 +99,7 @@ def verify_game_anchors(original_inner, loader_seed):
             raise ValueError("Unexpected game IL2CPP binary; aliases cannot be inferred")
 
 
-def replace_mod(loader_seed, mod_zip, patched_il2cpp, unsigned_inner):
+def replace_mod(loader_seed, mod_zip, patched_il2cpp, unsigned_inner, diagnostic_loader=None):
     with zipfile.ZipFile(loader_seed) as source, zipfile.ZipFile(mod_zip) as mod, zipfile.ZipFile(unsigned_inner, "w", allowZip64=True) as target:
         for info in source.infolist():
             if info.filename.startswith(MOD_PREFIX) or is_signature(info.filename):
@@ -109,6 +109,10 @@ def replace_mod(loader_seed, mod_zip, patched_il2cpp, unsigned_inner):
                 continue
             if info.filename == "lib/arm64-v8a/libil2cpp.so":
                 with patched_il2cpp.open("rb") as content, target.open(copy(info), "w", force_zip64=True) as output:
+                    shutil.copyfileobj(content, output, 1024 * 1024)
+                continue
+            if diagnostic_loader is not None and info.filename == "assets/MelonLoader/net8/MelonLoader.dll":
+                with diagnostic_loader.open("rb") as content, target.open(copy(info), "w") as output:
                     shutil.copyfileobj(content, output, 1024 * 1024)
                 continue
             with source.open(info) as content, target.open(copy(info), "w", force_zip64=info.file_size > 2**31) as output:
@@ -121,7 +125,7 @@ def replace_mod(loader_seed, mod_zip, patched_il2cpp, unsigned_inner):
             shutil.copyfileobj(content, output, 1024 * 1024)
 
 
-def verify_mod(inner_path, mod_zip, patched_il2cpp):
+def verify_mod(inner_path, mod_zip, patched_il2cpp, diagnostic_loader=None):
     with zipfile.ZipFile(inner_path) as inner, zipfile.ZipFile(mod_zip) as mod:
         assert inner.testzip() is None
         names = set(inner.namelist())
@@ -140,6 +144,8 @@ def verify_mod(inner_path, mod_zip, patched_il2cpp):
             raise ValueError("Deployment NML loader differs from the packaged loader")
         if sha_entry(inner, "lib/arm64-v8a/libil2cpp.so") != sha_file(patched_il2cpp):
             raise ValueError("APK does not contain the checked game alias library")
+        if diagnostic_loader is not None and sha_entry(inner, "assets/MelonLoader/net8/MelonLoader.dll") != sha_file(diagnostic_loader):
+            raise ValueError("APK does not contain the instrumented loader")
     require_compatible(inner_path)
 
 
@@ -190,6 +196,8 @@ def main():
     parser.add_argument("--reference-apk", type=Path, required=True,
                         help="the user supplied 0.22.21 APK, solely for its unrenamed IL2CPP export list")
     parser.add_argument("--keystore", type=Path, required=True)
+    parser.add_argument("--diagnostic-loader", type=Path,
+                        help="exact-hash IL-stage diagnostic DLL; preserves mod and game data")
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
     if not os.environ.get("LORDWAR_KEYSTORE_PASS"):
@@ -221,12 +229,12 @@ def main():
         unsigned_inner = temp / "inner-unsigned.apk"
         aligned_inner = temp / "inner-aligned.apk"
         signed_inner = args.output_dir / "LordWar-0.50.6-inner-mod-candidate.apk"
-        replace_mod(args.loader_seed_inner, mod_zip, patched_so, unsigned_inner)
+        replace_mod(args.loader_seed_inner, mod_zip, patched_so, unsigned_inner, args.diagnostic_loader)
         run("zipalign", "-f", "-p", "4", str(unsigned_inner), str(aligned_inner))
         run("apksigner", "sign", "--ks", str(args.keystore), "--ks-key-alias", "lordwar", "--ks-pass", "env:LORDWAR_KEYSTORE_PASS", "--key-pass", "env:LORDWAR_KEYSTORE_PASS", "--out", str(signed_inner), str(aligned_inner))
         run("apksigner", "verify", "--verbose", str(signed_inner))
         run("zipalign", "-c", "-p", "4", str(signed_inner))
-        verify_mod(signed_inner, mod_zip, patched_so)
+        verify_mod(signed_inner, mod_zip, patched_so, args.diagnostic_loader)
         badging(signed_inner, TARGET_VERSION_CODE)
 
         unsigned_outer = temp / "outer-unsigned.apk"
