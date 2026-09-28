@@ -16,18 +16,20 @@ var names = new HashSet<string>(StringComparer.Ordinal)
     "City", "CityData", "CityStorage", "Actor", "ActorData", "Kingdom", "KingdomData",
     "Army", "ArmyData", "Building", "WorldTile", "WorldZone", "MapBox",
     "ResourceAsset", "ResourceStorage", "Storage", "WorldActor",
-    "SaveManager", "SavedMap", "AutoSaveManager", "SaveSlotManager",
+    "SaveManager", "SavedMap", "AutoSaveManager", "SaveSlotManager", "BuildingData",
     "LoadWorldButton", "SaveWorldButton", "MapUploader"
 };
 var saveTypes = new HashSet<string>(StringComparer.Ordinal)
 {
     "SaveManager", "SavedMap", "AutoSaveManager", "SaveSlotManager",
-    "LoadWorldButton", "SaveWorldButton", "MapUploader"
+    "LoadWorldButton", "SaveWorldButton", "MapUploader", "ActorData",
+    "CityData", "KingdomData", "ArmyData", "BuildingData"
 };
 
 foreach (var type in assembly.MainModule.Types.Where(type => names.Contains(type.Name)).OrderBy(type => type.Name))
 {
     Console.WriteLine("TYPE " + type.FullName);
+    Console.WriteLine("  BASE " + (type.BaseType == null ? "<none>" : type.BaseType.FullName));
     foreach (var field in type.Fields)
         Console.WriteLine("  FIELD " + field.FieldType.FullName + " " + field.Name);
     foreach (var property in type.Properties)
