@@ -25,7 +25,7 @@ var saveTypes = new HashSet<string>(StringComparer.Ordinal)
     "SaveManager", "SavedMap", "AutoSaveManager", "SaveSlotManager",
     "LoadWorldButton", "SaveWorldButton", "MapUploader", "ActorData",
     "CityData", "KingdomData", "ArmyData", "BuildingData", "BaseSimObject",
-    "BaseObjectData", "MetaObjectData", "MetaObject`1", "MetaObjectWithTraits`2"
+    "BaseObjectData", "BaseSystemData", "CoreSystemObject`1", "NanoObject", "MetaObjectData", "MetaObject`1", "MetaObjectWithTraits`2"
 };
 
 foreach (var type in assembly.MainModule.Types.Where(type => names.Contains(type.Name)).OrderBy(type => type.Name))
