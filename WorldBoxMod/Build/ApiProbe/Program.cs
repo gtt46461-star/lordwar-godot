@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using Mono.Cecil;
 
-if (args.Length != 1 || !File.Exists(args[0]))
+if (args.Length < 1 || args.Length > 2 || !File.Exists(args[0]) || (args.Length == 2 && !File.Exists(args[1])))
 {
-    Console.Error.WriteLine("usage: ApiProbe <Android Assembly-CSharp.dll>");
+    Console.Error.WriteLine("usage: ApiProbe <Android Assembly-CSharp.dll> [NeoModLoader_mobile.dll]");
     return 2;
 }
 
@@ -42,6 +42,34 @@ foreach (var type in assembly.MainModule.Types.Where(type => names.Contains(type
         var visibility = method.IsPublic ? "public" : method.IsFamily ? "protected" : method.IsAssembly ? "internal" : "private";
         var modifiers = (method.IsStatic ? " static" : "") + (method.IsVirtual ? " virtual" : "");
         Console.WriteLine("  METHOD " + visibility + modifiers + " " + method.ReturnType.FullName + " " + method.Name + "(" + parameters + ")");
+    }
+}
+
+if (args.Length == 2)
+{
+    var loader = AssemblyDefinition.ReadAssembly(args[1]);
+    var loaderTypes = loader.MainModule.Types
+        .Where(type => type.Name.Contains("BasicMod", StringComparison.Ordinal)
+            || type.Name.Contains("ModDeclare", StringComparison.Ordinal)
+            || type.Name.Contains("ModSettings", StringComparison.Ordinal)
+            || type.Name.Contains("ModStorage", StringComparison.Ordinal))
+        .OrderBy(type => type.FullName);
+    foreach (var type in loaderTypes)
+    {
+        Console.WriteLine("LOADER_TYPE " + type.FullName);
+        Console.WriteLine("  BASE " + (type.BaseType == null ? "<none>" : type.BaseType.FullName));
+        foreach (var method in type.Methods.Where(method =>
+            method.Name.StartsWith("OnMod", StringComparison.Ordinal)
+            || method.Name.Contains("Update", StringComparison.Ordinal)
+            || method.Name.Contains("Save", StringComparison.Ordinal)
+            || method.Name.Contains("Load", StringComparison.Ordinal)
+            || method.Name.Contains("Setting", StringComparison.Ordinal)))
+        {
+            var parameters = string.Join(", ", method.Parameters.Select(p => p.ParameterType.FullName + " " + p.Name));
+            var visibility = method.IsPublic ? "public" : method.IsFamily ? "protected" : method.IsAssembly ? "internal" : "private";
+            var modifiers = (method.IsStatic ? " static" : "") + (method.IsVirtual ? " virtual" : "");
+            Console.WriteLine("  METHOD " + visibility + modifiers + " " + method.ReturnType.FullName + " " + method.Name + "(" + parameters + ") body=" + method.HasBody);
+        }
     }
 }
 return 0;
