@@ -47,7 +47,7 @@ jobs:
         run: |
           mkdir -p WorldBoxMod/dist
           dotnet build WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -c Release
-          dotnet run --no-build -c Release --project WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -- WorldBoxMod/_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll > WorldBoxMod/dist/native-api-probe.txt
+          dotnet run --no-build -c Release --project WorldBoxMod/Build/ApiProbe/ApiProbe.csproj -- WorldBoxMod/_deps/AndroidModLoader/android-assembly-dependencies/Assembly-CSharp.dll WorldBoxMod/_deps/NeoModLoader_mobile.dll > WorldBoxMod/dist/native-api-probe.txt
       - name: Verify complete legacy data inventory and mapping status
         run: python3 WorldBoxMod/Build/build_adaptation_map.py --output WorldBoxMod/dist/WorldBox_Adapter_Map.csv
       - uses: actions/upload-artifact@v4
